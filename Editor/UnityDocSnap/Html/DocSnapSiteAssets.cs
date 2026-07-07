@@ -370,8 +370,9 @@ code, .mono { font-family: var(--font-mono); }
 .ds-field-type { color: var(--ink-soft); font-family: var(--font-mono); font-size: 11.5px; overflow-wrap: anywhere; }
 .ds-field-value { font-family: var(--font-mono); font-size: 12.5px; word-break: break-word; overflow-wrap: anywhere; }
 
-.ds-nested-table { margin: 4px 0; background: var(--cream-deep); border-radius: var(--radius-sm); max-width: 100%; }
-.ds-nested-table .ds-field-table th, .ds-nested-table .ds-field-table td { border-color: rgba(0,0,0,.05); }
+.ds-nested-table { margin: 4px 0; background: var(--cream-deep); border-radius: var(--radius-sm); max-width: 100%; overflow-x: auto; }
+.ds-nested-table .ds-field-table { table-layout: auto; min-width: 260px; }
+.ds-nested-table .ds-field-table th, .ds-nested-table .ds-field-table td { border-color: rgba(0,0,0,.05); white-space: normal; overflow-wrap: normal; word-break: normal; }
 
 .ds-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
 .ds-pill.bool-true { background: #eafce9; color: #396b37; }
@@ -396,8 +397,34 @@ code, .mono { font-family: var(--font-mono); }
 .ds-ref-chip.is-unresolved { background: var(--cream-deep); color: var(--ink-soft); }
 .ds-ref-chip .type { opacity: .7; font-weight: 500; font-size: 10.5px; }
 
-.ds-array-wrap { display: flex; flex-direction: column; gap: 4px; }
-.ds-array-more { color: var(--ink-soft); font-size: 11.5px; font-style: italic; }
+.ds-array-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+  max-height: 240px;
+  overflow: auto;
+  padding: 8px;
+  background: var(--cream-deep);
+  border-radius: var(--radius-sm);
+}
+.ds-array-item {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+}
+.ds-array-item .idx { color: var(--ink-soft); font-weight: 700; font-family: var(--font-body); }
+.ds-array-block-item { margin: 6px 0; padding: 6px 8px; background: var(--cream-deep); border-radius: var(--radius-sm); }
+.ds-array-more { color: var(--ink-soft); font-size: 11.5px; font-style: italic; margin-top: 6px; }
 .ds-empty-note { color: var(--ink-faint); font-size: 12.5px; font-style: italic; padding: 8px 0; }
 
 /* ==========================================
