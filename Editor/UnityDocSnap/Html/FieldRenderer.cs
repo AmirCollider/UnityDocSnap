@@ -371,24 +371,74 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             return sb.ToString();
         }
 
+        // ==========================================
+        // CompactArrayItemKinds
+        // Field "kind" values short/simple enough to
+        // render as a small inline chip inside
+        // RenderArray's wrapped, fixed-height box.
+        // Anything not in this set (generic structs,
+        // managedRef, nested arrays) keeps its own
+        // full-width block line instead, since it can
+        // be arbitrarily large/complex.
+        // ==========================================
+        private static readonly HashSet<string> CompactArrayItemKinds = new HashSet<string>
+        {
+            "int", "float", "bool", "string", "enum", "color", "layerMask",
+            "vector2", "vector2int", "vector3", "vector3int", "vector4",
+            "quaternion", "rect", "rectint", "hash128", "objectRef", "error",
+            "curve", "gradient", "bounds", "boundsint", "exposedRef"
+        };
+
+        // ==========================================
+        // RenderArray
+        // Renders simple scalar elements as compact,
+        // wrapping chips inside a fixed max-height,
+        // scrollable box (see .ds-array-wrap /
+        // .ds-array-item), instead of stacking one
+        // element per line forever - the previous
+        // behavior that produced a column only a few
+        // characters wide and hundreds of thousands of
+        // pixels tall for large numeric arrays. Complex,
+        // already block-shaped elements still render as
+        // their own full-width line.
+        // ==========================================
         private static string RenderArray(JsonValue field, RefLinkResolver resolver, int depth)
         {
             int count = (int)field.Get("count").AsNumber();
             if (count == 0) { return "<span class=\"ds-empty-note\">" + HtmlPageBuilder.I18n("span", null, "Empty array", "空の配列", "آرایه‌ی خالی") + "</span>"; }
 
             JsonValue items = field.Get("items");
-            var sb = new StringBuilder(256);
-            sb.Append("<div class=\"ds-array-wrap\">");
+            var compactSb = new StringBuilder(256);
+            var blockSb = new StringBuilder();
             for (int i = 0; i < items.Items.Count; i++)
             {
-                sb.Append("<div><span class=\"ds-field-type\">[").Append(i).Append("]</span> ").Append(RenderValue(items.Items[i], resolver, depth + 1)).Append("</div>");
+                JsonValue item = items.Items[i];
+                string itemKind = item.Get("kind").AsString("raw");
+                string valueHtml = RenderValue(item, resolver, depth + 1);
+                if (CompactArrayItemKinds.Contains(itemKind))
+                {
+                    compactSb.Append("<span class=\"ds-array-item\"><span class=\"idx\">[").Append(i).Append("]</span><span class=\"val\">").Append(valueHtml).Append("</span></span>");
+                }
+                else
+                {
+                    blockSb.Append("<div class=\"ds-array-block-item\"><span class=\"ds-field-type\">[").Append(i).Append("]</span> ").Append(valueHtml).Append("</div>");
+                }
+            }
+
+            var sb = new StringBuilder(512);
+            if (compactSb.Length > 0)
+            {
+                sb.Append("<div class=\"ds-array-wrap\">").Append(compactSb.ToString()).Append("</div>");
+            }
+            if (blockSb.Length > 0)
+            {
+                sb.Append(blockSb.ToString());
             }
             if (field.Get("truncated").AsBool())
             {
                 sb.Append("<div class=\"ds-array-more\">\u2026").Append(count - items.Items.Count).Append(" ")
                   .Append(HtmlPageBuilder.I18n("span", null, "more (truncated)", "件省略", "مورد دیگر (کوتاه‌شده)")).Append("</div>");
             }
-            sb.Append("</div>");
             return sb.ToString();
         }
 
