@@ -4,6 +4,9 @@ All notable changes to Unity DocSnap are documented in this file.
 
 ## [0.1.0] - 2026-07-07
 
+### Fixed
+- Added the `.meta` file for every folder and file in the package. Without these, Unity's Package Manager (git URL installs in particular) treats the package cache as immutable and silently ignores every asset, logging "has no meta file, but it's in an immutable folder" for each one.
+
 ### Added
 - `Unity DocSnap` top-level Editor menu: Export Scene (per-scene dropdown), Export Asset Info (entire Assets folder or a chosen folder), Export Full Project, Open Output Folder, About.
 - Right-click actions in the Project window for Scenes, folders, and individual assets.
