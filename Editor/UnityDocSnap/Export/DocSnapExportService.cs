@@ -185,13 +185,18 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
         // ==========================================
         // FindAllScenePaths
-        // Every .unity Scene asset currently in the
-        // project, sorted by name.
+        // Every .unity Scene asset under Assets/,
+        // sorted by name. Scoped to Assets only so a
+        // Scene bundled inside another installed
+        // package (Packages/…, which Unity treats as
+        // read-only) never gets listed here - opening
+        // one throws "not allowed to open a scene in
+        // a read-only package".
         // ==========================================
         public static List<string> FindAllScenePaths()
         {
             var paths = new List<string>();
-            foreach (string guid in AssetDatabase.FindAssets("t:Scene"))
+            foreach (string guid in AssetDatabase.FindAssets("t:Scene", new[] { "Assets" }))
             {
                 paths.Add(AssetDatabase.GUIDToAssetPath(guid));
             }

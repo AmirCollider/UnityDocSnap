@@ -400,7 +400,8 @@ code, .mono { font-family: var(--font-mono); }
 /* ==========================================
    Asset Grid / Thumbnails
    ========================================== */
-.ds-asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.ds-asset-grid { column-width: 280px; column-gap: 16px; }
+.ds-asset-grid > .ds-asset-card { display: inline-block; width: 100%; break-inside: avoid; -webkit-column-break-inside: avoid; }
 .ds-thumb {
   width: 100%;
   aspect-ratio: 4 / 3;
@@ -471,7 +472,12 @@ code, .mono { font-family: var(--font-mono); }
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   box-shadow: var(--shadow-lift);
 }
@@ -492,20 +498,41 @@ code, .mono { font-family: var(--font-mono); }
         public const string AppJs = @"// ==========================================
 // Unity DocSnap — Site Behaviour
 // Language switching + tree helpers.
-// No network calls, no storage: everything
-// needed already lives in this page's HTML.
+// No network calls. The only storage used is
+// localStorage, to remember the chosen UI
+// language (en/ja/fa) across pages of this
+// offline site - never used for project data.
 // ==========================================
 
 (function () {
   'use strict';
 
   var RTL_LANGS = { fa: true };
+  var LANG_STORAGE_KEY = 'unityDocSnapLang';
+
+  // ==========================================
+  // readStoredLanguage() / writeStoredLanguage()
+  // Best-effort persistence of the user's chosen
+  // language across pages of this offline site.
+  // Wrapped in try/catch since some browsers
+  // restrict localStorage under a file:// origin.
+  // ==========================================
+  function readStoredLanguage() {
+    try { return window.localStorage.getItem(LANG_STORAGE_KEY); }
+    catch (e) { return null; }
+  }
+
+  function writeStoredLanguage(lang) {
+    try { window.localStorage.setItem(LANG_STORAGE_KEY, lang); }
+    catch (e) { /* localStorage unavailable - non-fatal */ }
+  }
 
   // ==========================================
   // applyLanguage(lang)
   // Swaps visible text for every element that
-  // carries data-en/data-ja/data-fa, and flips
-  // document direction for RTL languages.
+  // carries data-en/data-ja/data-fa, flips
+  // document direction for RTL languages, and
+  // remembers the choice for the next page.
   // ==========================================
   function applyLanguage(lang) {
     var root = document.documentElement;
@@ -525,6 +552,21 @@ code, .mono { font-family: var(--font-mono); }
       buttons[b].classList.toggle('is-active', isActive);
       buttons[b].setAttribute('aria-pressed', isActive ? 'true' : 'false');
     }
+
+    writeStoredLanguage(lang);
+  }
+
+  // ==========================================
+  // restoreLanguage()
+  // Applies the language stored from a previous
+  // page, if this page has a matching lang button.
+  // Called once on DOMContentLoaded.
+  // ==========================================
+  function restoreLanguage() {
+    var stored = readStoredLanguage();
+    if (!stored) { return; }
+    var match = document.querySelector('.ds-lang-btn[data-lang=' + stored + ']');
+    if (match) { applyLanguage(stored); }
   }
 
   // ==========================================
@@ -578,6 +620,7 @@ code, .mono { font-family: var(--font-mono); }
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    restoreLanguage();
     wireLanguageButtons();
     wireTreeControls();
     wireBackToTop();

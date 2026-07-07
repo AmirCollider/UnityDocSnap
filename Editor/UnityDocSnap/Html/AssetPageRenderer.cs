@@ -30,8 +30,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
 
             var badges = new List<string>
             {
-                HtmlPageBuilder.Badge(null, fileCount + " files"),
-                HtmlPageBuilder.Badge("ghost", "Exported " + folderData.Get("exportedUtc").AsString(""))
+                HtmlPageBuilder.BadgeRaw(null, fileCount + " " + HtmlPageBuilder.I18n("span", null, "files", "ファイル", "فایل")),
+                HtmlPageBuilder.BadgeRaw("ghost", HtmlPageBuilder.I18n("span", null, "Exported", "エクスポート日時", "اکسپورت‌شده") + " " + HtmlPageBuilder.Escape(folderData.Get("exportedUtc").AsString("")))
             };
             string header = HtmlPageBuilder.RenderPageHeader("\uD83D\uDCC1", folderPath, "", badges);
             string body = FieldRenderer.RenderAssetGrid(folderData.Get("files"), resolver);

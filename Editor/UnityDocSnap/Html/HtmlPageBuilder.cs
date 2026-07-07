@@ -79,7 +79,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append(bodyHtml);
             sb.Append(RenderFooter());
             sb.Append("</main>\n</div>\n");
-            sb.Append("<button class=\"ds-back-top\" aria-label=\"Back to top\">^</button>\n");
+            sb.Append("<button class=\"ds-back-top\" aria-label=\"Back to top\">\u2B06</button>\n");
             sb.Append("<script src=\"").Append(prefix).Append("assets_ui/app.js\"></script>\n</body>\n</html>\n");
             return sb.ToString();
         }
@@ -208,13 +208,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // The title block used at the top of every
         // page's <main>: heading, subtitle, badges.
         // ==========================================
-        public static string RenderPageHeader(string emoji, string titleText, string subText, List<string> badgesHtml)
+        public static string RenderPageHeader(string emoji, string titleText, string subText, List<string> badgesHtml, bool subTextIsHtml = false)
         {
             var sb = new StringBuilder(512);
             sb.Append("<div class=\"ds-page-header\"><div><h1>").Append(emoji).Append(" ").Append(Escape(titleText)).Append("</h1>");
             if (!string.IsNullOrEmpty(subText))
             {
-                sb.Append("<p class=\"ds-page-sub\">").Append(Escape(subText)).Append("</p>");
+                sb.Append("<p class=\"ds-page-sub\">").Append(subTextIsHtml ? subText : Escape(subText)).Append("</p>");
             }
             sb.Append("</div>");
             if (badgesHtml != null && badgesHtml.Count > 0)
@@ -235,6 +235,21 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         {
             string cls = string.IsNullOrEmpty(cssVariant) ? "ds-badge" : "ds-badge " + cssVariant;
             return "<span class=\"" + cls + "\">" + Escape(text) + "</span>";
+        }
+
+        // ==========================================
+        // BadgeRaw
+        // Same pill chrome as Badge(), but accepts
+        // pre-built inner HTML instead of a single
+        // plain string - lets callers mix a raw number
+        // with an I18n() span (e.g. "5 " + I18n(...))
+        // without the markup being escaped away. Caller
+        // must escape any raw dynamic text itself.
+        // ==========================================
+        public static string BadgeRaw(string cssVariant, string innerHtml)
+        {
+            string cls = string.IsNullOrEmpty(cssVariant) ? "ds-badge" : "ds-badge " + cssVariant;
+            return "<span class=\"" + cls + "\">" + innerHtml + "</span>";
         }
     }
 }

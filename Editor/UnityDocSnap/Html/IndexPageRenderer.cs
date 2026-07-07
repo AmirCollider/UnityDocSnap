@@ -26,49 +26,56 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 HtmlPageBuilder.Badge("lav", "Unity " + manifest.unityVersion),
                 HtmlPageBuilder.Badge("pink", "Unity DocSnap v" + DocSnapConstants.Version)
             };
-            string header = HtmlPageBuilder.RenderPageHeader("\uD83C\uDF70", manifest.projectName, "Last export: " + manifest.lastUpdatedUtc, badges);
+            string lastExportHtml = HtmlPageBuilder.I18n("span", null, "Last export: ", "最終エクスポート: ", "آخرین اکسپورت: ") + HtmlPageBuilder.Escape(manifest.lastUpdatedUtc);
+            string header = HtmlPageBuilder.RenderPageHeader("\uD83C\uDF70", manifest.projectName, lastExportHtml, badges, true);
 
             var sb = new StringBuilder(2048);
 
             sb.Append("<div class=\"ds-stat-grid\">");
-            sb.Append(StatTile(manifest.scenes.Count, "Scenes exported"));
-            sb.Append(StatTile(totalGameObjects, "GameObjects"));
-            sb.Append(StatTile(manifest.assetFolders.Count, "Asset folders"));
-            sb.Append(StatTile(totalFiles, "Files tracked"));
+            sb.Append(StatTile(manifest.scenes.Count, "Scenes exported", "エクスポート済みシーン", "سین اکسپورت‌شده"));
+            sb.Append(StatTile(totalGameObjects, "GameObjects", "GameObject数", "GameObject ها"));
+            sb.Append(StatTile(manifest.assetFolders.Count, "Asset folders", "アセットフォルダ", "پوشه‌ی فایل‌ها"));
+            sb.Append(StatTile(totalFiles, "Files tracked", "追跡ファイル数", "فایل‌های ردیابی‌شده"));
             sb.Append("</div>\n");
 
-            sb.Append("<div class=\"ds-card\"><h3>Scenes</h3><ul class=\"ds-folder-list\">\n");
+            sb.Append("<div class=\"ds-card\">").Append(HtmlPageBuilder.I18n("h3", null, "Scenes", "シーン", "سین‌ها")).Append("<ul class=\"ds-folder-list\">\n");
             if (manifest.scenes.Count == 0)
             {
-                sb.Append("<p class=\"ds-empty-note\">No scenes exported yet - use Unity DocSnap &gt; Export Scene in the Unity menu bar.</p>");
+                sb.Append("<p class=\"ds-empty-note\">").Append(HtmlPageBuilder.I18n("span", null,
+                    "No scenes exported yet - use Unity DocSnap > Export Scene in the Unity menu bar.",
+                    "エクスポート済みシーンはまだありません。Unityメニューバーの Unity DocSnap > Export Scene から実行してください。",
+                    "هنوز هیچ سینی اکسپورت نشده — از نوار منوی یونیتی، مسیر Unity DocSnap > Export Scene رو اجرا کن.")).Append("</p>");
             }
             foreach (ManifestSceneEntry s in manifest.scenes)
             {
                 sb.Append("<li><a class=\"ds-folder-row\" href=\"").Append(s.htmlFile).Append("\"><span class=\"ds-folder-path\">")
                   .Append(HtmlPageBuilder.Escape(s.sceneName)).Append("</span><span class=\"ds-folder-meta\">")
-                  .Append(s.gameObjectCount).Append(" GameObjects</span></a></li>\n");
+                  .Append(s.gameObjectCount).Append(" ").Append(HtmlPageBuilder.I18n("span", null, "GameObjects", "GameObject", "GameObject")).Append("</span></a></li>\n");
             }
             sb.Append("</ul></div>\n");
 
-            sb.Append("<div class=\"ds-card\"><h3>Assets</h3><ul class=\"ds-folder-list\">\n");
+            sb.Append("<div class=\"ds-card\">").Append(HtmlPageBuilder.I18n("h3", null, "Assets", "アセット", "فایل‌ها")).Append("<ul class=\"ds-folder-list\">\n");
             if (manifest.assetFolders.Count == 0)
             {
-                sb.Append("<p class=\"ds-empty-note\">No asset folders exported yet - use Unity DocSnap &gt; Export Asset Info in the Unity menu bar.</p>");
+                sb.Append("<p class=\"ds-empty-note\">").Append(HtmlPageBuilder.I18n("span", null,
+                    "No asset folders exported yet - use Unity DocSnap > Export Asset Info in the Unity menu bar.",
+                    "エクスポート済みのアセットフォルダはまだありません。Unityメニューバーの Unity DocSnap > Export Asset Info から実行してください。",
+                    "هنوز هیچ پوشه‌ی فایلی اکسپورت نشده — از نوار منوی یونیتی، مسیر Unity DocSnap > Export Asset Info رو اجرا کن.")).Append("</p>");
             }
             foreach (ManifestFolderEntry f in manifest.assetFolders)
             {
                 sb.Append("<li><a class=\"ds-folder-row\" href=\"").Append(f.htmlFile).Append("\"><span class=\"ds-folder-path\">")
                   .Append(HtmlPageBuilder.Escape(f.folderPath)).Append("</span><span class=\"ds-folder-meta\">")
-                  .Append(f.fileCount).Append(" files</span></a></li>\n");
+                  .Append(f.fileCount).Append(" ").Append(HtmlPageBuilder.I18n("span", null, "files", "ファイル", "فایل")).Append("</span></a></li>\n");
             }
             sb.Append("</ul></div>\n");
 
             return HtmlPageBuilder.RenderPage(manifest, DocSnapConstants.IndexFileName, manifest.projectName, header, sb.ToString());
         }
 
-        private static string StatTile(int num, string label)
+        private static string StatTile(int num, string labelEn, string labelJa, string labelFa)
         {
-            return "<div class=\"ds-stat-tile\"><div class=\"ds-stat-num\">" + num + "</div><div class=\"ds-stat-label\">" + HtmlPageBuilder.Escape(label) + "</div></div>";
+            return "<div class=\"ds-stat-tile\"><div class=\"ds-stat-num\">" + num + "</div><div class=\"ds-stat-label\">" + HtmlPageBuilder.I18n("span", null, labelEn, labelJa, labelFa) + "</div></div>";
         }
     }
 }

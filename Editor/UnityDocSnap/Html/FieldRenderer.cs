@@ -45,14 +45,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         {
             if (refNode.Get("isMissing").AsBool())
             {
-                return "<span class=\"ds-ref-chip is-missing\">\u26A0 missing reference</span>";
+                return "<span class=\"ds-ref-chip is-missing\">\u26A0 " + HtmlPageBuilder.I18n("span", null, "missing reference", "参照が見つかりません", "رفرنس گم‌شده") + "</span>";
             }
             if (refNode.Get("isNull").AsBool(true))
             {
-                return "<span class=\"ds-empty-note\">None</span>";
+                return "<span class=\"ds-empty-note\">" + HtmlPageBuilder.I18n("span", null, "None", "なし", "هیچ‌کدام") + "</span>";
             }
 
-            string targetName = refNode.Get("targetName").AsString("(unnamed)");
+            string targetName = refNode.Get("targetName").AsString("");
+            string targetNameHtml = string.IsNullOrEmpty(targetName)
+                ? HtmlPageBuilder.I18n("span", null, "(unnamed)", "（名称なし）", "(بدون‌نام)")
+                : HtmlPageBuilder.Escape(targetName);
             string refType = refNode.Get("refType").AsString("Object");
             bool isAsset = refNode.Get("isAsset").AsBool();
 
@@ -63,21 +66,21 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 if (!string.IsNullOrEmpty(guid) && GuidLookup != null && GuidLookup.TryGetValue(guid, out entry))
                 {
                     string href = LinkPrefix + entry.htmlFile + "#" + entry.anchor;
-                    return "<a class=\"ds-ref-chip\" href=\"" + href + "\">\uD83D\uDD17 " + HtmlPageBuilder.Escape(targetName)
+                    return "<a class=\"ds-ref-chip\" href=\"" + href + "\">\uD83D\uDD17 " + targetNameHtml
                         + " <span class=\"type\">" + HtmlPageBuilder.Escape(refType) + "</span></a>";
                 }
-                return "<span class=\"ds-ref-chip is-unresolved\">" + HtmlPageBuilder.Escape(targetName)
-                    + " <span class=\"type\">" + HtmlPageBuilder.Escape(refType) + " \u00B7 not exported yet</span></span>";
+                return "<span class=\"ds-ref-chip is-unresolved\">" + targetNameHtml
+                    + " <span class=\"type\">" + HtmlPageBuilder.Escape(refType) + " \u00B7 " + HtmlPageBuilder.I18n("span", null, "not exported yet", "未エクスポート", "هنوز اکسپورت نشده") + "</span></span>";
             }
 
             int instanceId = (int)refNode.Get("targetInstanceId").AsNumber(0);
             string anchor;
             if (LocalAnchors != null && LocalAnchors.TryGetValue(instanceId, out anchor))
             {
-                return "<a class=\"ds-ref-chip\" href=\"#" + anchor + "\">\uD83D\uDD17 " + HtmlPageBuilder.Escape(targetName)
+                return "<a class=\"ds-ref-chip\" href=\"#" + anchor + "\">\uD83D\uDD17 " + targetNameHtml
                     + " <span class=\"type\">" + HtmlPageBuilder.Escape(refType) + "</span></a>";
             }
-            return "<span class=\"ds-ref-chip is-unresolved\">" + HtmlPageBuilder.Escape(targetName)
+            return "<span class=\"ds-ref-chip is-unresolved\">" + targetNameHtml
                 + " <span class=\"type\">" + HtmlPageBuilder.Escape(refType) + "</span></span>";
         }
     }
@@ -124,8 +127,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             var sb = new StringBuilder(1024);
             sb.Append("<div class=\"ds-card\"><div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;\">");
             sb.Append(HtmlPageBuilder.I18n("h3", null, "Hierarchy", "\u30D2\u30A8\u30E9\u30EB\u30AD\u30FC", "Hierarchy"));
-            sb.Append("<span><button type=\"button\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"expand\" class=\"ds-badge lav\" style=\"cursor:pointer;border:none;\">Expand all</button> ");
-            sb.Append("<button type=\"button\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"collapse\" class=\"ds-badge ghost\" style=\"cursor:pointer;border:1px solid var(--line);\">Collapse all</button></span>");
+            sb.Append("<span><button type=\"button\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"expand\" class=\"ds-badge lav\" style=\"cursor:pointer;border:none;\">").Append(HtmlPageBuilder.I18n("span", null, "Expand all", "すべて展開", "باز کردن همه")).Append("</button> ");
+            sb.Append("<button type=\"button\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"collapse\" class=\"ds-badge ghost\" style=\"cursor:pointer;border:1px solid var(--line);\">").Append(HtmlPageBuilder.I18n("span", null, "Collapse all", "すべて折りたたむ", "بستن همه")).Append("</button></span>");
             sb.Append("</div><ul class=\"ds-tree\" id=\"").Append(treeId).Append("\">\n");
             foreach (JsonValue go in rootObjects.Items) { sb.Append(RenderGoNode(go, resolver, true)); }
             sb.Append("</ul></div>\n");
@@ -182,9 +185,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             string layer = go.Get("layerName").AsString("Default");
 
             sb.Append("<div class=\"ds-badge-row\">");
-            sb.Append(HtmlPageBuilder.Badge(activeSelf ? "mint" : "warn", activeSelf ? "Active" : "Inactive"));
-            if (isStatic) { sb.Append(HtmlPageBuilder.Badge("lav", "Static")); }
-            sb.Append(HtmlPageBuilder.Badge(null, "Layer: " + layer));
+            sb.Append(HtmlPageBuilder.BadgeRaw(activeSelf ? "mint" : "warn", activeSelf
+                ? HtmlPageBuilder.I18n("span", null, "Active", "アクティブ", "فعال")
+                : HtmlPageBuilder.I18n("span", null, "Inactive", "非アクティブ", "غیرفعال")));
+            if (isStatic) { sb.Append(HtmlPageBuilder.BadgeRaw("lav", HtmlPageBuilder.I18n("span", null, "Static", "スタティック", "Static"))); }
+            sb.Append(HtmlPageBuilder.BadgeRaw(null, HtmlPageBuilder.I18n("span", null, "Layer", "レイヤー", "لایه") + ": " + HtmlPageBuilder.Escape(layer)));
             sb.Append("</div>");
 
             JsonValue t = go.Get("transform");
@@ -218,7 +223,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         {
             if (comp.Get("isMissing").AsBool())
             {
-                return "<div class=\"ds-component is-missing\"><div class=\"ds-component-head\">\u26A0 Missing Script</div></div>\n";
+                return "<div class=\"ds-component is-missing\"><div class=\"ds-component-head\">\u26A0 " + HtmlPageBuilder.I18n("span", null, "Missing Script", "スクリプトが見つかりません", "اسکریپت گم‌شده") + "</div></div>\n";
             }
 
             bool isUserScript = comp.Get("isUserScript").AsBool();
@@ -247,10 +252,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         {
             if (fieldsArray == null || fieldsArray.Items.Count == 0)
             {
-                return "<p class=\"ds-empty-note\">No fields.</p>";
+                return "<p class=\"ds-empty-note\">" + HtmlPageBuilder.I18n("span", null, "No fields.", "フィールドはありません。", "فیلدی وجود نداره.") + "</p>";
             }
             var sb = new StringBuilder(1024);
-            sb.Append("<table class=\"ds-field-table\"><tr><th>Field</th><th>Type</th><th>Value</th></tr>\n");
+            sb.Append("<table class=\"ds-field-table\"><tr>")
+              .Append(HtmlPageBuilder.I18n("th", null, "Field", "フィールド", "فیلد"))
+              .Append(HtmlPageBuilder.I18n("th", null, "Type", "型", "نوع"))
+              .Append(HtmlPageBuilder.I18n("th", null, "Value", "値", "مقدار"))
+              .Append("</tr>\n");
             foreach (JsonValue field in fieldsArray.Items)
             {
                 string name = field.Has("label") ? field.Get("label").AsString("") : field.Get("name").AsString("");
@@ -287,7 +296,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                     string hex = field.Get("value").AsString("#ffffff");
                     return "<span class=\"ds-swatch\" style=\"background:" + hex + "\"></span>" + HtmlPageBuilder.Escape(hex);
                 case "layerMask":
-                    return "layer mask (" + (int)field.Get("value").AsNumber() + ")";
+                    return HtmlPageBuilder.I18n("span", null, "Layer Mask", "レイヤーマスク", "لایه‌ماسک") + ": " + (int)field.Get("value").AsNumber();
                 case "objectRef":
                     return resolver.ResolveObjectRef(field);
                 case "vector2":
@@ -319,14 +328,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                         return "pos " + VecInline(v.Get("position")) + " \u00B7 size " + VecInline(v.Get("size"));
                     }
                 case "curve":
-                    return "animation curve (" + (int)field.Get("value").Get("keyCount").AsNumber() + " keys)";
+                    return HtmlPageBuilder.I18n("span", null, "Animation Curve", "アニメーションカーブ", "منحنی انیمیشن") + " (" + (int)field.Get("value").Get("keyCount").AsNumber() + " " + HtmlPageBuilder.I18n("span", null, "keys", "キー", "کلید") + ")";
                 case "gradient":
-                    return "gradient (" + field.Get("value").Get("colorKeys").Items.Count + " color keys)";
+                    return HtmlPageBuilder.I18n("span", null, "Gradient", "グラデーション", "گرادیان") + " (" + field.Get("value").Get("colorKeys").Items.Count + " " + HtmlPageBuilder.I18n("span", null, "color keys", "カラーキー", "کلید رنگ") + ")";
                 case "hash128":
                     return "<span class=\"mono\">" + HtmlPageBuilder.Escape(field.Get("value").AsString("")) + "</span>";
                 case "exposedRef":
                     return field.Get("isNull").AsBool(true)
-                        ? "<span class=\"ds-empty-note\">unresolved</span>"
+                        ? "<span class=\"ds-empty-note\">" + HtmlPageBuilder.I18n("span", null, "unresolved", "未解決", "حل‌نشده") + "</span>"
                         : HtmlPageBuilder.Escape(field.Get("targetName").AsString(""));
                 case "managedRef":
                     return RenderManagedRef(field, resolver, depth);
@@ -344,7 +353,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         private static string RenderGeneric(JsonValue field, RefLinkResolver resolver, int depth)
         {
             JsonValue fields = field.Get("fields");
-            if (fields.Items.Count == 0) { return "<span class=\"ds-empty-note\">(empty)</span>"; }
+            if (fields.Items.Count == 0) { return "<span class=\"ds-empty-note\">" + HtmlPageBuilder.I18n("span", null, "(empty)", "（空）", "(خالی)") + "</span>"; }
             return "<div class=\"ds-nested-table\">" + RenderFieldTable(fields, resolver) + "</div>";
         }
 
@@ -353,7 +362,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             string typeName = field.Get("typeName").AsString("");
             if (field.Get("isNull").AsBool())
             {
-                return "<span class=\"ds-empty-note\">None (" + HtmlPageBuilder.Escape(typeName) + ")</span>";
+                return "<span class=\"ds-empty-note\">" + HtmlPageBuilder.I18n("span", null, "None", "なし", "هیچ‌کدام") + " (" + HtmlPageBuilder.Escape(typeName) + ")</span>";
             }
             var sb = new StringBuilder(256);
             sb.Append("<div class=\"ds-nested-table\"><div style=\"padding:6px 10px;font-weight:700;\">").Append(HtmlPageBuilder.Escape(typeName)).Append("</div>");
@@ -365,7 +374,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         private static string RenderArray(JsonValue field, RefLinkResolver resolver, int depth)
         {
             int count = (int)field.Get("count").AsNumber();
-            if (count == 0) { return "<span class=\"ds-empty-note\">Empty array</span>"; }
+            if (count == 0) { return "<span class=\"ds-empty-note\">" + HtmlPageBuilder.I18n("span", null, "Empty array", "空の配列", "آرایه‌ی خالی") + "</span>"; }
 
             JsonValue items = field.Get("items");
             var sb = new StringBuilder(256);
@@ -376,7 +385,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             }
             if (field.Get("truncated").AsBool())
             {
-                sb.Append("<div class=\"ds-array-more\">\u2026and ").Append(count - items.Items.Count).Append(" more (truncated)</div>");
+                sb.Append("<div class=\"ds-array-more\">\u2026").Append(count - items.Items.Count).Append(" ")
+                  .Append(HtmlPageBuilder.I18n("span", null, "more (truncated)", "件省略", "مورد دیگر (کوتاه‌شده)")).Append("</div>");
             }
             sb.Append("</div>");
             return sb.ToString();
@@ -417,46 +427,46 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 sb.Append("<div class=\"ds-thumb\">\uD83D\uDCC4</div>");
             }
 
-            sb.Append(KvLine("Path", path));
-            sb.Append(KvLine("Type", mainType));
+            sb.Append(KvLine("Path", "パス", "مسیر", path));
+            sb.Append(KvLine("Type", "タイプ", "نوع", mainType));
             if (file.Has("imageWidth"))
             {
-                sb.Append(KvLine("Dimensions", (int)file.Get("imageWidth").AsNumber() + " \u00D7 " + (int)file.Get("imageHeight").AsNumber()));
+                sb.Append(KvLine("Dimensions", "解像度", "ابعاد", (int)file.Get("imageWidth").AsNumber() + " \u00D7 " + (int)file.Get("imageHeight").AsNumber()));
             }
             if (file.Has("fileSizeBytes"))
             {
-                sb.Append(KvLine("Size", FormatBytes(file.Get("fileSizeBytes").AsNumber())));
+                sb.Append(KvLine("Size", "ファイルサイズ", "حجم فایل", FormatBytes(file.Get("fileSizeBytes").AsNumber())));
             }
-            if (!string.IsNullOrEmpty(guid)) { sb.Append(KvLine("GUID", guid)); }
+            if (!string.IsNullOrEmpty(guid)) { sb.Append(KvLine("GUID", "GUID", "GUID", guid)); }
 
             if (file.Has("materialInfo"))
             {
                 JsonValue mat = file.Get("materialInfo");
-                sb.Append("<div style=\"margin-top:10px;font-weight:700;\">Shader: ").Append(HtmlPageBuilder.Escape(mat.Get("shaderName").AsString(""))).Append("</div>");
+                sb.Append("<div style=\"margin-top:10px;font-weight:700;\">").Append(HtmlPageBuilder.I18n("span", null, "Shader", "シェーダー", "Shader")).Append(": ").Append(HtmlPageBuilder.Escape(mat.Get("shaderName").AsString(""))).Append("</div>");
                 sb.Append(RenderShaderProps(mat.Get("properties")));
             }
             if (file.Has("scriptInfo"))
             {
                 JsonValue si = file.Get("scriptInfo");
-                if (si.Has("className")) { sb.Append(KvLine("Class", si.Get("className").AsString(""))); }
+                if (si.Has("className")) { sb.Append(KvLine("Class", "クラス", "کلاس", si.Get("className").AsString(""))); }
                 string baseTypes = si.Get("baseTypes").AsString("");
-                if (!string.IsNullOrEmpty(baseTypes)) { sb.Append(KvLine("Base", baseTypes)); }
+                if (!string.IsNullOrEmpty(baseTypes)) { sb.Append(KvLine("Base", "基底クラス", "کلاس پایه", baseTypes)); }
             }
             if (file.Has("importerFields") && file.Get("importerFields").Items.Count > 0)
             {
-                sb.Append("<div style=\"margin-top:10px;font-weight:700;\">Import Settings</div>");
+                sb.Append("<div style=\"margin-top:10px;font-weight:700;\">").Append(HtmlPageBuilder.I18n("span", null, "Import Settings", "インポート設定", "تنظیمات ایمپورت")).Append("</div>");
                 sb.Append(RenderFieldTable(file.Get("importerFields"), resolver));
             }
             if (file.Has("assetFields") && file.Get("assetFields").Items.Count > 0)
             {
-                sb.Append("<div style=\"margin-top:10px;font-weight:700;\">Fields</div>");
+                sb.Append("<div style=\"margin-top:10px;font-weight:700;\">").Append(HtmlPageBuilder.I18n("span", null, "Fields", "フィールド", "فیلدها")).Append("</div>");
                 sb.Append(RenderFieldTable(file.Get("assetFields"), resolver));
             }
             if (file.Has("prefabRoot"))
             {
                 Dictionary<int, string> prefabAnchors = BuildLocalAnchors(JsonValue.Arr().Add(file.Get("prefabRoot")));
                 RefLinkResolver prefabResolver = resolver.WithLocalAnchors(prefabAnchors);
-                sb.Append("<div style=\"margin-top:10px;font-weight:700;\">Prefab Contents</div>");
+                sb.Append("<div style=\"margin-top:10px;font-weight:700;\">").Append(HtmlPageBuilder.I18n("span", null, "Prefab Contents", "Prefabの内容", "محتوای Prefab")).Append("</div>");
                 sb.Append("<ul class=\"ds-tree\">").Append(RenderGoNode(file.Get("prefabRoot"), prefabResolver, true)).Append("</ul>");
             }
 
@@ -467,9 +477,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // ==========================================
         // Small formatting helpers
         // ==========================================
-        private static string KvLine(string k, string v)
+        private static string KvLine(string kEn, string kJa, string kFa, string v)
         {
-            return "<div class=\"ds-kv-line\"><span class=\"k\">" + HtmlPageBuilder.Escape(k) + "</span><span class=\"v\">" + HtmlPageBuilder.Escape(v) + "</span></div>";
+            return "<div class=\"ds-kv-line\"><span class=\"k\">" + HtmlPageBuilder.I18n("span", null, kEn, kJa, kFa) + "</span><span class=\"v\">" + HtmlPageBuilder.Escape(v) + "</span></div>";
         }
 
         private static string FormatBytes(double bytes)
@@ -485,7 +495,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         {
             if (props.Items.Count == 0) { return ""; }
             var sb = new StringBuilder(512);
-            sb.Append("<table class=\"ds-field-table\"><tr><th>Property</th><th>Type</th><th>Value</th></tr>");
+            sb.Append("<table class=\"ds-field-table\"><tr>")
+              .Append(HtmlPageBuilder.I18n("th", null, "Property", "プロパティ", "ویژگی"))
+              .Append(HtmlPageBuilder.I18n("th", null, "Type", "型", "نوع"))
+              .Append(HtmlPageBuilder.I18n("th", null, "Value", "値", "مقدار"))
+              .Append("</tr>");
             foreach (JsonValue p in props.Items)
             {
                 string kind = p.Get("kind").AsString("raw");

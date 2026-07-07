@@ -5,6 +5,7 @@
 // README.md exactly) and the equivalent
 // right-click actions in the Project window.
 // ==========================================
+using System;
 using System.Collections.Generic;
 using System.IO;
 using AmirCollider.UnityDocSnap.Editor.Export;
@@ -109,7 +110,9 @@ namespace AmirCollider.UnityDocSnap.Editor
         [MenuItem(DocSnapConstants.AssetsContextRoot + "Export This Scene", true)]
         private static bool ValidateContextExportScene()
         {
-            return Selection.activeObject is SceneAsset;
+            if (!(Selection.activeObject is SceneAsset)) { return false; }
+            string path = AssetDatabase.GetAssetPath(Selection.activeObject);
+            return path.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase);
         }
 
         // ==========================================
