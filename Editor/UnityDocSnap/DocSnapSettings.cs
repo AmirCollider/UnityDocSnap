@@ -1,4 +1,4 @@
-ظ// ==========================================
+// ==========================================
 // DocSnapSettings
 // Project-scoped configuration (output path,
 // custom logo, thumbnail toggle) persisted via
