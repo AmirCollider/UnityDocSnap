@@ -56,7 +56,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
         // it is a container, everything nested inside
         // it) into a single JsonValue node.
         // ==========================================
-        public static JsonValue ReadField(SerializedProperty prop, int depth)
+        public static JsonValue ReadField(SerializedProperty prop, int depth, int arrayDepth = 0)
         {
             var node = JsonValue.Obj();
             node.Set("name", prop.name);
@@ -74,9 +74,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
 
             try
             {
-                if (prop.isArray && prop.propertyType != SerializedPropertyType.String)
+               if (prop.isArray && prop.propertyType != SerializedPropertyType.String)
                 {
-                    return ReadArray(prop, node, depth);
+                    return ReadArray(prop, node, depth, arrayDepth);
                 }
 
                 switch (prop.propertyType)
@@ -176,14 +176,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
                         node.Set("value", BoundsIntObj(prop.boundsIntValue));
                         break;
                     case SerializedPropertyType.ManagedReference:
-                        ReadManagedReference(prop, node, depth);
+                        ReadManagedReference(prop, node, depth, arrayDepth);
                         break;
                     case SerializedPropertyType.Hash128:
                         node.Set("kind", "hash128");
                         node.Set("value", prop.hash128Value.ToString());
                         break;
                     case SerializedPropertyType.Generic:
-                        ReadGeneric(prop, node, depth);
+                        ReadGeneric(prop, node, depth, arrayDepth);
                         break;
                     default:
                         // Covers property types added by newer Unity
@@ -206,20 +206,26 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
         // ReadArray
         // Walks a SerializedProperty array/list,
         // capping how many elements get expanded so
-        // a huge array cannot blow up the export.
+        // a huge array cannot blow up the export. An
+        // array reached from inside another array
+        // (jagged/nested arrays) uses the much smaller
+        // MaxNestedArrayElementsRendered cap instead -
+        // this is what used to multiply into tens of
+        // thousands of exported rows for a single field.
         // ==========================================
-        private static JsonValue ReadArray(SerializedProperty prop, JsonValue node, int depth)
+        private static JsonValue ReadArray(SerializedProperty prop, JsonValue node, int depth, int arrayDepth)
         {
             node.Set("kind", "array");
             int count = prop.arraySize;
             node.Set("count", count);
 
+            int cap = arrayDepth > 0 ? DocSnapConstants.MaxNestedArrayElementsRendered : DocSnapConstants.MaxArrayElementsRendered;
             var itemsArr = JsonValue.Arr();
-            int limit = Math.Min(count, DocSnapConstants.MaxArrayElementsRendered);
+            int limit = Math.Min(count, cap);
             for (int i = 0; i < limit; i++)
             {
                 SerializedProperty element = prop.GetArrayElementAtIndex(i);
-                itemsArr.Add(ReadField(element, depth + 1));
+                itemsArr.Add(ReadField(element, depth + 1, arrayDepth + 1));
             }
             node.Set("items", itemsArr);
             node.Set("truncated", count > limit);
@@ -231,9 +237,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
         // Walks the children of a nested struct/class
         // (a non-array Generic property) one level at
         // a time using the standard SerializedProperty
-        // sibling-walk-until-end-marker idiom.
+        // sibling-walk-until-end-marker idiom. arrayDepth
+        // passes through unchanged here - descending into
+        // a struct's own fields does not enter a new
+        // array nesting level.
         // ==========================================
-        private static JsonValue ReadGeneric(SerializedProperty prop, JsonValue node, int depth)
+        private static JsonValue ReadGeneric(SerializedProperty prop, JsonValue node, int depth, int arrayDepth)
         {
             node.Set("kind", "generic");
             node.Set("typeName", string.IsNullOrEmpty(prop.type) ? "Generic" : prop.type);
@@ -246,7 +255,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
             while (current.NextVisible(enterChildren) && !SerializedProperty.EqualContents(current, endProperty))
             {
                 enterChildren = false;
-                fieldsArr.Add(ReadField(current, depth + 1));
+                fieldsArr.Add(ReadField(current, depth + 1, arrayDepth));
                 guard++;
                 if (guard > 1000) { break; }
             }
@@ -259,9 +268,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
         // Handles [SerializeReference] polymorphic
         // fields: records the concrete runtime type,
         // then walks its children the same way as a
-        // Generic struct.
+        // Generic struct. arrayDepth passes through
+        // unchanged for the same reason as ReadGeneric.
         // ==========================================
-        private static void ReadManagedReference(SerializedProperty prop, JsonValue node, int depth)
+        private static void ReadManagedReference(SerializedProperty prop, JsonValue node, int depth, int arrayDepth)
         {
             node.Set("kind", "managedRef");
             string fullTypeName = prop.managedReferenceFullTypename;
@@ -278,7 +288,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
             while (current.NextVisible(enterChildren) && !SerializedProperty.EqualContents(current, endProperty))
             {
                 enterChildren = false;
-                fieldsArr.Add(ReadField(current, depth + 1));
+                fieldsArr.Add(ReadField(current, depth + 1, arrayDepth));
                 guard++;
                 if (guard > 1000) { break; }
             }
