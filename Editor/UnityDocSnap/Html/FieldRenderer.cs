@@ -297,8 +297,6 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                     return "<span class=\"ds-swatch\" style=\"background:" + hex + "\"></span>" + HtmlPageBuilder.Escape(hex);
                 case "layerMask":
                     return HtmlPageBuilder.I18n("span", null, "Layer Mask", "レイヤーマスク", "لایه‌ماسک") + ": " + (int)field.Get("value").AsNumber();
-                case "renderingLayerMask":
-                    return HtmlPageBuilder.I18n("span", null, "Rendering Layer Mask", "レンダリングレイヤーマスク", "ماسک لایه رندر") + ": " + (uint)field.Get("value").AsNumber();
                 case "objectRef":
                     return resolver.ResolveObjectRef(field);
                 case "vector2":

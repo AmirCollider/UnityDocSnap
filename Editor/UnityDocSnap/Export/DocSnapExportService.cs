@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using AmirCollider.UnityDocSnap.Editor.Assets;
 using AmirCollider.UnityDocSnap.Editor.Html;
 using AmirCollider.UnityDocSnap.Editor.Json;
@@ -62,7 +63,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             WriteText(outputRoot, htmlFile, ScenePageRenderer.Render(sceneData, manifest, htmlFile));
             RefreshIndexAndManifest(outputRoot, manifest);
 
-            EditorUtility.DisplayDialog(DocSnapConstants.ToolName, "Exported scene \"" + sceneName + "\" (" + goCount + " GameObjects).", "OK");
+            ShowSuccessPage(outputRoot,
+                "Exported scene \"" + sceneName + "\" (" + goCount + " GameObjects).",
+                "シーン「" + sceneName + "」をエクスポートしました(GameObject " + goCount + "個)。",
+                "سین «" + sceneName + "» اکسپورت شد (" + goCount + " گیم‌آبجکت).");
             RevealOutput(outputRoot);
         }
 
@@ -101,7 +105,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             WriteText(outputRoot, htmlFile, AssetPageRenderer.Render(folderData, manifest, htmlFile));
             RefreshIndexAndManifest(outputRoot, manifest);
 
-            EditorUtility.DisplayDialog(DocSnapConstants.ToolName, "Exported folder \"" + folderPath + "\" (" + fileCount + " files).", "OK");
+            ShowSuccessPage(outputRoot,
+                "Exported folder \"" + folderPath + "\" (" + fileCount + " files).",
+                "フォルダ「" + folderPath + "」をエクスポートしました(" + fileCount + "ファイル)。",
+                "پوشه‌ی «" + folderPath + "» اکسپورت شد (" + fileCount + " فایل).");
             RevealOutput(outputRoot);
         }
 
@@ -178,8 +185,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             WriteText(outputRoot, assetHtmlFile, AssetPageRenderer.Render(folderData, manifest, assetHtmlFile));
             RefreshIndexAndManifest(outputRoot, manifest);
 
-            EditorUtility.DisplayDialog(DocSnapConstants.ToolName,
-                "Exported full project: " + scenePages.Count + " scene(s), " + fileCount + " file(s).", "OK");
+            ShowSuccessPage(outputRoot,
+                "Exported full project: " + scenePages.Count + " scene(s), " + fileCount + " file(s).",
+                "プロジェクト全体をエクスポートしました:シーン" + scenePages.Count + "件、ファイル" + fileCount + "件。",
+                "کل پروژه اکسپورت شد: " + scenePages.Count + " سین، " + fileCount + " فایل.");
             RevealOutput(outputRoot);
         }
 
@@ -263,8 +272,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             WriteText(outputRoot, assetHtmlFile, AssetPageRenderer.Render(folderData, manifest, assetHtmlFile));
             RefreshIndexAndManifest(outputRoot, manifest);
 
-            EditorUtility.DisplayDialog(DocSnapConstants.ToolName,
-                "Exported full project with files: " + scenePages.Count + " scene(s), " + fileCount + " file(s) (assets copied to \"" + DocSnapConstants.FilesSubFolder + "/\").", "OK");
+            ShowSuccessPage(outputRoot,
+                "Exported full project with files: " + scenePages.Count + " scene(s), " + fileCount + " file(s) (assets copied to \"" + DocSnapConstants.FilesSubFolder + "/\").",
+                "ファイル付きでプロジェクト全体をエクスポートしました:シーン" + scenePages.Count + "件、ファイル" + fileCount + "件(アセットは\u201cfiles/\u201dにコピー済み)。",
+                "کل پروژه به‌همراه فایل‌ها اکسپورت شد: " + scenePages.Count + " سین، " + fileCount + " فایل (فایل‌ها توی «files/» کپی شدن).");
             RevealOutput(outputRoot);
         }
 
@@ -325,6 +336,41 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string fullPath = Path.Combine(outputRoot, relativeFile.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
             File.WriteAllText(fullPath, content);
+        }
+
+        // ==========================================
+        // ShowSuccessPage
+        // Writes a small, on-brand confirmation page
+        // into the output folder and opens it in the
+        // system browser - a friendlier, trilingual
+        // (EN/JA/FA) alternative to a plain native OK
+        // dialog for a *successful* export, reusing the
+        // site's own assets_ui/style.css so it always
+        // matches the exported site's look. Failures
+        // still use EditorUtility.DisplayDialog, since a
+        // native, unmissable system dialog is the right
+        // tone for something going wrong.
+        // ==========================================
+        private static void ShowSuccessPage(string outputRoot, string messageEn, string messageJa, string messageFa)
+        {
+            var sb = new StringBuilder(1024);
+            sb.Append("<!doctype html>\n<html lang=\"en\" dir=\"ltr\">\n<head>\n<meta charset=\"utf-8\">\n");
+            sb.Append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+            sb.Append("<title>").Append(DocSnapConstants.ToolName).Append(" - Export Complete</title>\n");
+            sb.Append("<link rel=\"stylesheet\" href=\"assets_ui/style.css\">\n</head>\n<body style=\"background:var(--cream);\">\n");
+            sb.Append("<div style=\"max-width:560px;margin:60px auto;padding:0 20px;\">\n");
+            sb.Append("<div class=\"ds-card\" style=\"text-align:center;border-top:5px solid var(--mint-strong);\">\n");
+            sb.Append("<div style=\"font-size:52px;line-height:1;margin-bottom:6px;\">\u2705</div>\n");
+            sb.Append("<h1 style=\"font-size:22px;margin-bottom:18px;\">Export Complete! \u2728</h1>\n");
+            sb.Append("<p style=\"font-size:14px;margin:10px 0;\">").Append(HtmlPageBuilder.Escape(messageEn)).Append("</p>\n");
+            sb.Append("<p style=\"font-size:14px;margin:10px 0;\">").Append(HtmlPageBuilder.Escape(messageJa)).Append("</p>\n");
+            sb.Append("<p style=\"font-size:14px;margin:10px 0;\" dir=\"rtl\">").Append(HtmlPageBuilder.Escape(messageFa)).Append("</p>\n");
+            sb.Append("<div class=\"ds-badge mint\" style=\"margin-top:14px;\">\uD83C\uDF70 ").Append(DocSnapConstants.ToolName).Append(" v").Append(DocSnapConstants.Version).Append("</div>\n");
+            sb.Append("</div>\n</div>\n</body>\n</html>\n");
+
+            string resultPath = Path.Combine(outputRoot, "export_complete.html");
+            File.WriteAllText(resultPath, sb.ToString());
+            Application.OpenURL(new Uri(resultPath).AbsoluteUri);
         }
 
         // ==========================================

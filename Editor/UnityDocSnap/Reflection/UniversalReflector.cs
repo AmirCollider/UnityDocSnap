@@ -363,49 +363,52 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
         // Dispatches a property whose SerializedPropertyType
         // this reflector does not explicitly recognise (i.e.
         // added by a newer Unity release than this file was
-        // written against). Bitmask-shaped types such as
-        // RenderingLayerMask are detected by name (never by
-        // enum reference, to avoid a hard compile-time
-        // dependency on Unity versions that do not define
-        // them) and read via uintValue - reading them via
-        // longValue does not throw a catchable exception, it
-        // logs a native "type is not a supported int value"
-        // console error instead, which the old try/catch
-        // fallback chain below could never stop.
+        // written against). The previous approach here tried
+        // longValue/stringValue/boolValue in sequence, which
+        // looked safe (each wrapped in try/catch) but is not:
+        // for property types like RenderingLayerMask, a
+        // mismatched accessor makes Unity's native layer log
+        // "type is not a supported int value" directly via
+        // Debug.LogError, rather than throwing a catchable
+        // managed exception - so no try/catch around that call
+        // can ever stop the spam, no matter how it is ordered.
+        // boxedValue is the one API built specifically to read
+        // a property's value without the caller needing to
+        // know its concrete type in advance, so it is used
+        // exclusively here instead of guessing with typed
+        // accessors, with console logging additionally muted
+        // for the duration of the call as a second safety net.
+        // On Unity versions old enough to predate boxedValue,
+        // the exotic new property types that trigger this in
+        // the first place do not exist either, so the plain
+        // string/bool fallback stays safe there.
         // ==========================================
         private static void ReadUnknownPropertyType(SerializedProperty prop, JsonValue node)
         {
             string typeName = prop.propertyType.ToString();
-            if (string.Equals(typeName, "RenderingLayerMask", StringComparison.Ordinal))
+            node.Set("kind", string.IsNullOrEmpty(typeName) ? "raw" : "raw:" + typeName);
+
+#if UNITY_2022_2_OR_NEWER
+            bool previousLogEnabled = Debug.unityLogger.logEnabled;
+            Debug.unityLogger.logEnabled = false;
+            try
             {
-                try
-                {
-                    node.Set("kind", "renderingLayerMask");
-                    node.Set("value", (long)prop.uintValue);
-                    return;
-                }
-                catch
-                {
-                    // Fall through on Unity versions where uintValue
-                    // is not the right accessor for this type either.
-                }
+                object boxed = prop.boxedValue;
+                node.Set("value", boxed != null ? boxed.ToString() : "(null)");
             }
-
-            node.Set("kind", "raw");
-            node.Set("value", TryGetRawDisplayValue(prop));
-        }
-
-        // ==========================================
-        // TryGetRawDisplayValue
-        // Last-resort fallback for property types this
-        // reflector does not explicitly recognise.
-        // ==========================================
-        private static string TryGetRawDisplayValue(SerializedProperty prop)
-        {
-            try { return prop.longValue.ToString(); } catch { /* not integer-like */ }
-            try { return prop.stringValue; } catch { /* not string-like */ }
-            try { return prop.boolValue.ToString(); } catch { /* not bool-like */ }
-            return "(unsupported property type: " + prop.propertyType + ")";
+            catch (Exception ex)
+            {
+                node.Set("value", "(unsupported property type: " + prop.propertyType + " - " + ex.Message + ")");
+            }
+            finally
+            {
+                Debug.unityLogger.logEnabled = previousLogEnabled;
+            }
+#else
+            try { node.Set("value", prop.stringValue); return; } catch { /* not string-like */ }
+            try { node.Set("value", prop.boolValue.ToString()); return; } catch { /* not bool-like */ }
+            node.Set("value", "(unsupported property type: " + prop.propertyType + ")");
+#endif
         }
 
         // ==========================================
