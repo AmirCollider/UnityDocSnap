@@ -1,0 +1,22 @@
+{
+  "name": "com.amircollider.unitydocsnap",
+  "version": "0.1.0",
+  "displayName": "Unity DocSnap",
+  "description": "Snap your whole Unity project into a cozy little offline HTML site - full Hierarchy, full Inspector data, and asset import settings, for humans and AI alike.",
+  "unity": "2021.3",
+  "documentationUrl": "https://github.com/AmirCollider/UnityDocSnap",
+  "changelogUrl": "https://github.com/AmirCollider/UnityDocSnap/blob/main/CHANGELOG.md",
+  "licensesUrl": "https://github.com/AmirCollider/UnityDocSnap/blob/main/LICENSE",
+  "keywords": [
+    "editor",
+    "documentation",
+    "tools",
+    "hierarchy",
+    "inspector",
+    "export"
+  ],
+  "author": {
+    "name": "AmirCollider",
+    "url": "https://github.com/AmirCollider"
+  }
+}
