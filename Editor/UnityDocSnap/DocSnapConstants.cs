@@ -12,7 +12,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // Identity
         // ==========================================
         public const string ToolName = "Unity DocSnap";
-        public const string Version = "0.2.1";
+        public const string Version = "0.2.2";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
 
@@ -54,7 +54,8 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         // Safety limits for reflection/rendering
         // ==========================================
-        public const int MaxArrayElementsRendered = 200;
+        public const int MaxArrayElementsRendered = 50;
+        public const int MaxNestedArrayElementsRendered = 10;
         public const int MaxGenericRecursionDepth = 14;
         public const int DefaultThumbnailMaxDimension = 256;
     }
