@@ -1,4 +1,4 @@
-// ==========================================
+ظ// ==========================================
 // DocSnapSettings
 // Project-scoped configuration (output path,
 // custom logo, thumbnail toggle) persisted via
@@ -43,15 +43,19 @@ namespace AmirCollider.UnityDocSnap.Editor
 
         // ==========================================
         // GenerateThumbnails
-        // Off by default: DocSnap's core promise is
-        // that pixels never leave your project. Turn
-        // this on to additionally embed small preview
-        // thumbnails for image assets in the exported
-        // site (see README.md roadmap).
+        // On by default so exported Asset pages show
+        // real image previews instead of a placeholder
+        // icon. Turn this off for DocSnap's stricter
+        // "pixels never leave your project" mode (see
+        // README.md roadmap).
         // ==========================================
         public static bool GenerateThumbnails
         {
-            get { return EditorUserSettings.GetConfigValue(KeyThumbnails) == "1"; }
+            get
+            {
+                string raw = EditorUserSettings.GetConfigValue(KeyThumbnails);
+                return raw == null ? true : raw == "1";
+            }
             set { EditorUserSettings.SetConfigValue(KeyThumbnails, value ? "1" : "0"); }
         }
 

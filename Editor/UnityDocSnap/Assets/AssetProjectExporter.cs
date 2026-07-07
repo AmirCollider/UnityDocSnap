@@ -344,10 +344,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         // ==========================================
         // ReadPreview
         // Chooses the best available visual: exact
-        // pixels for plain PNG/JPG, importer-reported
-        // dimensions plus a mini-thumbnail for other
-        // texture formats, or a generic type icon for
-        // everything else.
+        // pixels for plain PNG/JPG when GenerateThumbnails
+        // is on, importer-reported dimensions always, and
+        // a generic type icon fallback for every asset -
+        // images included - so no asset card is ever left
+        // with the bare placeholder glyph.
         // ==========================================
         private static void ReadPreview(string path, string absolutePath, AssetImporter importer, Type mainType, JsonValue node)
         {
@@ -358,23 +359,25 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
                 try { textureImporter.GetSourceTextureWidthAndHeight(out width, out height); }
                 catch { /* not available for this format/context */ }
 
-                if (DocSnapSettings.GenerateThumbnails)
+                if (DocSnapSettings.GenerateThumbnails && RawDecodableImageExtensions.Contains(Path.GetExtension(path).ToLowerInvariant()))
                 {
-                    if (RawDecodableImageExtensions.Contains(Path.GetExtension(path).ToLowerInvariant()))
+                    int rawWidth, rawHeight;
+                    string thumb = ThumbnailGenerator.TryGetImageThumbnailBase64(absolutePath, DocSnapConstants.DefaultThumbnailMaxDimension, out rawWidth, out rawHeight);
+                    if (thumb != null)
                     {
-                        int rawWidth, rawHeight;
-                        string thumb = ThumbnailGenerator.TryGetImageThumbnailBase64(absolutePath, DocSnapConstants.DefaultThumbnailMaxDimension, out rawWidth, out rawHeight);
-                        if (thumb != null)
-                        {
-                            node.Set("thumbnailBase64", thumb);
-                            if (width <= 0 || height <= 0) { width = rawWidth; height = rawHeight; }
-                        }
+                        node.Set("thumbnailBase64", thumb);
+                        if (width <= 0 || height <= 0) { width = rawWidth; height = rawHeight; }
                     }
-                    if (!node.Has("thumbnailBase64"))
-                    {
-                        string icon = ThumbnailGenerator.TryGetIconBase64(AssetDatabase.LoadMainAssetAtPath(path));
-                        if (icon != null) { node.Set("thumbnailBase64", icon); }
-                    }
+                }
+
+                // Generic type icon fallback: kept on regardless of the
+                // GenerateThumbnails toggle above, matching the non-image
+                // branch below, so an image asset always gets at least a
+                // visual instead of the bare placeholder glyph.
+                if (!node.Has("thumbnailBase64"))
+                {
+                    string icon = ThumbnailGenerator.TryGetIconBase64(AssetDatabase.LoadMainAssetAtPath(path));
+                    if (icon != null) { node.Set("thumbnailBase64", icon); }
                 }
 
                 if (width > 0 && height > 0)

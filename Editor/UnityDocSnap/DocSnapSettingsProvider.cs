@@ -46,7 +46,7 @@ namespace AmirCollider.UnityDocSnap.Editor
             EditorGUILayout.LabelField("Visuals", EditorStyles.boldLabel);
             EditorGUI.BeginChangeCheck();
             bool thumbs = EditorGUILayout.Toggle(
-                new GUIContent("Generate Image Thumbnails", "Off by default - Unity DocSnap's core promise is that pixels never leave your project. Turn this on to embed small preview thumbnails for image assets too."),
+                new GUIContent("Generate Image Thumbnails", "On by default so image assets get real preview thumbnails. Turn this off if you need DocSnap's stricter mode where pixels never leave your project."),
                 DocSnapSettings.GenerateThumbnails);
             if (EditorGUI.EndChangeCheck()) { DocSnapSettings.GenerateThumbnails = thumbs; }
 

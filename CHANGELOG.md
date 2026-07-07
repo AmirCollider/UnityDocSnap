@@ -2,6 +2,14 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.2.1] - 2026-07-08
+
+### Fixed
+- Asset folder pages: `Import Settings`/`Fields`/shader-property tables no longer overflow their card and get silently clipped by `.ds-asset-card`'s `overflow: hidden`. `.ds-field-table` now uses `table-layout: fixed` with fixed Field/Type/Value column-width percentages instead of sizing columns from content, and cells wrap (`overflow-wrap: anywhere`) instead of forcing the table wider than its column - this was the root cause of Import Settings data rendering unreadable, jumbled, and mis-sized for assets with many fields (Texture importers in particular).
+- `.ds-asset-grid` cards widened from a 240px to a 300px minimum column, and asset/GameObject card title headers (`h3`) no longer force the card wider for long, unbroken filenames - both now shrink and wrap correctly inside the grid.
+- Image assets (`TextureImporter` assets) no longer fall back to the bare placeholder glyph when `Generate Image Thumbnails` is off: a generic type icon is now always attempted for images too, matching the existing behavior already in place for every other asset type.
+- `DocSnapSettings.GenerateThumbnails` now defaults to **on** (previously off), so a first export already shows real image previews on Asset pages instead of a blank icon. The project setting still lets anyone opt back into DocSnap's stricter "pixels never leave your project" mode.
+
 ## [0.2.0] - 2026-07-07
 
 ### Fixed
