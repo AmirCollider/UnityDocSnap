@@ -26,6 +26,14 @@ namespace AmirCollider.UnityDocSnap.Editor.SceneExport
         // it is not already loaded, walks every root
         // GameObject, then restores the original
         // Scene load state exactly as it was found.
+        // Console logging is briefly disabled around
+        // the additive open/close, since URP's 2D
+        // Renderer logs a "more than one global light"
+        // warning the instant a second Scene's Global
+        // Light 2Ds coexist with the caller's already-
+        // open Scene - a transient condition this
+        // method itself creates and immediately
+        // unwinds, not a real project issue.
         // ==========================================
         public static JsonValue ExportScene(string scenePath, out int gameObjectCount)
         {
@@ -49,9 +57,18 @@ namespace AmirCollider.UnityDocSnap.Editor.SceneExport
             }
 
             bool weOpenedIt = false;
+            bool previousLogEnabled = Debug.unityLogger.logEnabled;
             if (!scene.IsValid())
             {
-                scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
+                Debug.unityLogger.logEnabled = false;
+                try
+                {
+                    scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
+                }
+                finally
+                {
+                    Debug.unityLogger.logEnabled = previousLogEnabled;
+                }
                 weOpenedIt = true;
             }
 
@@ -78,7 +95,15 @@ namespace AmirCollider.UnityDocSnap.Editor.SceneExport
             {
                 if (weOpenedIt)
                 {
-                    EditorSceneManager.CloseScene(scene, true);
+                    Debug.unityLogger.logEnabled = false;
+                    try
+                    {
+                        EditorSceneManager.CloseScene(scene, true);
+                    }
+                    finally
+                    {
+                        Debug.unityLogger.logEnabled = previousLogEnabled;
+                    }
                 }
             }
         }

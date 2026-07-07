@@ -400,8 +400,7 @@ code, .mono { font-family: var(--font-mono); }
 /* ==========================================
    Asset Grid / Thumbnails
    ========================================== */
-.ds-asset-grid { column-width: 280px; column-gap: 16px; }
-.ds-asset-grid > .ds-asset-card { display: inline-block; width: 100%; break-inside: avoid; -webkit-column-break-inside: avoid; }
+.ds-asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; align-items: start; }
 .ds-thumb {
   width: 100%;
   aspect-ratio: 4 / 3;
@@ -414,10 +413,10 @@ code, .mono { font-family: var(--font-mono); }
   margin-bottom: 10px;
   border: 1px solid var(--line);
 }
-.ds-kv-line { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.ds-kv-line { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; padding: 4px 0; border-bottom: 1px dashed var(--line); min-width: 0; }
 .ds-kv-line:last-child { border-bottom: none; }
-.ds-kv-line .k { color: var(--ink-soft); font-weight: 600; }
-.ds-kv-line .v { font-family: var(--font-mono); text-align: end; }
+.ds-kv-line .k { color: var(--ink-soft); font-weight: 600; flex: 0 0 auto; }
+.ds-kv-line .v { font-family: var(--font-mono); text-align: end; word-break: break-word; overflow-wrap: anywhere; min-width: 0; }
 
 /* ==========================================
    Folder Tree (asset browser on dashboard)

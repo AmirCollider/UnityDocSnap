@@ -1,9 +1,11 @@
 // ==========================================
 // AssetPageRenderer
 // Builds assets/<FolderKey>.html: page header
-// with file count, then a card grid with every
-// file's import settings, shader properties,
-// or Prefab contents.
+// with file count, then a collapsible directory
+// tree - each folder expandable on its own,
+// showing only the files that live directly
+// inside it (import settings, shader properties,
+// or Prefab contents per file).
 // ==========================================
 using System.Collections.Generic;
 using AmirCollider.UnityDocSnap.Editor.Json;
@@ -34,7 +36,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 HtmlPageBuilder.BadgeRaw("ghost", HtmlPageBuilder.I18n("span", null, "Exported", "エクスポート日時", "اکسپورت‌شده") + " " + HtmlPageBuilder.Escape(folderData.Get("exportedUtc").AsString("")))
             };
             string header = HtmlPageBuilder.RenderPageHeader("\uD83D\uDCC1", folderPath, "", badges);
-            string body = FieldRenderer.RenderAssetGrid(folderData.Get("files"), resolver);
+
+            var filesByPath = new Dictionary<string, JsonValue>();
+            foreach (JsonValue file in folderData.Get("files").Items)
+            {
+                string path = file.Get("path").AsString("");
+                if (!string.IsNullOrEmpty(path)) { filesByPath[path] = file; }
+            }
+            string body = FieldRenderer.RenderFolderTree(folderData.Get("folderTree"), filesByPath, resolver, "ds-hier-assets");
 
             return HtmlPageBuilder.RenderPage(manifest, htmlFile, folderPath, header, body);
         }

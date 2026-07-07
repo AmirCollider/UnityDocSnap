@@ -79,6 +79,15 @@ namespace AmirCollider.UnityDocSnap.Editor
         }
 
         // ==========================================
+        // Export Full Project With Files
+        // ==========================================
+        [MenuItem(DocSnapConstants.MenuExportFullProjectWithFiles, false, 24)]
+        private static void ExportFullProjectWithFilesMenuItem()
+        {
+            DocSnapExportService.ExportFullProjectWithFiles();
+        }
+
+        // ==========================================
         // Open Output Folder
         // ==========================================
         [MenuItem(DocSnapConstants.MenuOpenOutputFolder, false, 34)]

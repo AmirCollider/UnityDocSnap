@@ -184,6 +184,91 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         }
 
         // ==========================================
+        // ExportFullProjectWithFiles
+        // Same pass as ExportFullProject, but also
+        // mirrors every referenced asset's actual file
+        // bytes (plus its .meta file, when present)
+        // into the output's files/ folder. The default
+        // exports above stay metadata-only; this is an
+        // explicit, separately-named opt-in for anyone
+        // who also wants a portable copy of the
+        // underlying content next to the site.
+        // ==========================================
+        public static void ExportFullProjectWithFiles()
+        {
+            string outputRoot = PrepareOutput();
+            string physicalFilesRoot = Path.Combine(outputRoot, DocSnapConstants.FilesSubFolder);
+            Directory.CreateDirectory(physicalFilesRoot);
+
+            ManifestState manifest = DocSnapManifest.Load();
+
+            var scenePages = new List<KeyValuePair<string, JsonValue>>();
+            foreach (string scenePath in FindAllScenePaths())
+            {
+                JsonValue sceneData;
+                int goCount;
+                try
+                {
+                    sceneData = SceneHierarchyExporter.ExportScene(scenePath, out goCount);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning("[Unity DocSnap] Skipped scene " + scenePath + ": " + ex.Message);
+                    continue;
+                }
+
+                string sceneName = Path.GetFileNameWithoutExtension(scenePath);
+                string htmlFile = DocSnapConstants.ScenesSubFolder + "/" + sceneName + ".html";
+                string jsonFile = DocSnapConstants.DataSubFolder + "/scene_" + sceneName + ".json";
+                WriteText(outputRoot, jsonFile, sceneData.ToString());
+
+                DocSnapManifest.UpsertScene(manifest, new ManifestSceneEntry
+                {
+                    sceneName = sceneName,
+                    scenePath = scenePath,
+                    htmlFile = htmlFile,
+                    jsonFile = jsonFile,
+                    exportedUtc = sceneData.Get("exportedUtc").AsString(""),
+                    gameObjectCount = goCount
+                });
+                scenePages.Add(new KeyValuePair<string, JsonValue>(htmlFile, sceneData));
+
+                AssetProjectExporter.CopyPhysicalFile(scenePath, physicalFilesRoot);
+            }
+
+            string rootFolderKey = AssetProjectExporter.FolderKey("Assets");
+            List<ManifestAssetIndexEntry> indexEntries;
+            int fileCount;
+            JsonValue folderData = AssetProjectExporter.ExportFolder("Assets", rootFolderKey, out indexEntries, out fileCount, true, physicalFilesRoot);
+            string assetHtmlFile = DocSnapConstants.AssetsSubFolder + "/" + rootFolderKey + ".html";
+            string assetJsonFile = DocSnapConstants.DataSubFolder + "/assets_" + rootFolderKey + ".json";
+            WriteText(outputRoot, assetJsonFile, folderData.ToString());
+
+            DocSnapManifest.ReplaceAssetIndexForFolder(manifest, rootFolderKey, indexEntries);
+            DocSnapManifest.UpsertFolder(manifest, new ManifestFolderEntry
+            {
+                folderPath = "Assets",
+                folderKey = rootFolderKey,
+                htmlFile = assetHtmlFile,
+                jsonFile = assetJsonFile,
+                exportedUtc = folderData.Get("exportedUtc").AsString(""),
+                fileCount = fileCount
+            });
+            DocSnapManifest.Save(manifest);
+
+            foreach (KeyValuePair<string, JsonValue> page in scenePages)
+            {
+                WriteText(outputRoot, page.Key, ScenePageRenderer.Render(page.Value, manifest, page.Key));
+            }
+            WriteText(outputRoot, assetHtmlFile, AssetPageRenderer.Render(folderData, manifest, assetHtmlFile));
+            RefreshIndexAndManifest(outputRoot, manifest);
+
+            EditorUtility.DisplayDialog(DocSnapConstants.ToolName,
+                "Exported full project with files: " + scenePages.Count + " scene(s), " + fileCount + " file(s) (assets copied to \"" + DocSnapConstants.FilesSubFolder + "/\").", "OK");
+            RevealOutput(outputRoot);
+        }
+
+        // ==========================================
         // FindAllScenePaths
         // Every .unity Scene asset under Assets/,
         // sorted by name. Scoped to Assets only so a

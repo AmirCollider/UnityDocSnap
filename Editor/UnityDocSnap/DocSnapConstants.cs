@@ -12,7 +12,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // Identity
         // ==========================================
         public const string ToolName = "Unity DocSnap";
-        public const string Version = "0.1.0";
+        public const string Version = "0.2.0";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
 
@@ -24,6 +24,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         public const string MenuExportAssetInfoEntire = MenuRoot + "Export Asset Info/Entire Assets Folder";
         public const string MenuExportAssetInfoSelected = MenuRoot + "Export Asset Info/Selected Folder...";
         public const string MenuExportFullProject = MenuRoot + "Export Full Project";
+        public const string MenuExportFullProjectWithFiles = MenuRoot + "Export Full Project With Files";
         public const string MenuOpenOutputFolder = MenuRoot + "Open Output Folder";
         public const string MenuAbout = MenuRoot + "About Unity DocSnap";
 
@@ -37,6 +38,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         public const string AssetsSubFolder = "assets";
         public const string DataSubFolder = "data";
         public const string SiteAssetsSubFolder = "assets_ui";
+        public const string FilesSubFolder = "files";
         public const string IndexFileName = "index.html";
         public const string StyleFileName = "style.css";
         public const string ScriptFileName = "app.js";

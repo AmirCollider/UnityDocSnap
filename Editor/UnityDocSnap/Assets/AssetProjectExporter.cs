@@ -7,7 +7,14 @@
 // settings, and type-specific extras (Prefab
 // contents, Material shader properties,
 // script metadata) - metadata only, never a
-// copy of the file itself.
+// copy of the file itself, plus a folderTree
+// grouping those same files back into real
+// directories for folder-by-folder navigation.
+// Physical file bytes are only ever copied out
+// when a caller explicitly opts in via
+// copyPhysicalFiles (see CopyPhysicalFile) -
+// "Export Full Project With Files" is currently
+// the only caller that does.
 // ==========================================
 using System;
 using System.Collections.Generic;
@@ -31,10 +38,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         // ExportFolder
         // Entry point: recursively lists every asset
         // under folderPath and builds the full export
-        // payload, plus the manifest index entries
-        // needed for cross-page linking.
+        // payload (including a folderTree for real
+        // directory-by-directory navigation), plus the
+        // manifest index entries needed for cross-page
+        // linking. When copyPhysicalFiles is true, each
+        // file's actual bytes are additionally mirrored
+        // into physicalFilesOutputRoot (used by
+        // "Export Full Project With Files" only - every
+        // other caller leaves this false, so DocSnap's
+        // default behavior stays metadata-only).
         // ==========================================
-        public static JsonValue ExportFolder(string folderPath, string folderKey, out List<ManifestAssetIndexEntry> indexEntries, out int fileCount)
+        public static JsonValue ExportFolder(string folderPath, string folderKey, out List<ManifestAssetIndexEntry> indexEntries, out int fileCount, bool copyPhysicalFiles = false, string physicalFilesOutputRoot = null)
         {
             indexEntries = new List<ManifestAssetIndexEntry>();
 
@@ -64,11 +78,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
                         name = Path.GetFileName(path)
                     });
                 }
+
+                if (copyPhysicalFiles && !string.IsNullOrEmpty(physicalFilesOutputRoot))
+                {
+                    CopyPhysicalFile(path, physicalFilesOutputRoot);
+                }
             }
 
             root.Set("files", filesArr);
             fileCount = filePaths.Count;
             root.Set("fileCount", fileCount);
+            root.Set("folderTree", BuildFolderTree(folderPath, filePaths));
             return root;
         }
 
@@ -114,6 +134,117 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
             }
             results.Sort(StringComparer.OrdinalIgnoreCase);
             return results;
+        }
+
+        // ==========================================
+        // BuildFolderTree
+        // Regroups the flat, already-sorted file list
+        // back into the real folder structure it lives
+        // in, so the output site can offer folder-by-
+        // folder navigation instead of one giant list.
+        // Stores file paths only (not full entries) -
+        // the HTML renderer resolves each path back to
+        // its full JsonValue entry from the "files"
+        // array, so no asset data is ever duplicated in
+        // the exported JSON.
+        // ==========================================
+        private static JsonValue BuildFolderTree(string rootFolderPath, List<string> filePaths)
+        {
+            string normalizedRoot = rootFolderPath.Replace('\\', '/').TrimEnd('/');
+            var rootNode = new FolderNode(normalizedRoot, PathLeafName(normalizedRoot));
+
+            foreach (string path in filePaths)
+            {
+                string normalizedPath = path.Replace('\\', '/');
+                string relative = normalizedPath.StartsWith(normalizedRoot + "/", StringComparison.OrdinalIgnoreCase)
+                    ? normalizedPath.Substring(normalizedRoot.Length + 1)
+                    : normalizedPath;
+
+                string[] segments = relative.Split('/');
+                FolderNode current = rootNode;
+                string currentPath = normalizedRoot;
+                for (int i = 0; i < segments.Length - 1; i++)
+                {
+                    currentPath = currentPath + "/" + segments[i];
+                    current = current.GetOrAddChild(segments[i], currentPath);
+                }
+                current.FilePaths.Add(normalizedPath);
+            }
+
+            return rootNode.ToJson();
+        }
+
+        // ==========================================
+        // PathLeafName
+        // Last path segment, e.g. "Assets/Images/
+        // Backgrounds" -> "Backgrounds".
+        // ==========================================
+        private static string PathLeafName(string path)
+        {
+            int slash = path.LastIndexOf('/');
+            return slash >= 0 ? path.Substring(slash + 1) : path;
+        }
+
+        // ==========================================
+        // FolderNode
+        // Lightweight in-memory tree used only while
+        // building one export pass; converted to a
+        // JsonValue once fully populated via ToJson().
+        // ==========================================
+        private sealed class FolderNode
+        {
+            public readonly string FolderPath;
+            public readonly string FolderName;
+            public readonly List<string> FilePaths = new List<string>();
+            private readonly List<FolderNode> _children = new List<FolderNode>();
+            private readonly Dictionary<string, FolderNode> _childLookup = new Dictionary<string, FolderNode>(StringComparer.OrdinalIgnoreCase);
+
+            public FolderNode(string folderPath, string folderName)
+            {
+                FolderPath = folderPath;
+                FolderName = folderName;
+            }
+
+            public FolderNode GetOrAddChild(string name, string path)
+            {
+                FolderNode child;
+                if (!_childLookup.TryGetValue(name, out child))
+                {
+                    child = new FolderNode(path, name);
+                    _childLookup[name] = child;
+                    _children.Add(child);
+                }
+                return child;
+            }
+
+            public int CountFilesRecursive()
+            {
+                int count = FilePaths.Count;
+                foreach (FolderNode child in _children) { count += child.CountFilesRecursive(); }
+                return count;
+            }
+
+            public JsonValue ToJson()
+            {
+                var node = JsonValue.Obj();
+                node.Set("folderName", FolderName);
+                node.Set("folderPath", FolderPath);
+                node.Set("directFileCount", FilePaths.Count);
+                node.Set("totalFileCount", CountFilesRecursive());
+
+                var filesArr = JsonValue.Arr();
+                foreach (string p in FilePaths) { filesArr.Add(JsonValue.Str(p)); }
+                node.Set("filePaths", filesArr);
+
+                var childrenSorted = new List<FolderNode>(_children);
+                childrenSorted.Sort((a, b) => string.Compare(a.FolderName, b.FolderName, StringComparison.OrdinalIgnoreCase));
+
+                var subfoldersArr = JsonValue.Arr();
+                foreach (FolderNode child in childrenSorted) { subfoldersArr.Add(child.ToJson()); }
+                node.Set("subfolders", subfoldersArr);
+
+                return node;
+            }
         }
 
         // ==========================================
@@ -294,6 +425,42 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
                 // best-effort only; absence of scriptInfo is not fatal
             }
             return node;
+        }
+
+        // ==========================================
+        // CopyPhysicalFile
+        // Mirrors one asset's actual file bytes (and,
+        // if present, its sibling .meta file) into the
+        // output's files/ tree, preserving the same
+        // relative path it has under Assets/, so
+        // "Export Full Project With Files" can hand
+        // someone a self-contained, re-importable copy
+        // of the project content alongside the metadata
+        // site. Only ever invoked when a caller opts in
+        // explicitly - every other export path in
+        // DocSnap never touches file bytes at all.
+        // ==========================================
+        internal static void CopyPhysicalFile(string assetPath, string physicalFilesOutputRoot)
+        {
+            try
+            {
+                string sourceAbsolute = Path.GetFullPath(Path.Combine(Application.dataPath, "..", assetPath));
+                if (!File.Exists(sourceAbsolute)) { return; }
+
+                string destinationAbsolute = Path.Combine(physicalFilesOutputRoot, assetPath.Replace('/', Path.DirectorySeparatorChar));
+                Directory.CreateDirectory(Path.GetDirectoryName(destinationAbsolute));
+                File.Copy(sourceAbsolute, destinationAbsolute, true);
+
+                string sourceMeta = sourceAbsolute + ".meta";
+                if (File.Exists(sourceMeta))
+                {
+                    File.Copy(sourceMeta, destinationAbsolute + ".meta", true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[Unity DocSnap] Could not copy physical file for \"" + assetPath + "\": " + ex.Message);
+            }
         }
     }
 }

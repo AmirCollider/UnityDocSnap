@@ -189,8 +189,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
                         // Covers property types added by newer Unity
                         // versions (e.g. RenderingLayerMask) without
                         // taking a hard compile-time dependency on them.
-                        node.Set("kind", "raw");
-                        node.Set("value", TryGetRawDisplayValue(prop));
+                        ReadUnknownPropertyType(prop, node);
                         break;
                 }
             }
@@ -357,6 +356,43 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
             {
                 node.Set("value", prop.intValue.ToString());
             }
+        }
+
+        // ==========================================
+        // ReadUnknownPropertyType
+        // Dispatches a property whose SerializedPropertyType
+        // this reflector does not explicitly recognise (i.e.
+        // added by a newer Unity release than this file was
+        // written against). Bitmask-shaped types such as
+        // RenderingLayerMask are detected by name (never by
+        // enum reference, to avoid a hard compile-time
+        // dependency on Unity versions that do not define
+        // them) and read via uintValue - reading them via
+        // longValue does not throw a catchable exception, it
+        // logs a native "type is not a supported int value"
+        // console error instead, which the old try/catch
+        // fallback chain below could never stop.
+        // ==========================================
+        private static void ReadUnknownPropertyType(SerializedProperty prop, JsonValue node)
+        {
+            string typeName = prop.propertyType.ToString();
+            if (string.Equals(typeName, "RenderingLayerMask", StringComparison.Ordinal))
+            {
+                try
+                {
+                    node.Set("kind", "renderingLayerMask");
+                    node.Set("value", (long)prop.uintValue);
+                    return;
+                }
+                catch
+                {
+                    // Fall through on Unity versions where uintValue
+                    // is not the right accessor for this type either.
+                }
+            }
+
+            node.Set("kind", "raw");
+            node.Set("value", TryGetRawDisplayValue(prop));
         }
 
         // ==========================================

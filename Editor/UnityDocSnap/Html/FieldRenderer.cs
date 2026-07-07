@@ -297,6 +297,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                     return "<span class=\"ds-swatch\" style=\"background:" + hex + "\"></span>" + HtmlPageBuilder.Escape(hex);
                 case "layerMask":
                     return HtmlPageBuilder.I18n("span", null, "Layer Mask", "レイヤーマスク", "لایه‌ماسک") + ": " + (int)field.Get("value").AsNumber();
+                case "renderingLayerMask":
+                    return HtmlPageBuilder.I18n("span", null, "Rendering Layer Mask", "レンダリングレイヤーマスク", "ماسک لایه رندر") + ": " + (uint)field.Get("value").AsNumber();
                 case "objectRef":
                     return resolver.ResolveObjectRef(field);
                 case "vector2":
@@ -389,6 +391,96 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                   .Append(HtmlPageBuilder.I18n("span", null, "more (truncated)", "件省略", "مورد دیگر (کوتاه‌شده)")).Append("</div>");
             }
             sb.Append("</div>");
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // RenderFolderTree
+        // Top-level entry for an asset folder's
+        // directory tree: expand/collapse controls
+        // plus the root folder rendered as a
+        // collapsible node, with every subfolder
+        // nested inside exactly like the Scene
+        // Hierarchy tree above.
+        // ==========================================
+        public static string RenderFolderTree(JsonValue treeRoot, Dictionary<string, JsonValue> filesByPath, RefLinkResolver resolver, string treeId)
+        {
+            var sb = new StringBuilder(1024);
+            sb.Append("<div class=\"ds-card\"><div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;\">");
+            sb.Append(HtmlPageBuilder.I18n("h3", null, "Folders", "フォルダ", "پوشه‌ها"));
+            sb.Append("<span><button type=\"button\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"expand\" class=\"ds-badge lav\" style=\"cursor:pointer;border:none;\">").Append(HtmlPageBuilder.I18n("span", null, "Expand all", "すべて展開", "باز کردن همه")).Append("</button> ");
+            sb.Append("<button type=\"button\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"collapse\" class=\"ds-badge ghost\" style=\"cursor:pointer;border:1px solid var(--line);\">").Append(HtmlPageBuilder.I18n("span", null, "Collapse all", "すべて折りたたむ", "بستن همه")).Append("</button></span>");
+            sb.Append("</div><ul class=\"ds-tree\" id=\"").Append(treeId).Append("\">\n");
+            sb.Append(RenderFolderNode(treeRoot, filesByPath, resolver, true));
+            sb.Append("</ul></div>\n");
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // RenderFolderNode
+        // One folder as a collapsible node: its own
+        // directly-contained files as an asset grid,
+        // then its subfolders nested inside, exactly
+        // like a GameObject node nests its children.
+        // ==========================================
+        private static string RenderFolderNode(JsonValue folder, Dictionary<string, JsonValue> filesByPath, RefLinkResolver resolver, bool openByDefault)
+        {
+            string folderName = folder.Get("folderName").AsString("Assets");
+            string folderPath = folder.Get("folderPath").AsString("");
+            int directCount = (int)folder.Get("directFileCount").AsNumber();
+            int totalCount = (int)folder.Get("totalFileCount").AsNumber();
+            JsonValue subfolders = folder.Get("subfolders");
+            JsonValue filePaths = folder.Get("filePaths");
+            bool hasSubfolders = subfolders.Items.Count > 0;
+
+            var sb = new StringBuilder(512);
+            sb.Append("<li id=\"folder-").Append(SanitizeAnchor(folderPath)).Append("\">");
+            sb.Append("<details class=\"ds-go\"").Append(openByDefault ? " open" : "").Append(">");
+            sb.Append("<summary>\uD83D\uDCC1 ").Append(HtmlPageBuilder.Escape(folderName));
+            sb.Append(" <span class=\"ds-go-tag\">").Append(totalCount).Append(" ").Append(HtmlPageBuilder.I18n("span", null, "files", "ファイル", "فایل")).Append("</span>");
+            sb.Append("</summary>\n");
+
+            sb.Append("<div class=\"ds-go-card-body\">");
+            if (directCount == 0 && !hasSubfolders)
+            {
+                sb.Append("<p class=\"ds-empty-note\">").Append(HtmlPageBuilder.I18n("span", null, "Empty folder.", "空のフォルダです。", "پوشه‌ی خالی.")).Append("</p>");
+            }
+            else if (directCount > 0)
+            {
+                var directFiles = JsonValue.Arr();
+                foreach (JsonValue p in filePaths.Items)
+                {
+                    JsonValue entry;
+                    if (filesByPath.TryGetValue(p.AsString(""), out entry)) { directFiles.Add(entry); }
+                }
+                sb.Append(RenderAssetGrid(directFiles, resolver));
+            }
+            sb.Append("</div>");
+
+            if (hasSubfolders)
+            {
+                sb.Append("<ul>\n");
+                foreach (JsonValue child in subfolders.Items) { sb.Append(RenderFolderNode(child, filesByPath, resolver, false)); }
+                sb.Append("</ul>\n");
+            }
+
+            sb.Append("</details></li>\n");
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // SanitizeAnchor
+        // Turns a folder path into a safe HTML id
+        // fragment (letters/digits kept, everything
+        // else collapsed to a dash).
+        // ==========================================
+        private static string SanitizeAnchor(string path)
+        {
+            var sb = new StringBuilder(path.Length);
+            foreach (char c in path)
+            {
+                sb.Append(char.IsLetterOrDigit(c) ? c : '-');
+            }
             return sb.ToString();
         }
 
