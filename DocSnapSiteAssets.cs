@@ -1,11 +1,19 @@
-<!doctype html>
-<html lang="en" dir="ltr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Unity DocSnap — Design Preview</title>
-<style>
-/* ==========================================
+// ==========================================
+// DocSnapSiteAssets
+// Embedded static site assets (CSS + JS) so
+// the generated output has zero external
+// file dependencies at build/export time.
+// Source of truth: webtemplate/style.css and
+// webtemplate/app.js in the project repo tools.
+// ==========================================
+namespace AmirCollider.UnityDocSnap.Editor
+{
+    internal static class DocSnapSiteAssets
+    {
+        // ==========================================
+        // StyleCss - assets_ui/style.css contents
+        // ==========================================
+        public const string StyleCss = @"/* ==========================================
    Unity DocSnap — Site Stylesheet
    Design tokens, layout, and components for
    the generated offline documentation site.
@@ -77,7 +85,7 @@ body {
   line-height: 1.6;
 }
 
-html[dir="rtl"] body { direction: rtl; }
+html[dir=""rtl""] body { direction: rtl; }
 
 a { color: var(--lavender-strong); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -392,7 +400,7 @@ code, .mono { font-family: var(--font-mono); }
 /* ==========================================
    Asset Grid / Thumbnails
    ========================================== */
-.ds-asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.ds-asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; align-items: start; }
 .ds-thumb {
   width: 100%;
   aspect-ratio: 4 / 3;
@@ -463,7 +471,12 @@ code, .mono { font-family: var(--font-mono); }
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   box-shadow: var(--shadow-lift);
 }
@@ -476,236 +489,49 @@ code, .mono { font-family: var(--font-mono); }
   .ds-sidebar { width: 100%; flex-basis: auto; position: relative; height: auto; border-inline-end: none; border-bottom: 1px solid var(--line); }
   .ds-main { padding: 22px 16px 50px; }
 }
+";
 
-</style>
-</head>
-<body>
-<div class="ds-shell">
-  <aside class="ds-sidebar">
-    <div class="ds-brand">
-      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Unity DocSnap mascot">
-  <polygon points="62,10 84,32 68,30 66,15" fill="#ffe08a" stroke="#4a3b52" stroke-width="2.5" stroke-linejoin="round"/>
-  <line x1="59" y1="34" x2="72" y2="12" stroke="#4a3b52" stroke-width="4.5" stroke-linecap="round"/>
-  <line x1="59" y1="34" x2="72" y2="12" stroke="#ff8fa3" stroke-width="3" stroke-linecap="round"/>
-  <rect x="53" y="30" width="7" height="7" rx="2" transform="rotate(45 56.5 33.5)" fill="#fff"/>
-  <polygon points="30,38 70,38 62,86 38,86" fill="#ffdbeb" stroke="#4a3b52" stroke-width="3.2" stroke-linejoin="round"/>
-  <circle cx="42" cy="74" r="4" fill="#563a42" stroke="#4a3b52" stroke-width="1.4"/>
-  <circle cx="52" cy="78" r="4.4" fill="#563a42" stroke="#4a3b52" stroke-width="1.4"/>
-  <circle cx="61" cy="73" r="3.8" fill="#563a42" stroke="#4a3b52" stroke-width="1.4"/>
-  <rect x="26" y="26" width="48" height="14" rx="7" fill="#ffb6c1" stroke="#4a3b52" stroke-width="3.2"/>
-  <ellipse cx="50" cy="32" rx="4" ry="3" fill="#4a3b52"/>
-  <circle cx="39" cy="52" r="3.4" fill="#4a3b52"/>
-  <circle cx="61" cy="52" r="3.4" fill="#4a3b52"/>
-  <circle cx="37.6" cy="50.6" r="1.1" fill="#fff"/>
-  <circle cx="59.6" cy="50.6" r="1.1" fill="#fff"/>
-  <ellipse cx="33" cy="58" rx="4.5" ry="3.2" fill="#ff8fa3" opacity=".55"/>
-  <ellipse cx="67" cy="58" rx="4.5" ry="3.2" fill="#ff8fa3" opacity=".55"/>
-  <path d="M45 58 Q50 63 55 58" stroke="#4a3b52" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-  <polygon points="16,64 19,71 26,72 19,76 18,83 13,78 6,79 10,72 8,65 15,68" fill="#b19cd9" stroke="#4a3b52" stroke-width="1.6" stroke-linejoin="round"/>
-</svg>
-      <div class="ds-brand-text">
-        <h1>Unity DocSnap</h1>
-        <span data-en="Design preview" data-ja="デザインプレビュー" data-fa="پیش‌نمایش طراحی">Design preview</span>
-      </div>
-    </div>
-    <p class="ds-tagline" data-en="Snap your whole Unity project into a cozy little website." data-ja="あなたのUnityプロジェクトを、まるごと可愛いWebサイトに。" data-fa="کل پروژه‌ی یونیتی‌ت رو به یه وب‌سایت کوچولوی دنج تبدیل کن.">Snap your whole Unity project into a cozy little website.</p>
-
-    <div class="ds-langbar" role="group" aria-label="Language">
-      <button class="ds-lang-btn is-active" data-lang="en">EN</button>
-      <button class="ds-lang-btn" data-lang="ja">日本語</button>
-      <button class="ds-lang-btn" data-lang="fa">فارسی</button>
-    </div>
-
-    <div class="ds-nav-section">
-      <p class="ds-nav-title"><span data-en="Scenes" data-ja="シーン" data-fa="سین‌ها">Scenes</span></p>
-      <ul class="ds-nav-list">
-        <li><a class="ds-nav-link is-current" href="#scene-mainmenu">🎬 MainMenu<span class="ds-nav-count">42</span></a></li>
-        <li><a class="ds-nav-link" href="#">🎬 Level01<span class="ds-nav-count">76</span></a></li>
-        <li><a class="ds-nav-link" href="#">🎬 Level02<span class="ds-nav-count">51</span></a></li>
-      </ul>
-    </div>
-
-    <div class="ds-nav-section">
-      <p class="ds-nav-title"><span data-en="Assets" data-ja="アセット" data-fa="فایل‌ها">Assets</span></p>
-      <ul class="ds-nav-list">
-        <li><a class="ds-nav-link" href="#asset-backgrounds">🗂️ Images/Backgrounds<span class="ds-nav-count">12</span></a></li>
-        <li><a class="ds-nav-link" href="#">🗂️ Prefabs/Enemies<span class="ds-nav-count">8</span></a></li>
-        <li><a class="ds-nav-link" href="#">🗂️ Audio/SFX<span class="ds-nav-count">21</span></a></li>
-      </ul>
-    </div>
-
-    <div class="ds-sidebar-footer">
-      <span data-en="Made with 🧋 by" data-ja="🧋を込めて" data-fa="با 🧋 ساخته شده توسط">Made with 🧋 by</span>
-      <a href="https://github.com/AmirCollider">AmirCollider</a>
-    </div>
-  </aside>
-
-  <main class="ds-main">
-    <div class="ds-callout">
-      <strong data-en="✨ Static design preview" data-ja="✨ 静的デザインプレビュー" data-fa="✨ پیش‌نمایش ثابت طراحی">✨ Static design preview</strong>
-      — <span data-en="sample data below, shown for look &amp; feel only. Try the EN / 日本語 / فارسی buttons above." data-ja="下は見た目確認用のサンプルデータです。上のEN / 日本語 / فارسیボタンを試してみてください。" data-fa="داده‌های زیر فقط برای نمایش ظاهر و حس‌وحال هستن. دکمه‌های EN / 日本語 / فارسی بالا رو امتحان کن.">sample data below, shown for look &amp; feel only. Try the EN / 日本語 / فارسی buttons above.</span>
-    </div>
-
-    <div class="ds-page-header">
-      <div>
-        <h1>🍰 <span data-en="Project Overview" data-ja="プロジェクト概要" data-fa="نمای کلی پروژه">Project Overview</span></h1>
-        <p class="ds-page-sub" data-en="Demo Project — exported Jul 6, 2026" data-ja="デモプロジェクト — 2026年7月6日エクスポート" data-fa="پروژه‌ی نمونه — اکسپورت‌شده در ۶ جولای ۲۰۲۶">Demo Project — exported Jul 6, 2026</p>
-      </div>
-      <div class="ds-badge-row">
-        <span class="ds-badge lav">🦄 Unity 6000.0.31f1</span>
-        <span class="ds-badge pink">Unity DocSnap v0.1.0</span>
-      </div>
-    </div>
-
-    <div class="ds-stat-grid">
-      <div class="ds-stat-tile"><div class="ds-stat-num">3</div><div class="ds-stat-label" data-en="Scenes exported" data-ja="エクスポート済みシーン" data-fa="سین اکسپورت‌شده">Scenes exported</div></div>
-      <div class="ds-stat-tile"><div class="ds-stat-num">169</div><div class="ds-stat-label" data-en="GameObjects" data-ja="GameObject数" data-fa="GameObject ها">GameObjects</div></div>
-      <div class="ds-stat-tile"><div class="ds-stat-num">5</div><div class="ds-stat-label" data-en="Asset folders" data-ja="アセットフォルダ" data-fa="پوشه‌ی فایل‌ها">Asset folders</div></div>
-      <div class="ds-stat-tile"><div class="ds-stat-num">61</div><div class="ds-stat-label" data-en="Files tracked" data-ja="追跡ファイル数" data-fa="فایل‌های ردیابی‌شده">Files tracked</div></div>
-    </div>
-
-    <section id="scene-mainmenu">
-      <div class="ds-page-header">
-        <h1>🌳 MainMenu</h1>
-        <div class="ds-badge-row">
-          <span class="ds-badge">42 <span data-en="GameObjects" data-ja="GameObject" data-fa="GameObject">GameObjects</span></span>
-        </div>
-      </div>
-
-      <div class="ds-card">
-        <h3 data-en="Hierarchy" data-ja="ヒエラルキー" data-fa="Hierarchy">Hierarchy</h3>
-        <ul class="ds-tree">
-          <li>
-            <details class="ds-go" open>
-              <summary>🧍 Player <span class="ds-go-tag">Player</span></summary>
-              <ul>
-                <li><span class="ds-go-leaf">🎨 Model</span></li>
-                <li>
-                  <details class="ds-go">
-                    <summary>🗡️ WeaponSocket</summary>
-                    <ul><li><a class="ds-go-leaf" href="#go-equippedsword">⚔️ EquippedSword</a></li></ul>
-                  </details>
-                </li>
-              </ul>
-            </details>
-          </li>
-          <li>
-            <details class="ds-go">
-              <summary>👾 EnemySpawner <span class="ds-go-tag">Untagged</span></summary>
-              <ul><li><span class="ds-go-leaf">👹 Goblin_01</span></li></ul>
-            </details>
-          </li>
-          <li>
-            <details class="ds-go">
-              <summary>🖼️ UI Canvas</summary>
-              <ul><li><span class="ds-go-leaf">❤️ HealthBar</span></li></ul>
-            </details>
-          </li>
-        </ul>
-      </div>
-
-      <div class="ds-go-card" id="go-player">
-        <div class="ds-go-card-head">
-          <h3>🧍 Player</h3>
-          <div class="ds-badge-row">
-            <span class="ds-badge mint" data-en="Active" data-ja="アクティブ" data-fa="فعال">Active</span>
-            <span class="ds-badge">Tag: Player</span>
-            <span class="ds-badge">Layer: Default</span>
-          </div>
-        </div>
-        <div class="ds-go-card-body">
-          <div class="ds-transform-grid">
-            <div class="ds-transform-tile"><span class="lbl" data-en="Position" data-ja="位置" data-fa="موقعیت">Position</span><div class="ds-vec3"><b>X</b> 0.0 <b>Y</b> 1.2 <b>Z</b> -4.5</div></div>
-            <div class="ds-transform-tile"><span class="lbl" data-en="Rotation" data-ja="回転" data-fa="چرخش">Rotation</span><div class="ds-vec3"><b>X</b> 0.0 <b>Y</b> 90.0 <b>Z</b> 0.0</div></div>
-            <div class="ds-transform-tile"><span class="lbl" data-en="Scale" data-ja="スケール" data-fa="مقیاس">Scale</span><div class="ds-vec3"><b>X</b> 1.0 <b>Y</b> 1.0 <b>Z</b> 1.0</div></div>
-          </div>
-
-          <div class="ds-component is-user-script">
-            <div class="ds-component-head">🧩 PlayerController <span class="ds-component-toggle on">ON</span></div>
-            <table class="ds-field-table">
-              <tr><th data-en="Field" data-ja="フィールド" data-fa="فیلد">Field</th><th data-en="Type" data-ja="型" data-fa="نوع">Type</th><th data-en="Value" data-ja="値" data-fa="مقدار">Value</th></tr>
-              <tr><td class="ds-field-name">moveSpeed</td><td class="ds-field-type">float</td><td class="ds-field-value">6.5</td></tr>
-              <tr><td class="ds-field-name">canDoubleJump</td><td class="ds-field-type">bool</td><td class="ds-field-value"><span class="ds-pill bool-true">✓ true</span></td></tr>
-              <tr><td class="ds-field-name">state</td><td class="ds-field-type">enum</td><td class="ds-field-value"><span class="ds-pill enum">Idle</span></td></tr>
-              <tr><td class="ds-field-name">weapon</td><td class="ds-field-type">Transform</td><td class="ds-field-value"><a class="ds-ref-chip" href="#go-equippedsword">🔗 EquippedSword <span class="type">Transform</span></a></td></tr>
-              <tr><td class="ds-field-name">tint</td><td class="ds-field-type">Color</td><td class="ds-field-value"><span class="ds-swatch" style="background:#FFB6C1"></span>#FFB6C1</td></tr>
-            </table>
-          </div>
-
-          <div class="ds-component">
-            <div class="ds-component-head">⚙️ Rigidbody</div>
-            <table class="ds-field-table">
-              <tr><th>Field</th><th>Type</th><th>Value</th></tr>
-              <tr><td class="ds-field-name">mass</td><td class="ds-field-type">float</td><td class="ds-field-value">1</td></tr>
-              <tr><td class="ds-field-name">useGravity</td><td class="ds-field-type">bool</td><td class="ds-field-value"><span class="ds-pill bool-true">✓ true</span></td></tr>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div class="ds-go-card">
-        <div class="ds-go-card-head">
-          <h3>👾 EnemySpawner</h3>
-          <div class="ds-badge-row"><span class="ds-badge mint">Active</span></div>
-        </div>
-        <div class="ds-go-card-body">
-          <div class="ds-component is-missing">
-            <div class="ds-component-head">⚠️ <span data-en="Missing Script" data-ja="スクリプトが見つかりません" data-fa="اسکریپت گم‌شده">Missing Script</span></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="asset-backgrounds">
-      <div class="ds-page-header">
-        <h1>🗂️ Images / Backgrounds</h1>
-        <div class="ds-badge-row"><span class="ds-badge">12 <span data-en="files" data-ja="ファイル" data-fa="فایل">files</span></span></div>
-      </div>
-
-      <div class="ds-asset-grid">
-        <div class="ds-asset-card" id="asset-bakery">
-          <div class="ds-asset-card-head"><h3>🖼️ bakery_street.png</h3></div>
-          <div class="ds-asset-card-body">
-            <div class="ds-thumb">🖼️</div>
-            <div class="ds-kv-line"><span class="k" data-en="Path" data-ja="パス" data-fa="مسیر">Path</span><span class="v">Assets/Images/Backgrounds/bakery_street.png</span></div>
-            <div class="ds-kv-line"><span class="k" data-en="Dimensions" data-ja="サイズ" data-fa="ابعاد">Dimensions</span><span class="v">1920 × 1080</span></div>
-            <div class="ds-kv-line"><span class="k" data-en="Texture Type" data-ja="テクスチャタイプ" data-fa="نوع تکسچر">Texture Type</span><span class="v">Sprite</span></div>
-            <div class="ds-kv-line"><span class="k">sRGB</span><span class="v"><span class="ds-pill bool-true">✓ true</span></span></div>
-            <div class="ds-kv-line"><span class="k" data-en="Max Size" data-ja="最大サイズ" data-fa="حداکثر اندازه">Max Size</span><span class="v">2048</span></div>
-            <div class="ds-kv-line"><span class="k" data-en="Compression" data-ja="圧縮" data-fa="فشرده‌سازی">Compression</span><span class="v"><span class="ds-pill enum">Compressed</span></span></div>
-            <div class="ds-kv-line"><span class="k" data-en="Filter Mode" data-ja="フィルターモード" data-fa="حالت فیلتر">Filter Mode</span><span class="v">Bilinear</span></div>
-            <div class="ds-kv-line"><span class="k" data-en="Wrap Mode" data-ja="ラップモード" data-fa="حالت رپ">Wrap Mode</span><span class="v">Clamp</span></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <div class="ds-footer">
-      <span data-en="Generated by Unity DocSnap 🧋" data-ja="Unity DocSnap 🧋 により生成" data-fa="تولید شده با Unity DocSnap 🧋">Generated by Unity DocSnap 🧋</span>
-      <a href="https://github.com/AmirCollider/UnityDocSnap">github.com/AmirCollider/UnityDocSnap</a>
-    </div>
-  </main>
-</div>
-<button class="ds-back-top" aria-label="Back to top">⬆</button>
-
-<script>
-// ==========================================
+        // ==========================================
+        // AppJs - assets_ui/app.js contents
+        // ==========================================
+        public const string AppJs = @"// ==========================================
 // Unity DocSnap — Site Behaviour
 // Language switching + tree helpers.
-// No network calls, no storage: everything
-// needed already lives in this page's HTML.
+// No network calls. The only storage used is
+// localStorage, to remember the chosen UI
+// language (en/ja/fa) across pages of this
+// offline site - never used for project data.
 // ==========================================
 
 (function () {
   'use strict';
 
   var RTL_LANGS = { fa: true };
+  var LANG_STORAGE_KEY = 'unityDocSnapLang';
+
+  // ==========================================
+  // readStoredLanguage() / writeStoredLanguage()
+  // Best-effort persistence of the user's chosen
+  // language across pages of this offline site.
+  // Wrapped in try/catch since some browsers
+  // restrict localStorage under a file:// origin.
+  // ==========================================
+  function readStoredLanguage() {
+    try { return window.localStorage.getItem(LANG_STORAGE_KEY); }
+    catch (e) { return null; }
+  }
+
+  function writeStoredLanguage(lang) {
+    try { window.localStorage.setItem(LANG_STORAGE_KEY, lang); }
+    catch (e) { /* localStorage unavailable - non-fatal */ }
+  }
 
   // ==========================================
   // applyLanguage(lang)
   // Swaps visible text for every element that
-  // carries data-en/data-ja/data-fa, and flips
-  // document direction for RTL languages.
+  // carries data-en/data-ja/data-fa, flips
+  // document direction for RTL languages, and
+  // remembers the choice for the next page.
   // ==========================================
   function applyLanguage(lang) {
     var root = document.documentElement;
@@ -725,6 +551,21 @@ code, .mono { font-family: var(--font-mono); }
       buttons[b].classList.toggle('is-active', isActive);
       buttons[b].setAttribute('aria-pressed', isActive ? 'true' : 'false');
     }
+
+    writeStoredLanguage(lang);
+  }
+
+  // ==========================================
+  // restoreLanguage()
+  // Applies the language stored from a previous
+  // page, if this page has a matching lang button.
+  // Called once on DOMContentLoaded.
+  // ==========================================
+  function restoreLanguage() {
+    var stored = readStoredLanguage();
+    if (!stored) { return; }
+    var match = document.querySelector('.ds-lang-btn[data-lang=' + stored + ']');
+    if (match) { applyLanguage(stored); }
   }
 
   // ==========================================
@@ -742,7 +583,7 @@ code, .mono { font-family: var(--font-mono); }
 
   // ==========================================
   // wireTreeControls()
-  // Optional "expand all / collapse all" for
+  // Optional ""expand all / collapse all"" for
   // any .ds-tree block, operating on the native
   // <details> open attribute.
   // ==========================================
@@ -778,12 +619,38 @@ code, .mono { font-family: var(--font-mono); }
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    restoreLanguage();
     wireLanguageButtons();
     wireTreeControls();
     wireBackToTop();
   });
 })();
+";
 
-</script>
-</body>
-</html>
+        // ==========================================
+        // LogoMarkSvg - default inline mascot logo,
+        // used until a custom logo path is configured
+        // in Unity DocSnap > Settings.
+        // ==========================================
+        public const string LogoMarkSvg = @"<svg viewBox=""0 0 100 100"" xmlns=""http://www.w3.org/2000/svg"" role=""img"" aria-label=""Unity DocSnap mascot"">
+  <polygon points=""62,10 84,32 68,30 66,15"" fill=""#ffe08a"" stroke=""#4a3b52"" stroke-width=""2.5"" stroke-linejoin=""round""/>
+  <line x1=""59"" y1=""34"" x2=""72"" y2=""12"" stroke=""#4a3b52"" stroke-width=""4.5"" stroke-linecap=""round""/>
+  <line x1=""59"" y1=""34"" x2=""72"" y2=""12"" stroke=""#ff8fa3"" stroke-width=""3"" stroke-linecap=""round""/>
+  <rect x=""53"" y=""30"" width=""7"" height=""7"" rx=""2"" transform=""rotate(45 56.5 33.5)"" fill=""#fff""/>
+  <polygon points=""30,38 70,38 62,86 38,86"" fill=""#ffdbeb"" stroke=""#4a3b52"" stroke-width=""3.2"" stroke-linejoin=""round""/>
+  <circle cx=""42"" cy=""74"" r=""4"" fill=""#563a42"" stroke=""#4a3b52"" stroke-width=""1.4""/>
+  <circle cx=""52"" cy=""78"" r=""4.4"" fill=""#563a42"" stroke=""#4a3b52"" stroke-width=""1.4""/>
+  <circle cx=""61"" cy=""73"" r=""3.8"" fill=""#563a42"" stroke=""#4a3b52"" stroke-width=""1.4""/>
+  <rect x=""26"" y=""26"" width=""48"" height=""14"" rx=""7"" fill=""#ffb6c1"" stroke=""#4a3b52"" stroke-width=""3.2""/>
+  <ellipse cx=""50"" cy=""32"" rx=""4"" ry=""3"" fill=""#4a3b52""/>
+  <circle cx=""39"" cy=""52"" r=""3.4"" fill=""#4a3b52""/>
+  <circle cx=""61"" cy=""52"" r=""3.4"" fill=""#4a3b52""/>
+  <circle cx=""37.6"" cy=""50.6"" r=""1.1"" fill=""#fff""/>
+  <circle cx=""59.6"" cy=""50.6"" r=""1.1"" fill=""#fff""/>
+  <ellipse cx=""33"" cy=""58"" rx=""4.5"" ry=""3.2"" fill=""#ff8fa3"" opacity="".55""/>
+  <ellipse cx=""67"" cy=""58"" rx=""4.5"" ry=""3.2"" fill=""#ff8fa3"" opacity="".55""/>
+  <path d=""M45 58 Q50 63 55 58"" stroke=""#4a3b52"" stroke-width=""2.2"" fill=""none"" stroke-linecap=""round""/>
+  <polygon points=""16,64 19,71 26,72 19,76 18,83 13,78 6,79 10,72 8,65 15,68"" fill=""#b19cd9"" stroke=""#4a3b52"" stroke-width=""1.6"" stroke-linejoin=""round""/>
+</svg>";
+    }
+}

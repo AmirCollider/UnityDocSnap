@@ -2,6 +2,17 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.2.0] - 2026-07-07
+
+### Fixed
+- `SceneHierarchyExporter.ExportScene` no longer spams the console with Unity's "More than one global light on layer … for light blend style index 0" warning on every `Export Full Project` run. The additive scene load/unload DocSnap performs internally now runs with `Debug.unityLogger.logEnabled` temporarily off, since the warning is a transient, tool-caused side effect (two Scenes' Global Light 2Ds briefly coexisting) rather than a real project issue.
+- `UniversalReflector` no longer logs "type is not a supported int value" for `RenderingLayerMask` fields. These are now detected by property-type name (no hard compile-time dependency on the enum member) and read via `uintValue` instead of falling through to a `longValue` read that Unity itself cannot service for this type.
+- Asset folder pages: the card grid no longer uses a fixed `column-width`, which broke down (overlapping text, mis-sized cards) whenever a card's content - long paths, GUIDs, or wide import-setting tables - needed more room than the fixed column allowed. It is now a responsive CSS Grid that sizes columns to the available width.
+
+### Added
+- Asset folder pages now render a real, collapsible directory tree (mirroring the existing Scene Hierarchy tree UI) instead of one flat file grid. Every exported folder's subfolders can be expanded or collapsed individually, each showing only the files that live directly inside it.
+- `Unity DocSnap > Export Full Project With Files`: identical to `Export Full Project`, but additionally copies every referenced asset's actual file bytes (plus its `.meta` file, when present) into an output-side `files/` folder that mirrors each asset's original `Assets/…` relative path. The original `Export Full Project` and `Export Asset Info` actions remain metadata-only, matching DocSnap's existing "asset info, never asset files" default.
+
 ## [0.1.0] - 2026-07-07
 
 ### Fixed
