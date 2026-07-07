@@ -2,6 +2,16 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.2.2] - 2026-07-08
+
+### Fixed
+- Asset folder pages: array/list fields with many elements (in particular jagged/nested arrays - an array whose own elements are arrays) no longer render as an unbounded vertical stack that could reach hundreds of thousands of pixels tall and force text into a column only a few characters wide (`.ds-field-value`'s `overflow-wrap: anywhere` breaking numbers like `0.399261` into `0.39` / `9261` once the column got squeezed that narrow). Simple scalar array elements (numbers, bools, vectors, enums, references, …) now render as small wrapping chips inside a fixed-height (240px), scrollable box (`.ds-array-wrap` / `.ds-array-item`); only genuinely complex elements (nested structs, `[SerializeReference]` values, nested arrays) still render as their own full-width line.
+- `UniversalReflector.ReadArray` now tracks array-nesting depth and applies a much smaller `MaxNestedArrayElementsRendered` cap to any array reached from inside another array, instead of reusing the same top-level `MaxArrayElementsRendered` cap at every nesting level - this compounding (up to 200 × 200 elements previously) was the root cause of both the export bloat and the multi-minute-scroll pages reported for Asset folders with jagged numeric array fields.
+- `.ds-nested-table` no longer inherits the outer `.ds-field-table`'s fixed 32% / 22% / 46% column widths verbatim at every nesting level, which compounded into unreadably narrow columns a few levels deep. Nested field tables now use `table-layout: auto` with a `min-width`, scrolling horizontally inside their own card (`overflow-x: auto`) instead of being squeezed.
+
+### Changed
+- `DocSnapConstants.MaxArrayElementsRendered` lowered from `200` to `50`; new `DocSnapConstants.MaxNestedArrayElementsRendered` (`10`) applies specifically to nested/jagged arrays, so a single field's export payload is substantially smaller by default.
+
 ## [0.2.1] - 2026-07-08
 
 ### Fixed
