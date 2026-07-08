@@ -349,30 +349,53 @@ code, .mono { font-family: var(--font-mono); }
 .ds-component-toggle.off { background: #f1e9ea; color: var(--ink-soft); }
 
 /* ==========================================
-   Field Table
+   Field Grid (CSS Grid, not <table>) — each
+   .ds-field-grid builds its own column tracks
+   from its own available width, so nesting one
+   inside another (structs inside structs, an
+   array's complex items inside a component's
+   fields, …) can never compound into an ever-
+   narrower fixed percentage the way nested
+   <table>s used to. Rows use display:contents
+   so their children become direct grid items of
+   the surrounding .ds-field-grid.
    ========================================== */
-.ds-field-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
-.ds-field-table th {
-  text-align: start;
+.ds-field-grid {
+  display: grid;
+  grid-template-columns: minmax(96px, 26%) minmax(64px, 16%) minmax(0, 1fr);
+  column-gap: 12px;
+  width: 100%;
+  font-size: 13px;
+}
+.ds-field-grid-head, .ds-field-grid-row { display: contents; }
+.ds-field-grid-head > span {
   font-family: var(--font-display);
   font-size: 11px;
   letter-spacing: .03em;
   color: var(--ink-soft);
-  padding: 8px 10px;
+  padding: 8px 0;
   border-bottom: 2px solid var(--line);
 }
-.ds-field-table th:nth-child(1), .ds-field-table td:nth-child(1) { width: 32%; }
-.ds-field-table th:nth-child(2), .ds-field-table td:nth-child(2) { width: 22%; }
-.ds-field-table th:nth-child(3), .ds-field-table td:nth-child(3) { width: 46%; }
-.ds-field-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
-.ds-field-table tr:last-child td { border-bottom: none; }
+.ds-field-grid-row > div {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+  align-self: start;
+}
+.ds-field-grid-row:last-child > div { border-bottom: none; }
 .ds-field-name { font-weight: 700; overflow-wrap: anywhere; }
 .ds-field-type { color: var(--ink-soft); font-family: var(--font-mono); font-size: 11.5px; overflow-wrap: anywhere; }
-.ds-field-value { font-family: var(--font-mono); font-size: 12.5px; word-break: break-word; overflow-wrap: anywhere; }
+.ds-field-value { font-family: var(--font-mono); font-size: 12.5px; min-width: 0; overflow-wrap: anywhere; }
 
-.ds-nested-table { margin: 4px 0; background: var(--cream-deep); border-radius: var(--radius-sm); max-width: 100%; overflow-x: auto; }
-.ds-nested-table .ds-field-table { table-layout: auto; min-width: 260px; }
-.ds-nested-table .ds-field-table th, .ds-nested-table .ds-field-table td { border-color: rgba(0,0,0,.05); white-space: normal; overflow-wrap: normal; word-break: normal; }
+.ds-nested-block {
+  margin: 4px 0;
+  padding: 8px 10px;
+  background: var(--cream-deep);
+  border-radius: var(--radius-sm);
+  max-width: 100%;
+  overflow-x: auto;
+}
+.ds-nested-block-title { font-weight: 700; padding: 2px 0 8px; overflow-wrap: anywhere; }
 
 .ds-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
 .ds-pill.bool-true { background: #eafce9; color: #396b37; }
@@ -391,39 +414,103 @@ code, .mono { font-family: var(--font-mono); }
   font-weight: 700;
   font-size: 12px;
   font-family: var(--font-body);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ds-ref-chip:hover { background: var(--lavender); color: #fff; text-decoration: none; }
 .ds-ref-chip.is-missing { background: var(--warn-bg); color: var(--warn-ink); }
 .ds-ref-chip.is-unresolved { background: var(--cream-deep); color: var(--ink-soft); }
 .ds-ref-chip .type { opacity: .7; font-weight: 500; font-size: 10.5px; }
 
-.ds-array-wrap {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 6px;
-  max-height: 240px;
-  overflow: auto;
+/* ==========================================
+   Array Data Grid — compact scalar array
+   elements (numbers, bools, enums, vectors,
+   refs, …) as fixed-width cells with nowrap +
+   ellipsis, instead of the old flex-wrap chips.
+   A value can no longer break mid-character: it
+   either fits, or it truncates with an ellipsis,
+   with the full value still readable via the
+   cell's title tooltip.
+   ========================================== */
+.ds-array-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 5px;
+  max-height: 260px;
+  overflow-y: auto;
   padding: 8px;
   background: var(--cream-deep);
   border-radius: var(--radius-sm);
 }
-.ds-array-item {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: baseline;
-  gap: 5px;
-  max-width: 100%;
-  overflow-wrap: anywhere;
+.ds-array-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 2px 9px;
-  font-size: 11.5px;
-  font-family: var(--font-mono);
+  border-radius: 7px;
+  padding: 4px 8px;
+  overflow: hidden;
 }
-.ds-array-item .idx { color: var(--ink-soft); font-weight: 700; font-family: var(--font-body); }
-.ds-array-block-item { margin: 6px 0; padding: 6px 8px; background: var(--cream-deep); border-radius: var(--radius-sm); }
+.ds-array-cell .idx { font-size: 9.5px; font-weight: 700; color: var(--ink-faint); line-height: 1.3; }
+.ds-array-cell .val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ==========================================
+   Matrix Grid — arrays whose own elements are
+   arrays of scalars (jagged/2D numeric data:
+   vertex lists, matrices, …). Rendered as one
+   real sticky-header, scrollable spreadsheet-
+   style table instead of nesting array grids
+   inside array blocks, which is what kept
+   recreating the character-splitting bug no
+   matter how many times the flat-array case
+   alone got patched.
+   ========================================== */
+.ds-matrix-scroll {
+  overflow: auto;
+  max-height: 320px;
+  background: var(--cream-deep);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+}
+.ds-matrix-table { border-collapse: separate; border-spacing: 3px; font-family: var(--font-mono); font-size: 11.5px; }
+.ds-matrix-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--cream-deep);
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  z-index: 1;
+}
+.ds-matrix-table td {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 9px;
+  white-space: nowrap;
+  text-align: end;
+}
+.ds-matrix-row-head {
+  position: sticky;
+  left: 0;
+  background: var(--cream-deep) !important;
+  text-align: center !important;
+  z-index: 1;
+}
+
+.ds-array-block-item { margin: 6px 0; padding: 6px 8px; background: var(--cream-deep); border-radius: var(--radius-sm); max-width: 100%; overflow-x: auto; }
 .ds-array-more { color: var(--ink-soft); font-size: 11.5px; font-style: italic; margin-top: 6px; }
 .ds-empty-note { color: var(--ink-faint); font-size: 12.5px; font-style: italic; padding: 8px 0; }
 
