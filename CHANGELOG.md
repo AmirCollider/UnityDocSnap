@@ -2,6 +2,19 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.2.3] - 2026-07-08
+
+### Fixed
+- Nested/jagged numeric arrays (vertex lists, matrices, per-bone weight tables, …) could still split a value mid-character (e.g. `0.399261` into `0.39` / `9261`) despite the 0.2.1/0.2.2 fixes, because `.ds-nested-table`'s nested `<table>` and `.ds-array-item`'s `overflow-wrap: anywhere` could still be squeezed into a narrow column once enough levels of nesting compounded a fixed percentage width. The entire field/array rendering pipeline (shared by Asset pages and Scene pages) has been rebuilt instead of patched again: `<table>`-based field rows are replaced by a CSS Grid row layout (`.ds-field-grid`, rows using `display: contents`) that builds its own column tracks from its own available width at every nesting level, so a fixed percentage can no longer compound down through nested structs/components/arrays.
+
+### Changed
+- Compact array elements (numbers, bools, enums, vectors, references, …) now render as fixed-width grid cells (`.ds-array-grid` / `.ds-array-cell`) using `white-space: nowrap` + `text-overflow: ellipsis` instead of the old `.ds-array-wrap` / `.ds-array-item` flex-wrap chips - a value either fits or truncates with an ellipsis, and the untruncated value is always available as a hover tooltip.
+- `RenderShaderProps` (Material shader property tables) now shares the same field-grid renderer as every other field table instead of its own separate `<table class="ds-field-table">` markup.
+- Object reference chips (`.ds-ref-chip`) now truncate with an ellipsis and carry a `title` tooltip with the full target name, instead of wrapping (and potentially breaking mid-character) a long name.
+
+### Added
+- Jagged/2D scalar arrays (an array whose own elements are arrays) are now detected and rendered as one real, sticky-header, horizontally+vertically scrollable spreadsheet-style table (`.ds-matrix-scroll` / `.ds-matrix-table`) instead of nesting an array block inside another array block - this specific shape of data was the actual root cause behind the character-splitting bug recurring after every previous patch.
+
 ## [0.2.2] - 2026-07-08
 
 ### Fixed
