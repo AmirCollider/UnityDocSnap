@@ -56,6 +56,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             string targetNameHtml = string.IsNullOrEmpty(targetName)
                 ? HtmlPageBuilder.I18n("span", null, "(unnamed)", "（名称なし）", "(بدون‌نام)")
                 : HtmlPageBuilder.Escape(targetName);
+            string titleAttr = string.IsNullOrEmpty(targetName) ? "" : " title=\"" + HtmlPageBuilder.Escape(targetName) + "\"";
             string refType = refNode.Get("refType").AsString("Object");
             bool isAsset = refNode.Get("isAsset").AsBool();
 
@@ -66,10 +67,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 if (!string.IsNullOrEmpty(guid) && GuidLookup != null && GuidLookup.TryGetValue(guid, out entry))
                 {
                     string href = LinkPrefix + entry.htmlFile + "#" + entry.anchor;
-                    return "<a class=\"ds-ref-chip\" href=\"" + href + "\">\uD83D\uDD17 " + targetNameHtml
+                    return "<a class=\"ds-ref-chip\"" + titleAttr + " href=\"" + href + "\">\uD83D\uDD17 " + targetNameHtml
                         + " <span class=\"type\">" + HtmlPageBuilder.Escape(refType) + "</span></a>";
                 }
-                return "<span class=\"ds-ref-chip is-unresolved\">" + targetNameHtml
+                return "<span class=\"ds-ref-chip is-unresolved\"" + titleAttr + ">" + targetNameHtml
                     + " <span class=\"type\">" + HtmlPageBuilder.Escape(refType) + " \u00B7 " + HtmlPageBuilder.I18n("span", null, "not exported yet", "未エクスポート", "هنوز اکسپورت نشده") + "</span></span>";
             }
 
@@ -77,10 +78,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             string anchor;
             if (LocalAnchors != null && LocalAnchors.TryGetValue(instanceId, out anchor))
             {
-                return "<a class=\"ds-ref-chip\" href=\"#" + anchor + "\">\uD83D\uDD17 " + targetNameHtml
+                return "<a class=\"ds-ref-chip\"" + titleAttr + " href=\"#" + anchor + "\">\uD83D\uDD17 " + targetNameHtml
                     + " <span class=\"type\">" + HtmlPageBuilder.Escape(refType) + "</span></a>";
             }
-            return "<span class=\"ds-ref-chip is-unresolved\">" + targetNameHtml
+            return "<span class=\"ds-ref-chip is-unresolved\"" + titleAttr + ">" + targetNameHtml
                 + " <span class=\"type\">" + HtmlPageBuilder.Escape(refType) + "</span></span>";
         }
     }
@@ -243,10 +244,19 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             return sb.ToString();
         }
 
-        // ==========================================
+       // ==========================================
         // RenderFieldTable
-        // A Field / Type / Value table for one array
-        // of field nodes (top-level or nested).
+        // A Field / Type / Value grid for one array of
+        // field nodes (top-level or nested). Built on
+        // CSS Grid (.ds-field-grid, rows using
+        // display:contents) instead of a <table>, so
+        // this grid's own column tracks are sized from
+        // its own available width at every nesting
+        // level - nesting one of these inside another
+        // (a struct inside a struct, a field list inside
+        // a card, ...) can no longer compound into an
+        // ever-narrower fixed percentage the way nested
+        // <table>s used to.
         // ==========================================
         public static string RenderFieldTable(JsonValue fieldsArray, RefLinkResolver resolver)
         {
@@ -255,20 +265,23 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 return "<p class=\"ds-empty-note\">" + HtmlPageBuilder.I18n("span", null, "No fields.", "フィールドはありません。", "فیلدی وجود نداره.") + "</p>";
             }
             var sb = new StringBuilder(1024);
-            sb.Append("<table class=\"ds-field-table\"><tr>")
-              .Append(HtmlPageBuilder.I18n("th", null, "Field", "フィールド", "فیلد"))
-              .Append(HtmlPageBuilder.I18n("th", null, "Type", "型", "نوع"))
-              .Append(HtmlPageBuilder.I18n("th", null, "Value", "値", "مقدار"))
-              .Append("</tr>\n");
+            sb.Append("<div class=\"ds-field-grid\">");
+            sb.Append("<div class=\"ds-field-grid-head\">")
+              .Append(HtmlPageBuilder.I18n("span", null, "Field", "フィールド", "فیلد"))
+              .Append(HtmlPageBuilder.I18n("span", null, "Type", "型", "نوع"))
+              .Append(HtmlPageBuilder.I18n("span", null, "Value", "値", "مقدار"))
+              .Append("</div>\n");
             foreach (JsonValue field in fieldsArray.Items)
             {
                 string name = field.Has("label") ? field.Get("label").AsString("") : field.Get("name").AsString("");
                 string kind = field.Get("kind").AsString("raw");
-                sb.Append("<tr><td class=\"ds-field-name\">").Append(HtmlPageBuilder.Escape(name)).Append("</td>");
-                sb.Append("<td class=\"ds-field-type\">").Append(HtmlPageBuilder.Escape(kind)).Append("</td>");
-                sb.Append("<td class=\"ds-field-value\">").Append(RenderValue(field, resolver, 0)).Append("</td></tr>\n");
+                sb.Append("<div class=\"ds-field-grid-row\">");
+                sb.Append("<div class=\"ds-field-name\">").Append(HtmlPageBuilder.Escape(name)).Append("</div>");
+                sb.Append("<div class=\"ds-field-type\">").Append(HtmlPageBuilder.Escape(kind)).Append("</div>");
+                sb.Append("<div class=\"ds-field-value\">").Append(RenderValue(field, resolver, 0)).Append("</div>");
+                sb.Append("</div>\n");
             }
-            sb.Append("</table>");
+            sb.Append("</div>");
             return sb.ToString();
         }
 
@@ -350,13 +363,23 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             }
         }
 
+        // ==========================================
+        // RenderGeneric
+        // Renders a nested struct/class field as its
+        // own boxed field grid (see .ds-nested-block).
+        // ==========================================
         private static string RenderGeneric(JsonValue field, RefLinkResolver resolver, int depth)
         {
             JsonValue fields = field.Get("fields");
             if (fields.Items.Count == 0) { return "<span class=\"ds-empty-note\">" + HtmlPageBuilder.I18n("span", null, "(empty)", "（空）", "(خالی)") + "</span>"; }
-            return "<div class=\"ds-nested-table\">" + RenderFieldTable(fields, resolver) + "</div>";
+            return "<div class=\"ds-nested-block\">" + RenderFieldTable(fields, resolver) + "</div>";
         }
-
+        // ==========================================
+        // RenderManagedRef
+        // Renders a [SerializeReference] polymorphic
+        // field as its concrete type name plus its own
+        // boxed field grid (see .ds-nested-block).
+        // ==========================================
         private static string RenderManagedRef(JsonValue field, RefLinkResolver resolver, int depth)
         {
             string typeName = field.Get("typeName").AsString("");
@@ -365,7 +388,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 return "<span class=\"ds-empty-note\">" + HtmlPageBuilder.I18n("span", null, "None", "なし", "هیچ‌کدام") + " (" + HtmlPageBuilder.Escape(typeName) + ")</span>";
             }
             var sb = new StringBuilder(256);
-            sb.Append("<div class=\"ds-nested-table\"><div style=\"padding:6px 10px;font-weight:700;\">").Append(HtmlPageBuilder.Escape(typeName)).Append("</div>");
+            sb.Append("<div class=\"ds-nested-block\"><div class=\"ds-nested-block-title\">").Append(HtmlPageBuilder.Escape(typeName)).Append("</div>");
             sb.Append(RenderFieldTable(field.Get("fields"), resolver));
             sb.Append("</div>");
             return sb.ToString();
@@ -374,12 +397,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // ==========================================
         // CompactArrayItemKinds
         // Field "kind" values short/simple enough to
-        // render as a small inline chip inside
-        // RenderArray's wrapped, fixed-height box.
-        // Anything not in this set (generic structs,
-        // managedRef, nested arrays) keeps its own
-        // full-width block line instead, since it can
-        // be arbitrarily large/complex.
+        // render as a fixed-width grid cell inside
+        // RenderArray's scrollable box (see
+        // .ds-array-grid / .ds-array-cell). Anything
+        // not in this set (generic structs, managedRef,
+        // nested arrays not already handled by
+        // IsScalarMatrix) keeps its own full-width
+        // block line instead, since it can be
+        // arbitrarily large/complex.
         // ==========================================
         private static readonly HashSet<string> CompactArrayItemKinds = new HashSet<string>
         {
@@ -390,17 +415,45 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         };
 
         // ==========================================
+        // IsScalarMatrix
+        // True when every element of this array is
+        // itself an array whose own elements are all
+        // "compact" kinds - a genuine jagged/2D numeric
+        // matrix (vertex lists, transform matrices,
+        // per-bone weight tables, ...). These render as
+        // one real row/column grid (see RenderMatrix)
+        // instead of nesting an array-grid inside an
+        // array-block for every row, which is what let
+        // ordinary numeric data keep recreating the
+        // character-splitting bug no matter how many
+        // times the flat-array case alone got patched.
+        // ==========================================
+        private static bool IsScalarMatrix(JsonValue items)
+        {
+            if (items.Items.Count == 0) { return false; }
+            foreach (JsonValue item in items.Items)
+            {
+                if (item.Get("kind").AsString("") != "array") { return false; }
+                JsonValue innerItems = item.Get("items");
+                if (innerItems.Items.Count == 0) { return false; }
+                foreach (JsonValue inner in innerItems.Items)
+                {
+                    if (!CompactArrayItemKinds.Contains(inner.Get("kind").AsString(""))) { return false; }
+                }
+            }
+            return true;
+        }
+
+        // ==========================================
         // RenderArray
-        // Renders simple scalar elements as compact,
-        // wrapping chips inside a fixed max-height,
-        // scrollable box (see .ds-array-wrap /
-        // .ds-array-item), instead of stacking one
-        // element per line forever - the previous
-        // behavior that produced a column only a few
-        // characters wide and hundreds of thousands of
-        // pixels tall for large numeric arrays. Complex,
-        // already block-shaped elements still render as
-        // their own full-width line.
+        // Dispatches to the dedicated matrix renderer
+        // for a genuine jagged/2D numeric array, or to
+        // the flat/mixed renderer otherwise. Either way,
+        // every leaf scalar value flows through the same
+        // nowrap+ellipsis cell (see RenderFlatOrMixedArray
+        // / .ds-array-cell), so a value can never be
+        // broken mid-character no matter how deep the
+        // nesting goes.
         // ==========================================
         private static string RenderArray(JsonValue field, RefLinkResolver resolver, int depth)
         {
@@ -408,7 +461,86 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             if (count == 0) { return "<span class=\"ds-empty-note\">" + HtmlPageBuilder.I18n("span", null, "Empty array", "空の配列", "آرایه‌ی خالی") + "</span>"; }
 
             JsonValue items = field.Get("items");
-            var compactSb = new StringBuilder(256);
+            string body = IsScalarMatrix(items)
+                ? RenderMatrix(items, resolver)
+                : RenderFlatOrMixedArray(items, resolver, depth);
+
+            if (!field.Get("truncated").AsBool()) { return body; }
+
+            return body + "<div class=\"ds-array-more\">\u2026" + (count - items.Items.Count) + " "
+                + HtmlPageBuilder.I18n("span", null, "more (truncated)", "件省略", "مورد دیگر (کوتاه‌شده)") + "</div>";
+        }
+
+        // ==========================================
+        // RenderMatrix
+        // Renders a jagged/2D scalar array as one real,
+        // sticky-header, horizontally+vertically
+        // scrollable table (see .ds-matrix-scroll /
+        // .ds-matrix-table) - rows and columns exactly
+        // like a spreadsheet, every cell's own width
+        // driven by table layout, never by an ancestor's
+        // shrinking fixed percentage. Rows shorter than
+        // the widest row are padded with a placeholder
+        // cell instead of throwing.
+        // ==========================================
+        private static string RenderMatrix(JsonValue rows, RefLinkResolver resolver)
+        {
+            int colCount = 0;
+            bool anyRowTruncated = false;
+            foreach (JsonValue row in rows.Items)
+            {
+                colCount = Math.Max(colCount, row.Get("items").Items.Count);
+                if (row.Get("truncated").AsBool()) { anyRowTruncated = true; }
+            }
+
+            var sb = new StringBuilder(1024);
+            sb.Append("<div class=\"ds-matrix-scroll\"><table class=\"ds-matrix-table\"><thead><tr><th></th>");
+            for (int c = 0; c < colCount; c++) { sb.Append("<th>").Append(c).Append("</th>"); }
+            sb.Append("</tr></thead><tbody>\n");
+
+            for (int r = 0; r < rows.Items.Count; r++)
+            {
+                JsonValue rowItems = rows.Items[r].Get("items");
+                sb.Append("<tr><th class=\"ds-matrix-row-head\">").Append(r).Append("</th>");
+                for (int c = 0; c < colCount; c++)
+                {
+                    if (c < rowItems.Items.Count)
+                    {
+                        sb.Append("<td>").Append(RenderValue(rowItems.Items[c], resolver, 0)).Append("</td>");
+                    }
+                    else
+                    {
+                        sb.Append("<td>\u00B7</td>");
+                    }
+                }
+                sb.Append("</tr>\n");
+            }
+            sb.Append("</tbody></table></div>");
+            if (anyRowTruncated)
+            {
+                sb.Append("<div class=\"ds-array-more\">").Append(HtmlPageBuilder.I18n("span", null,
+                    "Some rows have additional columns not shown (truncated).",
+                    "一部の行には表示されていない追加の列があります(省略)。",
+                    "بعضی از ردیف‌ها ستون‌های بیشتری دارن که نشون داده نشدن (کوتاه‌شده).")).Append("</div>");
+            }
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // RenderFlatOrMixedArray
+        // Simple scalar elements become fixed-width
+        // grid cells inside a scrollable box (see
+        // .ds-array-grid / .ds-array-cell) - a value
+        // either fits or truncates with an ellipsis and
+        // a title tooltip, never breaks mid-character.
+        // Complex elements (nested structs, managedRef,
+        // further nested arrays IsScalarMatrix did not
+        // already handle) still render as their own
+        // full-width, independently-scrollable block line.
+        // ==========================================
+        private static string RenderFlatOrMixedArray(JsonValue items, RefLinkResolver resolver, int depth)
+        {
+            var gridSb = new StringBuilder(256);
             var blockSb = new StringBuilder();
             for (int i = 0; i < items.Items.Count; i++)
             {
@@ -417,7 +549,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 string valueHtml = RenderValue(item, resolver, depth + 1);
                 if (CompactArrayItemKinds.Contains(itemKind))
                 {
-                    compactSb.Append("<span class=\"ds-array-item\"><span class=\"idx\">[").Append(i).Append("]</span><span class=\"val\">").Append(valueHtml).Append("</span></span>");
+                    string title = PlainTextForTitle(item, itemKind);
+                    gridSb.Append("<div class=\"ds-array-cell\"").Append(string.IsNullOrEmpty(title) ? "" : " title=\"" + HtmlPageBuilder.Escape(title) + "\"")
+                          .Append("><span class=\"idx\">[").Append(i).Append("]</span><span class=\"val\">").Append(valueHtml).Append("</span></div>");
                 }
                 else
                 {
@@ -426,20 +560,53 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             }
 
             var sb = new StringBuilder(512);
-            if (compactSb.Length > 0)
-            {
-                sb.Append("<div class=\"ds-array-wrap\">").Append(compactSb.ToString()).Append("</div>");
-            }
-            if (blockSb.Length > 0)
-            {
-                sb.Append(blockSb.ToString());
-            }
-            if (field.Get("truncated").AsBool())
-            {
-                sb.Append("<div class=\"ds-array-more\">\u2026").Append(count - items.Items.Count).Append(" ")
-                  .Append(HtmlPageBuilder.I18n("span", null, "more (truncated)", "件省略", "مورد دیگر (کوتاه‌شده)")).Append("</div>");
-            }
+            if (gridSb.Length > 0) { sb.Append("<div class=\"ds-array-grid\">").Append(gridSb.ToString()).Append("</div>"); }
+            if (blockSb.Length > 0) { sb.Append(blockSb.ToString()); }
             return sb.ToString();
+        }
+
+        // ==========================================
+        // PlainTextForTitle
+        // Best-effort plain-text rendering of a compact
+        // array item, used only for the array cell's
+        // title tooltip, so a truncated/ellipsized value
+        // is always still readable in full on hover.
+        // ==========================================
+        private static string PlainTextForTitle(JsonValue item, string kind)
+        {
+            switch (kind)
+            {
+                case "int":
+                case "float":
+                    return FormatNumber(item.Get("value").AsNumber());
+                case "bool":
+                    return item.Get("value").AsBool() ? "true" : "false";
+                case "string":
+                case "enum":
+                case "color":
+                case "hash128":
+                    return item.Get("value").AsString("");
+                case "vector2":
+                case "vector2int":
+                    {
+                        JsonValue v = item.Get("value");
+                        return "X " + FormatNumber(v.Get("x").AsNumber()) + " Y " + FormatNumber(v.Get("y").AsNumber());
+                    }
+                case "vector3":
+                case "vector3int":
+                case "quaternion":
+                    {
+                        JsonValue v = item.Get("value");
+                        return "X " + FormatNumber(v.Get("x").AsNumber()) + " Y " + FormatNumber(v.Get("y").AsNumber()) + " Z " + FormatNumber(v.Get("z").AsNumber());
+                    }
+                case "vector4":
+                    {
+                        JsonValue v = item.Get("value");
+                        return "X " + FormatNumber(v.Get("x").AsNumber()) + " Y " + FormatNumber(v.Get("y").AsNumber()) + " Z " + FormatNumber(v.Get("z").AsNumber()) + " W " + FormatNumber(v.Get("w").AsNumber());
+                    }
+                default:
+                    return "";
+            }
         }
 
         // ==========================================
@@ -631,15 +798,23 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             return size.ToString("0.#", CultureInfo.InvariantCulture) + " " + units[u];
         }
 
+       // ==========================================
+        // RenderShaderProps
+        // A Property / Type / Value field grid for one
+        // Material's shader properties - shares the same
+        // .ds-field-grid markup as every other field
+        // table instead of its own separate <table>.
+        // ==========================================
         private static string RenderShaderProps(JsonValue props)
         {
             if (props.Items.Count == 0) { return ""; }
             var sb = new StringBuilder(512);
-            sb.Append("<table class=\"ds-field-table\"><tr>")
-              .Append(HtmlPageBuilder.I18n("th", null, "Property", "プロパティ", "ویژگی"))
-              .Append(HtmlPageBuilder.I18n("th", null, "Type", "型", "نوع"))
-              .Append(HtmlPageBuilder.I18n("th", null, "Value", "値", "مقدار"))
-              .Append("</tr>");
+            sb.Append("<div class=\"ds-field-grid\">");
+            sb.Append("<div class=\"ds-field-grid-head\">")
+              .Append(HtmlPageBuilder.I18n("span", null, "Property", "プロパティ", "ویژگی"))
+              .Append(HtmlPageBuilder.I18n("span", null, "Type", "型", "نوع"))
+              .Append(HtmlPageBuilder.I18n("span", null, "Value", "値", "مقدار"))
+              .Append("</div>");
             foreach (JsonValue p in props.Items)
             {
                 string kind = p.Get("kind").AsString("raw");
@@ -666,10 +841,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                         valueHtml = "-";
                         break;
                 }
-                sb.Append("<tr><td class=\"ds-field-name\">").Append(HtmlPageBuilder.Escape(name)).Append("</td><td class=\"ds-field-type\">")
-                  .Append(HtmlPageBuilder.Escape(kind)).Append("</td><td class=\"ds-field-value\">").Append(valueHtml).Append("</td></tr>");
+                sb.Append("<div class=\"ds-field-grid-row\"><div class=\"ds-field-name\">").Append(HtmlPageBuilder.Escape(name))
+                  .Append("</div><div class=\"ds-field-type\">").Append(HtmlPageBuilder.Escape(kind))
+                  .Append("</div><div class=\"ds-field-value\">").Append(valueHtml).Append("</div></div>");
             }
-            sb.Append("</table>");
+            sb.Append("</div>");
             return sb.ToString();
         }
 
