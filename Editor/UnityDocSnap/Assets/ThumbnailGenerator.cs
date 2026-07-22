@@ -84,6 +84,134 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         }
 
         // ==========================================
+        // TryWriteImageThumbnailPng
+        // Same decode+downscale path as
+        // TryGetImageThumbnailBase64, but writes a real
+        // .png next to the site instead of inlining a
+        // base64 data URI. Inlining meant every preview
+        // was embedded twice (HTML + JSON) and could not
+        // be lazy-loaded or cached, which is what made
+        // large Asset pages unopenable.
+        // Returns the site-relative path, or null.
+        // ==========================================
+        public static string TryWriteImageThumbnailPng(string assetAbsolutePath, string thumbsFolderAbsolute, string guid, int maxDimension, out int sourceWidth, out int sourceHeight)
+        {
+            sourceWidth = 0;
+            sourceHeight = 0;
+            Texture2D source = null;
+            Texture2D scaled = null;
+            try
+            {
+                byte[] bytes = File.ReadAllBytes(assetAbsolutePath);
+                source = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (!source.LoadImage(bytes)) { return null; }
+
+                sourceWidth = source.width;
+                sourceHeight = source.height;
+
+                scaled = ScaleDown(source, maxDimension);
+                return WritePng(scaled, thumbsFolderAbsolute, guid);
+            }
+            catch
+            {
+                return null;
+            }
+            finally
+            {
+                if (source != null) { UnityEngine.Object.DestroyImmediate(source); }
+                if (scaled != null && !ReferenceEquals(scaled, source)) { UnityEngine.Object.DestroyImmediate(scaled); }
+            }
+        }
+
+        // ==========================================
+        // TryWritePreviewPng
+        // Unity's own rendered asset preview (works for
+        // .tga/.psd/.exr textures, Materials, Prefabs,
+        // Models, Fonts - everything LoadImage cannot
+        // decode). Previews generate asynchronously, so
+        // this polls briefly rather than accepting the
+        // null that a single call almost always returns
+        // on a cold cache.
+        // Returns the site-relative path, or null.
+        // ==========================================
+        public static string TryWritePreviewPng(UnityEngine.Object asset, string thumbsFolderAbsolute, string guid, int maxDimension, int timeoutMs)
+        {
+            if (asset == null) { return null; }
+            Texture2D scaled = null;
+            try
+            {
+                int instanceId = asset.GetInstanceID();
+                Texture2D preview = AssetPreview.GetAssetPreview(asset);
+
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                while (preview == null && AssetPreview.IsLoadingAssetPreview(instanceId) && clock.ElapsedMilliseconds < timeoutMs)
+                {
+                    System.Threading.Thread.Sleep(10);
+                    preview = AssetPreview.GetAssetPreview(asset);
+                }
+                if (preview == null) { return null; }
+
+                scaled = ScaleDown(preview, maxDimension);
+                return WritePng(scaled, thumbsFolderAbsolute, guid);
+            }
+            catch
+            {
+                return null;
+            }
+            finally
+            {
+                if (scaled != null) { UnityEngine.Object.DestroyImmediate(scaled); }
+            }
+        }
+
+        // ==========================================
+        // TryWriteIconPng
+        // Last-resort generic Editor type icon, written
+        // as a real file like every other preview.
+        // Returns the site-relative path, or null.
+        // ==========================================
+        public static string TryWriteIconPng(UnityEngine.Object asset, string thumbsFolderAbsolute, string guid)
+        {
+            if (asset == null) { return null; }
+            Texture2D readable = null;
+            try
+            {
+                Texture2D icon = AssetPreview.GetMiniThumbnail(asset);
+                if (icon == null) { return null; }
+                readable = MakeReadableCopy(icon);
+                return WritePng(readable, thumbsFolderAbsolute, guid);
+            }
+            catch
+            {
+                return null;
+            }
+            finally
+            {
+                if (readable != null) { UnityEngine.Object.DestroyImmediate(readable); }
+            }
+        }
+
+        // ==========================================
+        // WritePng
+        // Shared writer: encodes one texture to
+        // <thumbsFolder>/<guid>.png and returns the
+        // site-relative path used inside generated HTML
+        // and JSON.
+        // ==========================================
+        private static string WritePng(Texture2D texture, string thumbsFolderAbsolute, string guid)
+        {
+            if (texture == null || string.IsNullOrEmpty(thumbsFolderAbsolute) || string.IsNullOrEmpty(guid)) { return null; }
+
+            byte[] png = texture.EncodeToPNG();
+            if (png == null || png.Length == 0) { return null; }
+
+            Directory.CreateDirectory(thumbsFolderAbsolute);
+            File.WriteAllBytes(Path.Combine(thumbsFolderAbsolute, guid + ".png"), png);
+
+            return DocSnapConstants.SiteAssetsSubFolder + "/" + DocSnapConstants.ThumbsSubFolder + "/" + guid + ".png";
+        }
+
+        // ==========================================
         // ScaleDown
         // Downscales via a RenderTexture blit so it
         // works even on non-square / odd source sizes.
