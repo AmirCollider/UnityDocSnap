@@ -406,6 +406,46 @@ code, .mono { font-family: var(--font-mono); }
   text-align: start;
 }
 
+/* ==========================================
+   Narrow-container fallback for .ds-field-grid
+   MUST stay last in this section. Every selector
+   is prefixed with .ds-field-grid so it outranks
+   the unprefixed base rules above on specificity
+   rather than relying on source order alone.
+   Field name and type share the top line, the
+   value gets the line below, one divider per
+   field instead of one per cell.
+   ========================================== */
+@container (max-width: 340px) {
+  .ds-field-grid.ds-field-grid { grid-template-columns: minmax(0, 1fr); }
+  .ds-field-grid .ds-field-grid-head { display: none; }
+  .ds-field-grid .ds-field-grid-row > div { border-bottom: none; padding: 0; }
+  .ds-field-grid .ds-field-grid-row > .ds-field-name { padding-top: 9px; }
+  .ds-field-grid .ds-field-grid-row > .ds-field-type { padding-bottom: 3px; }
+  .ds-field-grid .ds-field-grid-row > .ds-field-value {
+    padding-bottom: 9px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ds-field-grid .ds-field-grid-row:last-child > .ds-field-value { border-bottom: none; }
+}
+
+/* Same fallback for browsers without container
+   query support: a phone-width viewport is the
+   only case where it matters there. */
+@supports not (container-type: inline-size) {
+  @media (max-width: 620px) {
+    .ds-field-grid.ds-field-grid { grid-template-columns: minmax(0, 1fr); }
+    .ds-field-grid .ds-field-grid-head { display: none; }
+    .ds-field-grid .ds-field-grid-row > div { border-bottom: none; padding: 0; }
+    .ds-field-grid .ds-field-grid-row > .ds-field-name { padding-top: 9px; }
+    .ds-field-grid .ds-field-grid-row > .ds-field-type { padding-bottom: 3px; }
+    .ds-field-grid .ds-field-grid-row > .ds-field-value {
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--line);
+    }
+  }
+}
+
 .ds-nested-block {
   margin: 4px 0;
   padding: 8px 10px;
