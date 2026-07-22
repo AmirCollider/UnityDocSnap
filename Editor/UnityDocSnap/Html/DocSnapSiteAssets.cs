@@ -534,7 +534,7 @@ code, .mono { font-family: var(--font-mono); }
 }
 .ds-matrix-row-head {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   background: var(--cream-deep) !important;
   text-align: center !important;
   z-index: 1;
@@ -723,6 +723,24 @@ video.ds-media { max-height: 260px; }
 .ds-back-top:hover { background: var(--pink-strong); }
 
 [data-en] { unicode-bidi: isolate; }
+
+/* ==========================================
+   Latin data inside an RTL document — paths,
+   GUIDs, type names, numbers. Without an
+   explicit LTR isolate these get bidi-reordered
+   into unreadable fragments the moment the UI
+   language is switched to Persian.
+   ========================================== */
+.ds-folder-path,
+.ds-go-tag,
+.ds-field-type,
+.ds-matrix-table,
+.ds-ref-chip,
+code, kbd, samp, pre {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.ds-asset-card-head h3, .ds-go-card-head h3 { unicode-bidi: isolate; }
 
 @media (max-width: 880px) {
   .ds-shell { flex-direction: column; }
