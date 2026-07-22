@@ -584,9 +584,17 @@ code, .mono { font-family: var(--font-mono); }
    than its own container whenever the container is
    narrower than the floor, which is exactly what
    happens inside a deeply nested folder node. */
+/* 420px, not 320px: minus the card body's 40px of
+   horizontal padding a 320px card leaves a 280px
+   container, which sat below the narrow-layout
+   breakpoint on every screen size - so the three
+   column Field / Type / Value grid never rendered
+   anywhere. 420px leaves ~380px, comfortably above
+   it, while min(…, 100%) still lets the card
+   collapse to full width on a phone. */
 .ds-asset-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr));
   gap: 16px;
   align-items: start;
 }
