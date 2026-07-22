@@ -664,12 +664,34 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             else if (directCount > 0)
             {
                 var directFiles = JsonValue.Arr();
+                int skipped = 0;
                 foreach (JsonValue p in filePaths.Items)
                 {
                     JsonValue entry;
-                    if (filesByPath.TryGetValue(p.AsString(""), out entry)) { directFiles.Add(entry); }
+                    if (!filesByPath.TryGetValue(p.AsString(""), out entry)) { continue; }
+
+                    // Hard cap per folder node. Without it a single
+                    // folder holding thousands of assets produces a
+                    // page no browser can lay out; the complete,
+                    // uncapped list stays in data/assets_*.json.
+                    if (directFiles.Items.Count >= DocSnapConstants.MaxAssetsRenderedPerFolderNode)
+                    {
+                        skipped++;
+                        continue;
+                    }
+                    directFiles.Add(entry);
                 }
                 sb.Append(RenderAssetGrid(directFiles, resolver));
+
+                if (skipped > 0)
+                {
+                    sb.Append("<p class=\"ds-array-more\">+ ").Append(skipped).Append(" ")
+                      .Append(HtmlPageBuilder.I18n("span", null,
+                          "more file(s) in this folder - see data/assets_*.json for the complete list",
+                          "件のファイルは省略されました - 完全な一覧は data/assets_*.json を参照",
+                          "فایل دیگر در این پوشه - لیست کامل در data/assets_*.json"))
+                      .Append("</p>");
+                }
             }
             sb.Append("</div>");
 
@@ -739,11 +761,22 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             }
             if (!string.IsNullOrEmpty(guid)) { sb.Append(KvLine("GUID", "GUID", "GUID", guid)); }
 
+           if (file.Has("audioInfo"))
+            {
+                JsonValue audio = file.Get("audioInfo");
+                if (audio.Has("lengthSeconds")) { sb.Append(KvLine("Length", "長さ", "مدت", FormatDuration(audio.Get("lengthSeconds").AsNumber()))); }
+                if (audio.Has("channels")) { sb.Append(KvLine("Channels", "チャンネル", "کانال", ((int)audio.Get("channels").AsNumber()).ToString(CultureInfo.InvariantCulture))); }
+                if (audio.Has("frequency")) { sb.Append(KvLine("Sample Rate", "サンプルレート", "نرخ نمونه‌برداری", ((int)audio.Get("frequency").AsNumber()).ToString(CultureInfo.InvariantCulture) + " Hz")); }
+                if (audio.Has("compressionFormat")) { sb.Append(KvLine("Compression", "圧縮", "فشرده‌سازی", audio.Get("compressionFormat").AsString(""))); }
+                if (audio.Has("loadType")) { sb.Append(KvLine("Load Type", "ロードタイプ", "نوع بارگذاری", audio.Get("loadType").AsString(""))); }
+            }
             if (file.Has("materialInfo"))
             {
                 JsonValue mat = file.Get("materialInfo");
                 sb.Append("<div style=\"margin-top:10px;font-weight:700;\">").Append(HtmlPageBuilder.I18n("span", null, "Shader", "シェーダー", "Shader")).Append(": ").Append(HtmlPageBuilder.Escape(mat.Get("shaderName").AsString(""))).Append("</div>");
+                sb.Append(OpenDetail("Shader Properties", "シェーダープロパティ", "ویژگی‌های Shader"));
                 sb.Append(RenderShaderProps(mat.Get("properties")));
+                sb.Append(CloseDetail());
             }
             if (file.Has("scriptInfo"))
             {
@@ -754,24 +787,61 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             }
             if (file.Has("importerFields") && file.Get("importerFields").Items.Count > 0)
             {
-                sb.Append("<div style=\"margin-top:10px;font-weight:700;\">").Append(HtmlPageBuilder.I18n("span", null, "Import Settings", "インポート設定", "تنظیمات ایمپورت")).Append("</div>");
+                sb.Append(OpenDetail("Import Settings", "インポート設定", "تنظیمات ایمپورت"));
                 sb.Append(RenderFieldTable(file.Get("importerFields"), resolver));
+                sb.Append(CloseDetail());
             }
             if (file.Has("assetFields") && file.Get("assetFields").Items.Count > 0)
             {
-                sb.Append("<div style=\"margin-top:10px;font-weight:700;\">").Append(HtmlPageBuilder.I18n("span", null, "Fields", "フィールド", "فیلدها")).Append("</div>");
+                sb.Append(OpenDetail("Fields", "フィールド", "فیلدها"));
                 sb.Append(RenderFieldTable(file.Get("assetFields"), resolver));
+                sb.Append(CloseDetail());
             }
             if (file.Has("prefabRoot"))
             {
                 Dictionary<int, string> prefabAnchors = BuildLocalAnchors(JsonValue.Arr().Add(file.Get("prefabRoot")));
                 RefLinkResolver prefabResolver = resolver.WithLocalAnchors(prefabAnchors);
-                sb.Append("<div style=\"margin-top:10px;font-weight:700;\">").Append(HtmlPageBuilder.I18n("span", null, "Prefab Contents", "Prefabの内容", "محتوای Prefab")).Append("</div>");
+                sb.Append(OpenDetail("Prefab Contents", "Prefabの内容", "محتوای Prefab"));
                 sb.Append("<ul class=\"ds-tree\">").Append(RenderGoNode(file.Get("prefabRoot"), prefabResolver, true)).Append("</ul>");
+                sb.Append(CloseDetail());
             }
 
             sb.Append("</div></div>\n");
             return sb.ToString();
+        }
+
+        // ==========================================
+        // OpenDetail / CloseDetail
+        // Heavy per-asset tables (a TextureImporter
+        // alone is ~120 rows) live inside a collapsed
+        // <details>. A closed <details> is parsed but
+        // never laid out or painted, which is the
+        // difference between a folder page opening and
+        // a folder page hanging the browser.
+        // ==========================================
+        private static string OpenDetail(string en, string ja, string fa)
+        {
+            return "<details class=\"ds-detail\"><summary>" + HtmlPageBuilder.I18n("span", null, en, ja, fa) + "</summary><div class=\"ds-detail-body\">";
+        }
+
+        private static string CloseDetail()
+        {
+            return "</div></details>";
+        }
+
+        // ==========================================
+        // FormatDuration
+        // Seconds as m:ss, or s.sss below one minute.
+        // ==========================================
+        private static string FormatDuration(double seconds)
+        {
+            if (seconds < 60)
+            {
+                return seconds.ToString("0.###", CultureInfo.InvariantCulture) + " s";
+            }
+            int minutes = (int)(seconds / 60);
+            double remainder = seconds - (minutes * 60);
+            return minutes.ToString(CultureInfo.InvariantCulture) + ":" + remainder.ToString("00.#", CultureInfo.InvariantCulture);
         }
 
         // ==========================================
@@ -806,7 +876,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         private static string RenderAssetMedia(JsonValue file, string fileName, RefLinkResolver resolver)
         {
             string physical = file.Get("physicalFile").AsString("");
-            string thumb = file.Get("thumbnailBase64").AsString("");
+            string prefix = resolver == null ? "" : resolver.LinkPrefix;
+
+            // A written-out .png is preferred over an inlined base64
+            // data URI: it lazy-loads, caches, and keeps the HTML
+            // small enough for a browser to actually open.
+            string thumbFile = file.Get("thumbnailFile").AsString("");
+            string thumb = !string.IsNullOrEmpty(thumbFile)
+                ? EncodeUrlPath(prefix + thumbFile)
+                : file.Get("thumbnailBase64").AsString("");
+
+            bool thumbIsIcon = file.Get("thumbnailIsIcon").AsBool(false);
             string extension = GetExtensionLower(fileName);
             string alt = HtmlPageBuilder.Escape(fileName);
 
@@ -831,7 +911,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 }
                 else
                 {
-                    sb.Append(RenderThumbFallback(thumb, alt));
+                    sb.Append(RenderThumbFallback(thumb, alt, thumbIsIcon));
                 }
 
                 sb.Append("<div class=\"ds-file-actions\">");
@@ -846,10 +926,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 return sb.ToString();
             }
 
-            sb.Append(RenderThumbFallback(thumb, alt));
+           sb.Append(RenderThumbFallback(thumb, alt, thumbIsIcon));
             return sb.ToString();
         }
-
+        
         // ==========================================
         // RenderThumbFallback
         // The embedded base64 thumbnail as a real
@@ -857,13 +937,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // accessible) instead of a background-image on
         // an empty <div>.
         // ==========================================
-        private static string RenderThumbFallback(string thumbnailDataUri, string escapedAlt)
+        private static string RenderThumbFallback(string thumbnailSrc, string escapedAlt, bool isIcon)
         {
-            if (string.IsNullOrEmpty(thumbnailDataUri))
+            if (string.IsNullOrEmpty(thumbnailSrc))
             {
                 return "<div class=\"ds-thumb\">\uD83D\uDCC4</div>";
             }
-            return "<div class=\"ds-thumb\"><img loading=\"lazy\" decoding=\"async\" src=\"" + thumbnailDataUri + "\" alt=\"" + escapedAlt + "\"></div>";
+            // A 16x16 type icon stretched across a 4:3 preview box
+            // reads as an empty card. Icons get their own sizing.
+            string cls = isIcon ? "ds-thumb is-icon" : "ds-thumb";
+            return "<div class=\"" + cls + "\"><img loading=\"lazy\" decoding=\"async\" src=\"" + thumbnailSrc + "\" alt=\"" + escapedAlt + "\"></div>";
         }
 
         // ==========================================
