@@ -121,9 +121,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         // Shared GPU blit path used for both resizing
         // and "make readable" duties.
         // ==========================================
-        private static Texture2D BlitResize(Texture2D source, int width, int height)
+       private static Texture2D BlitResize(Texture2D source, int width, int height)
         {
-            RenderTexture rt = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGB32);
+            // A default-readWrite RT blitted in Linear color space
+            // produces a gamma-incorrect (washed out / near-black)
+            // thumbnail. Force sRGB when the project is Linear.
+            RenderTextureReadWrite readWrite = QualitySettings.activeColorSpace == ColorSpace.Linear
+                ? RenderTextureReadWrite.sRGB
+                : RenderTextureReadWrite.Default;
+
+            RenderTexture rt = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGB32, readWrite);
             RenderTexture previous = RenderTexture.active;
             try
             {
