@@ -31,9 +31,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
 {
     internal static class AssetProjectExporter
     {
+       // Only these can be decoded straight off disk by
+        // Texture2D.LoadImage. Everything else routes
+        // through Unity's own asset-preview renderer.
         private static readonly HashSet<string> RawDecodableImageExtensions =
             new HashSet<string> { ".png", ".jpg", ".jpeg" };
 
+        private static readonly HashSet<string> AudioExtensions =
+            new HashSet<string> { ".wav", ".mp3", ".ogg", ".aiff", ".aif", ".m4a", ".flac", ".mod", ".it", ".s3m", ".xm" };
         // ==========================================
         // ExportFolder
         // Entry point: recursively lists every asset
@@ -48,7 +53,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         // other caller leaves this false, so DocSnap's
         // default behavior stays metadata-only).
         // ==========================================
-        public static JsonValue ExportFolder(string folderPath, string folderKey, out List<ManifestAssetIndexEntry> indexEntries, out int fileCount, bool copyPhysicalFiles = false, string physicalFilesOutputRoot = null)
+        public static JsonValue ExportFolder(string folderPath, string folderKey, out List<ManifestAssetIndexEntry> indexEntries, out int fileCount, bool copyPhysicalFiles = false, string physicalFilesOutputRoot = null, string siteOutputRoot = null, Action<int, int, string> onProgress = null)
         {
             indexEntries = new List<ManifestAssetIndexEntry>();
 
@@ -61,9 +66,22 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
             var filesArr = JsonValue.Arr();
             string htmlFile = DocSnapConstants.AssetsSubFolder + "/" + folderKey + ".html";
 
+            // Preview textures are written here as real .png
+            // files instead of base64 blobs inlined into every
+            // page. Null when the caller did not supply an
+            // output root (JSON-only consumers), in which case
+            // BuildAssetEntry falls back to the old base64 path.
+            string thumbsFolderAbsolute = string.IsNullOrEmpty(siteOutputRoot)
+                ? null
+                : Path.Combine(Path.Combine(siteOutputRoot, DocSnapConstants.SiteAssetsSubFolder), DocSnapConstants.ThumbsSubFolder);
+
+            int processed = 0;
             foreach (string path in filePaths)
             {
-                JsonValue entry = BuildAssetEntry(path);
+                processed++;
+                if (onProgress != null) { onProgress(processed, filePaths.Count, path); }
+
+                JsonValue entry = BuildAssetEntry(path, thumbsFolderAbsolute);
                 filesArr.Add(entry);
 
                 string guid = AssetDatabase.AssetPathToGUID(path);
@@ -130,16 +148,37 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         private static List<string> CollectFilePaths(string folderPath)
         {
             var results = new List<string>();
-            var seen = new HashSet<string>();
-            string[] guids = AssetDatabase.FindAssets(string.Empty, new[] { folderPath });
-            foreach (string guid in guids)
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Walked from the filesystem rather than via
+            // AssetDatabase.FindAssets(string.Empty, ...): an empty
+            // filter string is undocumented and returns nothing on
+            // some Unity versions, silently producing an empty
+            // Assets page. The GUID check below still guarantees
+            // only genuinely imported assets are listed.
+            string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            string absoluteFolder = Path.GetFullPath(Path.Combine(projectRoot, folderPath));
+            if (!Directory.Exists(absoluteFolder)) { return results; }
+
+            foreach (string absolute in Directory.GetFiles(absoluteFolder, "*", SearchOption.AllDirectories))
             {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                if (string.IsNullOrEmpty(path) || seen.Contains(path)) { continue; }
-                seen.Add(path);
-                if (AssetDatabase.IsValidFolder(path)) { continue; }
-                results.Add(path);
+                string fileName = Path.GetFileName(absolute);
+                if (fileName.StartsWith(".", StringComparison.Ordinal)) { continue; }
+                if (string.Equals(Path.GetExtension(absolute), ".meta", StringComparison.OrdinalIgnoreCase)) { continue; }
+
+                string relative = Path.GetFullPath(absolute)
+                    .Substring(projectRoot.Length)
+                    .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    .Replace('\\', '/');
+
+                if (seen.Contains(relative)) { continue; }
+                if (AssetDatabase.IsValidFolder(relative)) { continue; }
+                if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(relative))) { continue; }
+
+                seen.Add(relative);
+                results.Add(relative);
             }
+
             results.Sort(StringComparer.OrdinalIgnoreCase);
             return results;
         }
@@ -261,7 +300,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         // info, a preview, importer settings, and any
         // type-specific extras.
         // ==========================================
-        private static JsonValue BuildAssetEntry(string path)
+        private static JsonValue BuildAssetEntry(string path, string thumbsFolderAbsolute)
         {
             var node = JsonValue.Obj();
             string fileName = Path.GetFileName(path);
@@ -279,7 +318,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
             ReadFileSystemInfo(absolutePath, node);
 
             AssetImporter importer = AssetImporter.GetAtPath(path);
-            ReadPreview(path, absolutePath, importer, mainType, node);
+            ReadPreview(path, absolutePath, importer, mainType, node, guid, thumbsFolderAbsolute);
+
+            if (AudioExtensions.Contains(extension))
+            {
+                ReadAudioInfo(path, node);
+            }
 
             if (importer != null)
             {
@@ -358,35 +402,54 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         // images included - so no asset card is ever left
         // with the bare placeholder glyph.
         // ==========================================
-        private static void ReadPreview(string path, string absolutePath, AssetImporter importer, Type mainType, JsonValue node)
+        private static void ReadPreview(string path, string absolutePath, AssetImporter importer, Type mainType, JsonValue node, string guid, string thumbsFolderAbsolute)
         {
+            bool writeFiles = !string.IsNullOrEmpty(thumbsFolderAbsolute) && !string.IsNullOrEmpty(guid);
+            string extension = Path.GetExtension(path).ToLowerInvariant();
             TextureImporter textureImporter = importer as TextureImporter;
+
             if (textureImporter != null)
             {
                 int width = 0, height = 0;
                 try { textureImporter.GetSourceTextureWidthAndHeight(out width, out height); }
                 catch { /* not available for this format/context */ }
 
-                if (DocSnapSettings.GenerateThumbnails && RawDecodableImageExtensions.Contains(Path.GetExtension(path).ToLowerInvariant()))
+                if (DocSnapSettings.GenerateThumbnails && RawDecodableImageExtensions.Contains(extension))
                 {
                     int rawWidth, rawHeight;
-                    string thumb = ThumbnailGenerator.TryGetImageThumbnailBase64(absolutePath, DocSnapConstants.DefaultThumbnailMaxDimension, out rawWidth, out rawHeight);
-                    if (thumb != null)
+                    if (writeFiles)
                     {
-                        node.Set("thumbnailBase64", thumb);
-                        if (width <= 0 || height <= 0) { width = rawWidth; height = rawHeight; }
+                        string relative = ThumbnailGenerator.TryWriteImageThumbnailPng(absolutePath, thumbsFolderAbsolute, guid, DocSnapConstants.DefaultThumbnailMaxDimension, out rawWidth, out rawHeight);
+                        if (relative != null)
+                        {
+                            node.Set("thumbnailFile", relative);
+                            if (width <= 0 || height <= 0) { width = rawWidth; height = rawHeight; }
+                        }
+                    }
+                    else
+                    {
+                        string thumb = ThumbnailGenerator.TryGetImageThumbnailBase64(absolutePath, DocSnapConstants.DefaultThumbnailMaxDimension, out rawWidth, out rawHeight);
+                        if (thumb != null)
+                        {
+                            node.Set("thumbnailBase64", thumb);
+                            if (width <= 0 || height <= 0) { width = rawWidth; height = rawHeight; }
+                        }
                     }
                 }
 
-                // Generic type icon fallback: kept on regardless of the
-                // GenerateThumbnails toggle above, matching the non-image
-                // branch below, so an image asset always gets at least a
-                // visual instead of the bare placeholder glyph.
-                if (!node.Has("thumbnailBase64"))
+                // .tga / .psd / .exr / .tif / .webp cannot be decoded
+                // by Texture2D.LoadImage, so they previously fell all
+                // the way through to a 16x16 type icon. Unity's own
+                // preview renderer handles every one of them.
+                if (DocSnapSettings.GenerateThumbnails && writeFiles && !node.Has("thumbnailFile"))
                 {
-                    string icon = ThumbnailGenerator.TryGetIconBase64(AssetDatabase.LoadMainAssetAtPath(path));
-                    if (icon != null) { node.Set("thumbnailBase64", icon); }
+                    string relative = ThumbnailGenerator.TryWritePreviewPng(
+                        AssetDatabase.LoadMainAssetAtPath(path), thumbsFolderAbsolute, guid,
+                        DocSnapConstants.DefaultThumbnailMaxDimension, DocSnapConstants.AssetPreviewTimeoutMs);
+                    if (relative != null) { node.Set("thumbnailFile", relative); }
                 }
+
+                WriteIconFallback(path, node, guid, thumbsFolderAbsolute, writeFiles);
 
                 if (width > 0 && height > 0)
                 {
@@ -396,15 +459,97 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
                 return;
             }
 
-            // Non-image assets: this is a small generic type icon (script,
-            // audio speaker, model cube, …), not a preview of file content,
-            // so it stays on regardless of the pixels-preview setting above.
+            // Non-texture assets: Materials, Prefabs, Models and Fonts
+            // all have real rendered previews. Only when that fails do
+            // we fall back to the generic type icon.
             UnityEngine.Object mainAsset = AssetDatabase.LoadMainAssetAtPath(path);
-            if (mainAsset != null)
+            if (mainAsset == null) { return; }
+
+            if (DocSnapSettings.GenerateThumbnails && writeFiles)
             {
-                string icon = ThumbnailGenerator.TryGetIconBase64(mainAsset);
-                if (icon != null) { node.Set("thumbnailBase64", icon); }
+                string relative = ThumbnailGenerator.TryWritePreviewPng(
+                    mainAsset, thumbsFolderAbsolute, guid,
+                    DocSnapConstants.DefaultThumbnailMaxDimension, DocSnapConstants.AssetPreviewTimeoutMs);
+                if (relative != null) { node.Set("thumbnailFile", relative); }
             }
+
+            WriteIconFallback(path, node, guid, thumbsFolderAbsolute, writeFiles);
+        }
+
+        // ==========================================
+        // WriteIconFallback
+        // The last visual an asset card can fall back
+        // to: Unity's generic type icon. Always tagged
+        // thumbnailIsIcon so the renderer can size it
+        // as a small badge instead of stretching a
+        // 16x16 sprite across a 4:3 preview box.
+        // ==========================================
+        private static void WriteIconFallback(string path, JsonValue node, string guid, string thumbsFolderAbsolute, bool writeFiles)
+        {
+            if (node.Has("thumbnailFile") || node.Has("thumbnailBase64")) { return; }
+
+            UnityEngine.Object mainAsset = AssetDatabase.LoadMainAssetAtPath(path);
+            if (mainAsset == null) { return; }
+
+            if (writeFiles)
+            {
+                string relative = ThumbnailGenerator.TryWriteIconPng(mainAsset, thumbsFolderAbsolute, guid);
+                if (relative != null)
+                {
+                    node.Set("thumbnailFile", relative);
+                    node.Set("thumbnailIsIcon", true);
+                }
+                return;
+            }
+
+            string icon = ThumbnailGenerator.TryGetIconBase64(mainAsset);
+            if (icon != null)
+            {
+                node.Set("thumbnailBase64", icon);
+                node.Set("thumbnailIsIcon", true);
+            }
+        }
+
+        // ==========================================
+        // ReadAudioInfo
+        // Length, channels, sample rate and import
+        // settings for audio assets. Audio files
+        // previously exported with no type-specific
+        // data at all, so an audio card showed nothing
+        // but a path and a byte count.
+        // ==========================================
+        private static void ReadAudioInfo(string path, JsonValue node)
+        {
+            var info = JsonValue.Obj();
+            try
+            {
+                AudioClip clip = AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+                if (clip != null)
+                {
+                    info.Set("lengthSeconds", clip.length);
+                    info.Set("channels", clip.channels);
+                    info.Set("frequency", clip.frequency);
+                    info.Set("samples", clip.samples);
+                    info.Set("loadType", clip.loadType.ToString());
+                    info.Set("ambisonic", clip.ambisonic);
+                }
+
+                var audioImporter = AssetImporter.GetAtPath(path) as AudioImporter;
+                if (audioImporter != null)
+                {
+                    AudioImporterSampleSettings settings = audioImporter.defaultSampleSettings;
+                    info.Set("compressionFormat", settings.compressionFormat.ToString());
+                    info.Set("quality", settings.quality);
+                    info.Set("forceToMono", audioImporter.forceToMono);
+                    info.Set("loadInBackground", audioImporter.loadInBackground);
+                    info.Set("preloadAudioData", audioImporter.preloadAudioData);
+                }
+            }
+            catch
+            {
+                // best-effort only; absence of audioInfo is not fatal
+            }
+            node.Set("audioInfo", info);
         }
 
         // ==========================================
