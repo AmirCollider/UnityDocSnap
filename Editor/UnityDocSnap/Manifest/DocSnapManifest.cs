@@ -172,14 +172,49 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
         // for fast cross-link resolution while
         // rendering HTML pages.
         // ==========================================
-        public static Dictionary<string, ManifestAssetIndexEntry> BuildGuidLookup(ManifestState state)
+       public static Dictionary<string, ManifestAssetIndexEntry> BuildGuidLookup(ManifestState state)
         {
             var map = new Dictionary<string, ManifestAssetIndexEntry>();
             foreach (var entry in state.assetIndex)
             {
-                if (!string.IsNullOrEmpty(entry.guid)) { map[entry.guid] = entry; }
+                if (string.IsNullOrEmpty(entry.guid)) { continue; }
+
+                ManifestAssetIndexEntry existing;
+                if (!map.TryGetValue(entry.guid, out existing))
+                {
+                    map[entry.guid] = entry;
+                    continue;
+                }
+
+                // The same asset is indexed once per exported folder
+                // that contains it (the root "Assets" page plus any
+                // sub-folder page). Plain last-writer-wins made every
+                // cross-link resolve to whichever entry happened to
+                // be appended last, which changed between runs.
+                // Resolve deterministically to the most specific
+                // (deepest) page, which is also the smallest one to
+                // open.
+                if (IsMoreSpecific(entry, existing)) { map[entry.guid] = entry; }
             }
             return map;
+        }
+
+        // ==========================================
+        // IsMoreSpecific
+        // A longer folderKey means a deeper, narrower
+        // page. Ordinal comparison breaks exact ties so
+        // the result never depends on list order.
+        // ==========================================
+        private static bool IsMoreSpecific(ManifestAssetIndexEntry candidate, ManifestAssetIndexEntry current)
+        {
+            string candidateKey = candidate.folderKey ?? "";
+            string currentKey = current.folderKey ?? "";
+
+            if (candidateKey.Length != currentKey.Length)
+            {
+                return candidateKey.Length > currentKey.Length;
+            }
+            return string.CompareOrdinal(candidateKey, currentKey) < 0;
         }
 
         // ==========================================
