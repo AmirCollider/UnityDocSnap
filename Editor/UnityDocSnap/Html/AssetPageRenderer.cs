@@ -37,11 +37,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             };
             string header = HtmlPageBuilder.RenderPageHeader("\uD83D\uDCC1", folderPath, "", badges);
 
-            var filesByPath = new Dictionary<string, JsonValue>();
+            // OrdinalIgnoreCase: the folder tree normalises separators
+            // while this map is keyed on the raw AssetDatabase path.
+            // Any case drift between the two silently dropped files
+            // out of the rendered tree.
+            var filesByPath = new Dictionary<string, JsonValue>(StringComparer.OrdinalIgnoreCase);
             foreach (JsonValue file in folderData.Get("files").Items)
             {
                 string path = file.Get("path").AsString("");
-                if (!string.IsNullOrEmpty(path)) { filesByPath[path] = file; }
+                if (!string.IsNullOrEmpty(path)) { filesByPath[path.Replace('\\', '/')] = file; }
             }
             string body = FieldRenderer.RenderFolderTree(folderData.Get("folderTree"), filesByPath, resolver, "ds-hier-assets");
 
