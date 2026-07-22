@@ -364,28 +364,20 @@ code, .mono { font-family: var(--font-mono); }
    ========================================== */
 .ds-field-grid {
   display: grid;
-  grid-template-columns: minmax(0, 26%) minmax(0, 16%) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 32%) minmax(0, 18%) minmax(0, 1fr);
   column-gap: 12px;
   width: 100%;
   min-width: 0;
   font-size: 13px;
 }
 
-/* ==========================================
-   Narrow-container fallback — a field grid
-   squeezed into a deeply nested tree node
-   stacks instead of clipping. Uses a container
-   query, not a viewport query, because the
-   constraint is the card's own width, not the
-   window's.
-   ========================================== */
+/* Declares the containment context the narrow-layout
+   fallback measures against. The @container block
+   itself lives at the END of this section, after
+   every .ds-field-grid-* rule: @container adds no
+   specificity, so a block placed here loses to any
+   equally-specific rule written below it. */
 .ds-asset-card-body, .ds-go-card-body { container-type: inline-size; }
-@container (max-width: 460px) {
-  .ds-field-grid { grid-template-columns: minmax(0, 1fr); }
-  .ds-field-grid-head { display: none; }
-  .ds-field-grid-row > div { border-bottom: none; padding: 2px 0; }
-  .ds-field-grid-row > div:last-child { border-bottom: 1px solid var(--line); padding-bottom: 8px; }
-}
 .ds-field-grid-head, .ds-field-grid-row { display: contents; }
 .ds-field-grid-head > span {
   font-family: var(--font-display);
