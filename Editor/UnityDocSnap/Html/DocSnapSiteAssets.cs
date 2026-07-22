@@ -254,7 +254,9 @@ code, .mono { font-family: var(--font-mono); }
    Hierarchy Tree (native <details>/<summary>)
    ========================================== */
 .ds-tree, .ds-tree ul { list-style: none; margin: 0; padding-inline-start: 0; }
-.ds-tree ul { padding-inline-start: 22px; border-inline-start: 2px dashed var(--line); margin-inline-start: 9px; }
+.ds-tree ul { padding-inline-start: 14px; border-inline-start: 2px dashed var(--line); margin-inline-start: 8px; }
+.ds-tree ul ul ul ul { padding-inline-start: 8px; margin-inline-start: 4px; }
+.ds-tree ul ul ul ul ul ul { padding-inline-start: 4px; margin-inline-start: 2px; border-inline-start-style: dotted; }
 .ds-tree li { margin: 3px 0; }
 
 .ds-go summary {
@@ -362,10 +364,27 @@ code, .mono { font-family: var(--font-mono); }
    ========================================== */
 .ds-field-grid {
   display: grid;
-  grid-template-columns: minmax(96px, 26%) minmax(64px, 16%) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 26%) minmax(0, 16%) minmax(0, 1fr);
   column-gap: 12px;
   width: 100%;
+  min-width: 0;
   font-size: 13px;
+}
+
+/* ==========================================
+   Narrow-container fallback — a field grid
+   squeezed into a deeply nested tree node
+   stacks instead of clipping. Uses a container
+   query, not a viewport query, because the
+   constraint is the card's own width, not the
+   window's.
+   ========================================== */
+.ds-asset-card-body, .ds-go-card-body { container-type: inline-size; }
+@container (max-width: 460px) {
+  .ds-field-grid { grid-template-columns: minmax(0, 1fr); }
+  .ds-field-grid-head { display: none; }
+  .ds-field-grid-row > div { border-bottom: none; padding: 2px 0; }
+  .ds-field-grid-row > div:last-child { border-bottom: 1px solid var(--line); padding-bottom: 8px; }
 }
 .ds-field-grid-head, .ds-field-grid-row { display: contents; }
 .ds-field-grid-head > span {
@@ -385,7 +404,15 @@ code, .mono { font-family: var(--font-mono); }
 .ds-field-grid-row:last-child > div { border-bottom: none; }
 .ds-field-name { font-weight: 700; overflow-wrap: anywhere; }
 .ds-field-type { color: var(--ink-soft); font-family: var(--font-mono); font-size: 11.5px; overflow-wrap: anywhere; }
-.ds-field-value { font-family: var(--font-mono); font-size: 12.5px; min-width: 0; overflow-wrap: anywhere; }
+.ds-field-value {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+}
 
 .ds-nested-block {
   margin: 4px 0;
@@ -463,6 +490,9 @@ code, .mono { font-family: var(--font-mono); }
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
 }
 
 /* ==========================================
@@ -517,23 +547,84 @@ code, .mono { font-family: var(--font-mono); }
 /* ==========================================
    Asset Grid / Thumbnails
    ========================================== */
-.ds-asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+/* minmax(min(320px, 100%), 1fr) instead of a bare
+   320px floor: a bare floor makes the grid wider
+   than its own container whenever the container is
+   narrower than the floor, which is exactly what
+   happens inside a deeply nested folder node. */
+.ds-asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.ds-asset-grid > * { min-width: 0; }
+
 .ds-thumb {
+  position: relative;
   width: 100%;
   aspect-ratio: 4 / 3;
   border-radius: var(--radius-sm);
-  background: var(--cream-deep) center/contain no-repeat;
+  background: repeating-conic-gradient(var(--cream-deep) 0% 25%, var(--card) 0% 50%) 0 0 / 18px 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 34px;
   margin-bottom: 10px;
   border: 1px solid var(--line);
+  overflow: hidden;
 }
-.ds-kv-line { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; padding: 4px 0; border-bottom: 1px dashed var(--line); min-width: 0; }
+.ds-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.ds-thumb.is-icon { aspect-ratio: auto; min-height: 76px; }
+.ds-thumb.is-icon img { width: auto; height: auto; max-width: 48px; max-height: 48px; image-rendering: pixelated; }
+
+/* ==========================================
+   Playable / downloadable media — only ever
+   emitted when the export actually copied the
+   file bytes into files/ (Export Full Project
+   With Files).
+   ========================================== */
+.ds-media { width: 100%; display: block; margin: 0 0 10px; border-radius: var(--radius-sm); background: var(--cream-deep); }
+video.ds-media { max-height: 260px; }
+.ds-file-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 8px; }
+.ds-file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--cream-deep);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.ds-file-link:hover { background: var(--pink-pale); border-color: var(--pink); text-decoration: none; }
+
+/* Two-column grid, not flex: a flex row with a
+   non-shrinkable key and a long unbreakable value
+   forces the card wider than its grid track. */
+.ds-kv-line {
+  display: grid;
+  grid-template-columns: minmax(60px, auto) minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: baseline;
+  font-size: 12.5px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--line);
+  min-width: 0;
+}
 .ds-kv-line:last-child { border-bottom: none; }
-.ds-kv-line .k { color: var(--ink-soft); font-weight: 600; flex: 0 0 auto; }
-.ds-kv-line .v { font-family: var(--font-mono); text-align: end; word-break: break-word; overflow-wrap: anywhere; min-width: 0; }
+.ds-kv-line .k { color: var(--ink-soft); font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.ds-kv-line .v {
+  font-family: var(--font-mono);
+  text-align: end;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
 
 /* ==========================================
    Folder Tree (asset browser on dashboard)
