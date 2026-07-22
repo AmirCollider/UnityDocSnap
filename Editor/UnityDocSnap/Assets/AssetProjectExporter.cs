@@ -81,13 +81,21 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
 
                 if (copyPhysicalFiles && !string.IsNullOrEmpty(physicalFilesOutputRoot))
                 {
-                    CopyPhysicalFile(path, physicalFilesOutputRoot);
+                    // Record the site-relative location of the copied
+                    // bytes on the entry itself. Without this the HTML
+                    // renderer has no way to reference files/ at all,
+                    // so every copied image/audio file was orphaned.
+                    if (CopyPhysicalFile(path, physicalFilesOutputRoot))
+                    {
+                        entry.Set("physicalFile", DocSnapConstants.FilesSubFolder + "/" + path.Replace('\\', '/'));
+                    }
                 }
             }
 
             root.Set("files", filesArr);
             fileCount = filePaths.Count;
             root.Set("fileCount", fileCount);
+            root.Set("hasPhysicalFiles", copyPhysicalFiles && !string.IsNullOrEmpty(physicalFilesOutputRoot));
             root.Set("folderTree", BuildFolderTree(folderPath, filePaths));
             return root;
         }
@@ -443,12 +451,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         // explicitly - every other export path in
         // DocSnap never touches file bytes at all.
         // ==========================================
-        internal static void CopyPhysicalFile(string assetPath, string physicalFilesOutputRoot)
+        internal static bool CopyPhysicalFile(string assetPath, string physicalFilesOutputRoot)
         {
             try
             {
                 string sourceAbsolute = Path.GetFullPath(Path.Combine(Application.dataPath, "..", assetPath));
-                if (!File.Exists(sourceAbsolute)) { return; }
+                if (!File.Exists(sourceAbsolute)) { return false; }
 
                 string destinationAbsolute = Path.Combine(physicalFilesOutputRoot, assetPath.Replace('/', Path.DirectorySeparatorChar));
                 Directory.CreateDirectory(Path.GetDirectoryName(destinationAbsolute));
@@ -459,10 +467,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
                 {
                     File.Copy(sourceMeta, destinationAbsolute + ".meta", true);
                 }
+                return true;
             }
             catch (Exception ex)
             {
                 Debug.LogWarning("[Unity DocSnap] Could not copy physical file for \"" + assetPath + "\": " + ex.Message);
+                return false;
             }
         }
     }
