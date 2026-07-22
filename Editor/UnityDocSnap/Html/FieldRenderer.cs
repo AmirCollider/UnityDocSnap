@@ -8,6 +8,7 @@
 // wherever a reference can be resolved.
 // ==========================================
 using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -724,15 +725,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append("<div class=\"ds-asset-card-head\"><h3>").Append(HtmlPageBuilder.Escape(fileName)).Append("</h3></div>");
             sb.Append("<div class=\"ds-asset-card-body\">");
 
-            string thumb = file.Get("thumbnailBase64").AsString("");
-            if (!string.IsNullOrEmpty(thumb))
-            {
-                sb.Append("<div class=\"ds-thumb\" style=\"background-image:url('").Append(thumb).Append("')\"></div>");
-            }
-            else
-            {
-                sb.Append("<div class=\"ds-thumb\">\uD83D\uDCC4</div>");
-            }
+            sb.Append(RenderAssetMedia(file, fileName, resolver));
 
             sb.Append(KvLine("Path", "パス", "مسیر", path));
             sb.Append(KvLine("Type", "タイプ", "نوع", mainType));
@@ -779,6 +772,135 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
 
             sb.Append("</div></div>\n");
             return sb.ToString();
+        }
+
+        // ==========================================
+        // Media extension sets
+        // Decides which visual an asset card leads
+        // with. Kept here (not in the exporter) so the
+        // exporter stays a pure metadata producer.
+        // ==========================================
+        private static readonly HashSet<string> PreviewableImageExtensions =
+            new HashSet<string> { ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg" };
+
+        private static readonly HashSet<string> PlayableAudioExtensions =
+            new HashSet<string> { ".wav", ".mp3", ".ogg", ".m4a", ".aac", ".flac" };
+
+        private static readonly HashSet<string> PlayableVideoExtensions =
+            new HashSet<string> { ".mp4", ".webm", ".ogv", ".m4v" };
+
+        // ==========================================
+        // RenderAssetMedia
+        // The visual block at the top of one asset
+        // card. Preference order:
+        //   1. the real copied file (files/…), when
+        //      "Export Full Project With Files" put it
+        //      there - a live <img>/<audio>/<video>;
+        //   2. the embedded base64 thumbnail;
+        //   3. a placeholder glyph.
+        // Before this existed, copied files/ bytes were
+        // never referenced by any page, which is why
+        // images and audio never showed up even after a
+        // with-files export.
+        // ==========================================
+        private static string RenderAssetMedia(JsonValue file, string fileName, RefLinkResolver resolver)
+        {
+            string physical = file.Get("physicalFile").AsString("");
+            string thumb = file.Get("thumbnailBase64").AsString("");
+            string extension = GetExtensionLower(fileName);
+            string alt = HtmlPageBuilder.Escape(fileName);
+
+            var sb = new StringBuilder(512);
+
+            if (!string.IsNullOrEmpty(physical))
+            {
+                string href = EncodeUrlPath((resolver == null ? "" : resolver.LinkPrefix) + physical);
+
+                if (PreviewableImageExtensions.Contains(extension))
+                {
+                    sb.Append("<div class=\"ds-thumb\"><img loading=\"lazy\" decoding=\"async\" src=\"")
+                      .Append(href).Append("\" alt=\"").Append(alt).Append("\"></div>");
+                }
+                else if (PlayableAudioExtensions.Contains(extension))
+                {
+                    sb.Append("<audio class=\"ds-media\" controls preload=\"none\" src=\"").Append(href).Append("\"></audio>");
+                }
+                else if (PlayableVideoExtensions.Contains(extension))
+                {
+                    sb.Append("<video class=\"ds-media\" controls preload=\"metadata\" src=\"").Append(href).Append("\"></video>");
+                }
+                else
+                {
+                    sb.Append(RenderThumbFallback(thumb, alt));
+                }
+
+                sb.Append("<div class=\"ds-file-actions\">");
+                sb.Append("<a class=\"ds-file-link\" href=\"").Append(href).Append("\" target=\"_blank\" rel=\"noopener\">\uD83D\uDD17 ")
+                  .Append(HtmlPageBuilder.I18n("span", null, "Open file", "\u30D5\u30A1\u30A4\u30EB\u3092\u958B\u304F", "\u0628\u0627\u0632 \u06A9\u0631\u062F\u0646 \u0641\u0627\u06CC\u0644"))
+                  .Append("</a>");
+                sb.Append("<a class=\"ds-file-link\" href=\"").Append(href).Append("\" download>\u2B07 ")
+                  .Append(HtmlPageBuilder.I18n("span", null, "Download", "\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9", "\u062F\u0627\u0646\u0644\u0648\u062F"))
+                  .Append("</a>");
+                sb.Append("</div>");
+
+                return sb.ToString();
+            }
+
+            sb.Append(RenderThumbFallback(thumb, alt));
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // RenderThumbFallback
+        // The embedded base64 thumbnail as a real
+        // <img> (lazy-loadable, saveable, printable,
+        // accessible) instead of a background-image on
+        // an empty <div>.
+        // ==========================================
+        private static string RenderThumbFallback(string thumbnailDataUri, string escapedAlt)
+        {
+            if (string.IsNullOrEmpty(thumbnailDataUri))
+            {
+                return "<div class=\"ds-thumb\">\uD83D\uDCC4</div>";
+            }
+            return "<div class=\"ds-thumb\"><img loading=\"lazy\" decoding=\"async\" src=\"" + thumbnailDataUri + "\" alt=\"" + escapedAlt + "\"></div>";
+        }
+
+        // ==========================================
+        // GetExtensionLower
+        // Lower-cased extension including the dot, or
+        // an empty string when there is none.
+        // ==========================================
+        private static string GetExtensionLower(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName)) { return ""; }
+            int dot = fileName.LastIndexOf('.');
+            return dot < 0 ? "" : fileName.Substring(dot).ToLowerInvariant();
+        }
+
+        // ==========================================
+        // EncodeUrlPath
+        // Percent-encodes each path segment while
+        // leaving the separators intact. Unity asset
+        // paths routinely contain spaces, '#' and '?',
+        // every one of which silently breaks an href.
+        // ==========================================
+        private static string EncodeUrlPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) { return ""; }
+            string[] segments = path.Replace('\\', '/').Split('/');
+            var sb = new StringBuilder(path.Length + 16);
+            for (int i = 0; i < segments.Length; i++)
+            {
+                if (i > 0) { sb.Append('/'); }
+                if (segments[i] == "." || segments[i] == "..")
+                {
+                    sb.Append(segments[i]);
+                    continue;
+                }
+                sb.Append(Uri.EscapeDataString(segments[i]));
+            }
+            return HtmlPageBuilder.Escape(sb.ToString());
         }
 
         // ==========================================
