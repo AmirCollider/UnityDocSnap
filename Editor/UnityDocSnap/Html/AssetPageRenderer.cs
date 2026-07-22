@@ -7,6 +7,7 @@
 // inside it (import settings, shader properties,
 // or Prefab contents per file).
 // ==========================================
+using System;
 using System.Collections.Generic;
 using AmirCollider.UnityDocSnap.Editor.Json;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
