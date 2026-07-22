@@ -83,7 +83,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string folderKey = AssetProjectExporter.FolderKey(folderPath);
             List<ManifestAssetIndexEntry> indexEntries;
             int fileCount;
-            JsonValue folderData = AssetProjectExporter.ExportFolder(folderPath, folderKey, out indexEntries, out fileCount);
+            JsonValue folderData;
+            try
+            {
+                folderData = AssetProjectExporter.ExportFolder(folderPath, folderKey, out indexEntries, out fileCount, false, null, outputRoot, ReportAssetProgress);
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
 
             string htmlFile = DocSnapConstants.AssetsSubFolder + "/" + folderKey + ".html";
             string jsonFile = DocSnapConstants.DataSubFolder + "/assets_" + folderKey + ".json";
@@ -159,7 +167,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string rootFolderKey = AssetProjectExporter.FolderKey("Assets");
             List<ManifestAssetIndexEntry> indexEntries;
             int fileCount;
-            JsonValue folderData = AssetProjectExporter.ExportFolder("Assets", rootFolderKey, out indexEntries, out fileCount);
+            JsonValue folderData;
+            try
+            {
+                folderData = AssetProjectExporter.ExportFolder("Assets", rootFolderKey, out indexEntries, out fileCount, false, null, outputRoot, ReportAssetProgress);
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
             string assetHtmlFile = DocSnapConstants.AssetsSubFolder + "/" + rootFolderKey + ".html";
             string assetJsonFile = DocSnapConstants.DataSubFolder + "/assets_" + rootFolderKey + ".json";
             WriteText(outputRoot, assetJsonFile, folderData.ToString());
@@ -248,7 +264,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string rootFolderKey = AssetProjectExporter.FolderKey("Assets");
             List<ManifestAssetIndexEntry> indexEntries;
             int fileCount;
-            JsonValue folderData = AssetProjectExporter.ExportFolder("Assets", rootFolderKey, out indexEntries, out fileCount, true, physicalFilesRoot);
+            JsonValue folderData;
+            try
+            {
+                folderData = AssetProjectExporter.ExportFolder("Assets", rootFolderKey, out indexEntries, out fileCount, true, physicalFilesRoot, outputRoot, ReportAssetProgress);
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
             string assetHtmlFile = DocSnapConstants.AssetsSubFolder + "/" + rootFolderKey + ".html";
             string assetJsonFile = DocSnapConstants.DataSubFolder + "/assets_" + rootFolderKey + ".json";
             WriteText(outputRoot, assetJsonFile, folderData.ToString());
@@ -306,10 +330,65 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // from the current manifest state - cheap
         // enough to do on every single export.
         // ==========================================
-        private static void RefreshIndexAndManifest(string outputRoot, ManifestState manifest)
+       private static void RefreshIndexAndManifest(string outputRoot, ManifestState manifest)
         {
             WriteText(outputRoot, DocSnapConstants.IndexFileName, IndexPageRenderer.Render(manifest));
             DocSnapManifest.WritePublicJson(manifest, Path.Combine(outputRoot, DocSnapConstants.DataSubFolder, DocSnapConstants.ManifestFileName));
+            PruneStaleOutput(outputRoot, manifest);
+        }
+
+        // ==========================================
+        // ReportAssetProgress
+        // Drives the Editor progress bar during an
+        // asset pass. A full-project export walks every
+        // file in the project and previously gave zero
+        // feedback, so Unity simply looked frozen.
+        // ==========================================
+        private static void ReportAssetProgress(int processed, int total, string currentPath)
+        {
+            if (total <= 0) { return; }
+            EditorUtility.DisplayProgressBar(
+                DocSnapConstants.ToolName,
+                "Exporting assets  " + processed + " / " + total + "\n" + currentPath,
+                (float)processed / total);
+        }
+
+        // ==========================================
+        // PruneStaleOutput
+        // Deletes scene/asset pages whose source no
+        // longer appears in the manifest. Without this
+        // a renamed or deleted Scene left its old page
+        // behind forever, and the sidebar linked to a
+        // document that no longer described anything
+        // in the project.
+        // ==========================================
+        private static void PruneStaleOutput(string outputRoot, ManifestState manifest)
+        {
+            try
+            {
+                var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (ManifestSceneEntry scene in manifest.scenes) { live.Add(scene.htmlFile); }
+                foreach (ManifestFolderEntry folder in manifest.assetFolders) { live.Add(folder.htmlFile); }
+
+                PruneFolder(outputRoot, DocSnapConstants.ScenesSubFolder, live);
+                PruneFolder(outputRoot, DocSnapConstants.AssetsSubFolder, live);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[Unity DocSnap] Could not prune stale output: " + ex.Message);
+            }
+        }
+
+        private static void PruneFolder(string outputRoot, string subFolder, HashSet<string> liveHtmlFiles)
+        {
+            string absolute = Path.Combine(outputRoot, subFolder);
+            if (!Directory.Exists(absolute)) { return; }
+
+            foreach (string file in Directory.GetFiles(absolute, "*.html", SearchOption.TopDirectoryOnly))
+            {
+                string relative = subFolder + "/" + Path.GetFileName(file);
+                if (!liveHtmlFiles.Contains(relative)) { File.Delete(file); }
+            }
         }
 
         // ==========================================
@@ -324,6 +403,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             Directory.CreateDirectory(Path.Combine(outputRoot, DocSnapConstants.AssetsSubFolder));
             Directory.CreateDirectory(Path.Combine(outputRoot, DocSnapConstants.DataSubFolder));
             Directory.CreateDirectory(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder));
+            Directory.CreateDirectory(Path.Combine(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder), DocSnapConstants.ThumbsSubFolder));
 
             File.WriteAllText(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder, DocSnapConstants.StyleFileName), DocSnapSiteAssets.StyleCss);
             File.WriteAllText(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder, DocSnapConstants.ScriptFileName), DocSnapSiteAssets.AppJs);
