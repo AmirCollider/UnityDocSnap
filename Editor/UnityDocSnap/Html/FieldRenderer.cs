@@ -910,7 +910,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         {
             return "<div class=\"ds-kv-line\"><span class=\"k\">" + HtmlPageBuilder.I18n("span", null, kEn, kJa, kFa) + "</span><span class=\"v\">" + HtmlPageBuilder.Escape(v) + "</span></div>";
         }
-
+        
         private static string FormatBytes(double bytes)
         {
             string[] units = { "B", "KB", "MB", "GB" };
