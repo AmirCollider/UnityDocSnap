@@ -542,7 +542,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
                     info.Set("quality", settings.quality);
                     info.Set("forceToMono", audioImporter.forceToMono);
                     info.Set("loadInBackground", audioImporter.loadInBackground);
-                    info.Set("preloadAudioData", audioImporter.preloadAudioData);
+                    info.Set("preloadAudioData", settings.preloadAudioData);
                 }
             }
             catch
