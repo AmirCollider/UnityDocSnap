@@ -39,6 +39,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         public const string DataSubFolder = "data";
         public const string SiteAssetsSubFolder = "assets_ui";
         public const string FilesSubFolder = "files";
+        public const string ThumbsSubFolder = "thumbs";
         public const string IndexFileName = "index.html";
         public const string StyleFileName = "style.css";
         public const string ScriptFileName = "app.js";
@@ -58,5 +59,17 @@ namespace AmirCollider.UnityDocSnap.Editor
         public const int MaxNestedArrayElementsRendered = 10;
         public const int MaxGenericRecursionDepth = 14;
         public const int DefaultThumbnailMaxDimension = 256;
+
+        // ==========================================
+        // Page-weight limits
+        // A single folder node that renders thousands
+        // of fully-expanded asset cards produces an
+        // HTML page no browser can lay out. Capping
+        // per node keeps every page interactive; the
+        // full, uncapped data always remains in
+        // data/assets_*.json.
+        // ==========================================
+        public const int MaxAssetsRenderedPerFolderNode = 300;
+        public const int AssetPreviewTimeoutMs = 400;
     }
 }
