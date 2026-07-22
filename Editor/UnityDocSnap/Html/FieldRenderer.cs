@@ -714,12 +714,42 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // ==========================================
         private static string SanitizeAnchor(string path)
         {
-            var sb = new StringBuilder(path.Length);
+            if (string.IsNullOrEmpty(path)) { return "root"; }
+
+            var sb = new StringBuilder(path.Length + 10);
             foreach (char c in path)
             {
                 sb.Append(char.IsLetterOrDigit(c) ? c : '-');
             }
+
+            // Collapsing every non-alphanumeric character to '-'
+            // makes "UI_Menu" and "UI/Menu" and "UI Menu" the same
+            // id. A short hash of the original path keeps otherwise
+            // identical anchors distinct.
+            sb.Append('-').Append(StableHashHex(path));
             return sb.ToString();
+        }
+
+        // ==========================================
+        // StableHashHex
+        // Deterministic 8-hex-digit FNV-1a hash. Uses
+        // its own implementation rather than
+        // string.GetHashCode(), which is randomized
+        // per-process on modern .NET and would produce
+        // a different anchor on every export.
+        // ==========================================
+        private static string StableHashHex(string value)
+        {
+            unchecked
+            {
+                uint hash = 2166136261;
+                foreach (char c in value)
+                {
+                    hash ^= c;
+                    hash *= 16777619;
+                }
+                return hash.ToString("x8", CultureInfo.InvariantCulture);
+            }
         }
 
         // ==========================================
