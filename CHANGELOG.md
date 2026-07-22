@@ -2,6 +2,31 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.3.0] - 2026-07-22
+
+### Fixed
+- Asset pages were unreadable when the UI language was switched to Persian. `app.js` sets `dir="rtl"`, but the value spans holding paths, GUIDs, numbers, enums and type names carried no `direction: ltr` / `unicode-bidi: isolate`, so every piece of Latin data was bidi-reordered into fragments. Only `[data-en]` was isolated; the data itself was not. All data-bearing elements are now explicitly LTR-isolated.
+- `.ds-asset-grid` used `minmax(300px, 1fr)`. A grid track floor makes the grid wider than its own container whenever the container is narrower than the floor - which is constant inside a nested folder node - so cards overflowed and overlapped. Now `minmax(min(320px, 100%), 1fr)`, with `min-width: 0` on every grid child.
+- `.ds-field-grid` had `96px` + `64px` column floors that overflowed narrow cards; `.ds-asset-card`'s `overflow: hidden` then silently clipped the data, which is why Import Settings looked present but unreadable. Floors removed and a container query stacks the grid when a card is genuinely narrow.
+- `.ds-tree ul` added 33px of indentation per nesting level, compounding into the two failures above at depth. Indentation now tapers with depth.
+- `.ds-kv-line` was a flex row with a non-shrinkable key, so one long path forced the whole card wider than its grid track. Rebuilt as a two-column grid.
+- **"Export Full Project With Files" copied every asset's bytes into `files/` and then never referenced them from any page.** No `physicalFile` key was written to the JSON entry and no renderer emitted `<img>`, `<audio>`, `<video>` or a download link, so images and audio never appeared even after a with-files export. Asset cards now play audio and video inline, show the real image file, and expose Open / Download for every copied asset.
+- `ThumbnailGenerator.BlitResize` created its RenderTexture with default read/write. In a Linear color-space project this produced gamma-incorrect (washed out or near-black) thumbnails. It now requests `RenderTextureReadWrite.sRGB` when the project is Linear.
+- `AssetDatabase.FindAssets(string.Empty, ...)` is undocumented and returns nothing on some Unity versions, producing a silently empty Assets page. `CollectFilePaths` now walks the filesystem and validates each candidate against the AssetDatabase.
+- `SanitizeAnchor` collapsed every non-alphanumeric character to `-`, so `UI_Menu`, `UI/Menu` and `UI Menu` all produced the same DOM id. A stable FNV-1a suffix now keeps them distinct.
+- `BuildGuidLookup` resolved a GUID indexed under several folders by last-writer-wins, so cross-links pointed at a different page between runs. Resolution is now deterministic, preferring the most specific page.
+- `AssetPageRenderer`'s path map was case-sensitive while the folder tree normalised separators, so case drift dropped files out of the rendered tree. Now `OrdinalIgnoreCase`.
+- `.ds-matrix-row-head` used the physical `left` property and broke under RTL. Now `inset-inline-start`.
+
+### Changed
+- Thumbnails are written as real `assets_ui/thumbs/<guid>.png` files instead of base64 data URIs inlined into both the HTML and the JSON. Previews now lazy-load and cache; a large project's Asset page is no longer a single multi-hundred-megabyte document. Callers that pass no output root still receive the base64 form.
+- Import Settings, Fields, Shader Properties and Prefab Contents render inside a collapsed `<details>`. A closed `<details>` is parsed but never laid out, which is the difference between a folder page opening and a folder page hanging the browser.
+- Each folder node renders at most `MaxAssetsRenderedPerFolderNode` (300) asset cards, with a count of the remainder. The complete list always remains in `data/assets_*.json`.
+- `.tga`, `.psd`, `.exr`, `.tif`, `.webp` and `.bmp` textures - plus Materials, Prefabs, Models and Fonts - now get Unity's real rendered preview via a short polling wait, instead of falling through to a 16x16 type icon. Icons, when still used, are tagged and sized as small badges rather than stretched across the preview box.
+- Every generated URL is percent-encoded per path segment. Asset paths containing spaces or `#` previously produced broken links.
+- Full-project exports drive an Editor progress bar. They previously ran with no feedback at all and looked frozen.
+- Every export prunes scene and asset pages whose source no longer appears in the manifest, instead of leaving orphaned documents behind forever.
+
 ## [0.2.3] - 2026-07-08
 
 ### Fixed
