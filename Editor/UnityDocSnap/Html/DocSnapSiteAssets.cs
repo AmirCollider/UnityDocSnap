@@ -602,6 +602,38 @@ video.ds-media { max-height: 260px; }
 }
 .ds-file-link:hover { background: var(--pink-pale); border-color: var(--pink); text-decoration: none; }
 
+/* ==========================================
+   Collapsible Detail Sections — Import
+   Settings, Fields, Shader Properties and
+   Prefab Contents. Collapsed by default: a
+   closed <details> is never laid out, so a
+   folder page with hundreds of assets stays
+   openable instead of hanging the browser.
+   ========================================== */
+.ds-detail { margin-top: 10px; border-top: 1px dashed var(--line); }
+.ds-detail > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 0 6px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+}
+.ds-detail > summary::-webkit-details-marker { display: none; }
+.ds-detail > summary::before {
+  content: '▸';
+  color: var(--lavender);
+  font-size: 11px;
+  transition: transform .15s ease;
+  flex: none;
+}
+.ds-detail[open] > summary::before { transform: rotate(90deg); }
+.ds-detail > summary:hover { color: var(--pink-strong); }
+.ds-detail-body { padding-bottom: 6px; min-width: 0; }
+
 /* Two-column grid, not flex: a flex row with a
    non-shrinkable key and a long unbreakable value
    forces the card wider than its grid track. */
