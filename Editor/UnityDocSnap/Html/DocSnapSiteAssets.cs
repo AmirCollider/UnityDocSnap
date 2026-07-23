@@ -13,13 +13,15 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         // StyleCss - theme/style.css contents
         // ==========================================
-        public const string StyleCss = @"/* ==========================================
+        // Fonts are prepended from DocSnapFontAssets (base64
+        // woff2) rather than pulled from the Google Fonts CDN,
+        // so an exported site is genuinely self-contained and
+        // makes no network requests when opened offline.
+        public static readonly string StyleCss = DocSnapFontAssets.FontFaceCss + @"/* ==========================================
    Unity DocSnap — Site Stylesheet
    Design tokens, layout, and components for
    the generated offline documentation site.
    ========================================== */
-
-@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Quicksand:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Kosugi+Maru&family=Vazirmatn:wght@400;500;600;700&display=swap');
 
 /* ==========================================
    Design Tokens
@@ -50,16 +52,20 @@ namespace AmirCollider.UnityDocSnap.Editor
   --shadow-soft: 0 6px 20px rgba(177, 156, 217, 0.16);
   --shadow-lift: 0 10px 28px rgba(255, 143, 163, 0.22);
 
-  --font-display: 'Baloo 2', 'Kosugi Maru', 'Vazirmatn', sans-serif;
-  --font-body: 'Quicksand', 'Kosugi Maru', 'Vazirmatn', sans-serif;
-  --font-mono: 'Space Mono', 'Kosugi Maru', monospace;
+  /* Embedded families first, then system Japanese faces so a
+     Japanese name shown in any view still renders offline. */
+  --font-display: 'Baloo 2', 'Vazirmatn', 'Hiragino Maru Gothic ProN', 'Yu Gothic', 'Meiryo', sans-serif;
+  --font-body: 'Quicksand', 'Vazirmatn', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Meiryo', sans-serif;
+  --font-mono: 'Space Mono', 'Yu Gothic', 'Meiryo', monospace;
 
   --sidebar-w: 288px;
 }
 
+/* Japanese has no embedded web font (a CJK face is ~2 MB); it
+   uses the rounded/gothic faces every desktop OS ships with. */
 :lang(ja) {
-  --font-display: 'Kosugi Maru', 'Baloo 2', sans-serif;
-  --font-body: 'Kosugi Maru', 'Quicksand', sans-serif;
+  --font-display: 'Hiragino Maru Gothic ProN', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'YuGothic', 'Meiryo', 'MS PGothic', sans-serif;
+  --font-body: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'YuGothic', 'Meiryo', 'MS PGothic', sans-serif;
 }
 
 :lang(fa) {

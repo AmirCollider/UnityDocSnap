@@ -2,6 +2,11 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.6.3] - 2026-07-23
+
+### Fixed
+- **The generated site is now genuinely offline.** `theme/style.css` pulled its fonts from the Google Fonts CDN through an `@import`, so a site opened without a network connection silently dropped to system fonts and lost its branded look — despite the export being described as self-contained and offline. The Latin faces (Baloo 2, Quicksand, Space Mono) and the Persian face (Vazirmatn) are now embedded directly in the stylesheet as base64 `woff2` (only the weights the stylesheet actually uses, each keeping its original `unicode-range` so per-glyph fallback still works), so an export renders identically with **zero network requests**. Japanese uses a high-quality system font stack (Hiragino Maru Gothic / Yu Gothic / Meiryo) instead of baking a ~2 MB CJK face into every version folder. `preview-sample.html` embeds the same fonts. Fonts live in a new `DocSnapFontAssets` and are prepended to `DocSnapSiteAssets.StyleCss`.
+
 ## [0.6.2] - 2026-07-23
 
 ### Added
