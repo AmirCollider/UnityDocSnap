@@ -346,8 +346,76 @@ body.ds-mode-simple .ds-adv { display: none !important; }
 .ds-go-card-head h3, .ds-asset-card-head h3 { font-size: 18px; margin: 0; display: flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
 .ds-go-card-body, .ds-asset-card-body { padding: 6px 20px 18px; }
 
+/* ==========================================
+   Collapsed asset cards — every asset card is a
+   <details>: closed it is one compact header row
+   (name + type + size), open it reveals the full
+   info. A folder with hundreds of files therefore
+   lays out a list of light headers instead of
+   hundreds of full cards, and content-visibility
+   lets the browser skip work for cards that are
+   off-screen entirely. This is what keeps the
+   Assets page usable in Advanced mode.
+   ========================================== */
+details.ds-asset-card {
+  margin-bottom: 0;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 52px;
+}
+details.ds-asset-card[open] { contain-intrinsic-size: auto 480px; }
+details.ds-asset-card > summary.ds-asset-card-head {
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 14px;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+details.ds-asset-card > summary.ds-asset-card-head::-webkit-details-marker { display: none; }
+details.ds-asset-card > summary.ds-asset-card-head::before {
+  content: '▸';
+  color: var(--lavender);
+  font-size: 11px;
+  transition: transform .15s ease;
+  flex: none;
+}
+details.ds-asset-card[open] > summary.ds-asset-card-head::before { transform: rotate(90deg); }
+details.ds-asset-card > summary.ds-asset-card-head:hover h3 { color: var(--pink-strong); }
+details.ds-asset-card > summary.ds-asset-card-head h3 {
+  font-size: 13.5px;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ds-asset-head-meta {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  direction: ltr;
+  unicode-bidi: isolate;
+  white-space: nowrap;
+}
+.ds-asset-head-meta .t {
+  background: rgba(255,255,255,.55);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+/* Component cards can also be skipped while
+   off-screen; a rough intrinsic height keeps the
+   scrollbar stable. */
+.ds-component { content-visibility: auto; contain-intrinsic-size: auto 140px; }
+
 .ds-transform-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 14px 0; }
-.ds-vec3 { display: flex; gap: 6px; font-family: var(--font-mono); font-size: 12.5px; }
+.ds-vec3 { display: flex; flex-wrap: wrap; gap: 6px; font-family: var(--font-mono); font-size: 12.5px; }
 .ds-vec3 b { color: var(--lavender-strong); font-weight: 700; }
 .ds-transform-tile { background: var(--cream-deep); border-radius: var(--radius-sm); padding: 10px 12px; }
 .ds-transform-tile .lbl { font-family: var(--font-body); font-weight: 700; font-size: 11.5px; color: var(--ink-soft); display: block; margin-bottom: 5px; }
@@ -622,11 +690,15 @@ body.ds-mode-simple .ds-adv { display: none !important; }
    collapse to full width on a phone. */
 .ds-asset-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+  gap: 10px;
   align-items: start;
 }
 .ds-asset-grid > * { min-width: 0; }
+/* An open card takes the whole row, so its detail
+   tables get the full page width instead of being
+   squeezed into one grid column. */
+.ds-asset-grid > .ds-asset-card[open] { grid-column: 1 / -1; }
 
 .ds-thumb {
   position: relative;
@@ -992,7 +1064,18 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
 .ds-stat-tile.ds-tile-lav .ds-stat-num { color: var(--lavender-strong); }
 .ds-stat-tile.ds-tile-pink .ds-stat-num { color: var(--pink-strong); }
 
-.ds-diff-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ds-diff-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* Very long change lists scroll inside their own
+     section instead of stretching the page. */
+  max-height: 440px;
+  overflow-y: auto;
+}
 .ds-diff-item {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -1004,7 +1087,23 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
   unicode-bidi: isolate;
   text-align: start;
   overflow-wrap: anywhere;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
 }
+.ds-diff-pathwrap { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.ds-diff-dir { color: var(--ink-soft); }
+.ds-diff-file { font-weight: 700; }
+.ds-diff-size {
+  flex: none;
+  margin-inline-start: auto;
+  font-size: 11px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.ds-diff-size .plus { color: var(--mint-strong); font-weight: 700; }
+.ds-diff-size .minus { color: var(--warn); font-weight: 700; }
 .ds-diff-item.ds-diff-added { border-inline-start-color: var(--mint-strong); }
 .ds-diff-item.ds-diff-removed { border-inline-start-color: var(--warn); }
 .ds-diff-item.ds-diff-changed { border-inline-start-color: var(--lavender); }
@@ -1103,6 +1202,7 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
 :root[data-theme=""dark""] .ds-ref-chip,
 :root[data-theme=""dark""] .ds-prefab-tag,
 :root[data-theme=""dark""] .ds-search-result .r-cat { background: #2c2740; color: var(--lavender-strong); }
+:root[data-theme=""dark""] .ds-asset-head-meta .t { background: rgba(255,255,255,.07); }
 ";
 
         // ==========================================
@@ -1126,6 +1226,7 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
   var LANG_STORAGE_KEY = 'unityDocSnapLang';
   var MODE_STORAGE_KEY = 'unityDocSnapMode';
   var THEME_STORAGE_KEY = 'unityDocSnapTheme';
+  var DEFAULTS_STORAGE_KEY = 'unityDocSnapDefaults';
 
   // ==========================================
   // safeStorage
@@ -1151,6 +1252,32 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
       try { window.localStorage.setItem(key, value); } catch (e) { /* denied - memory only */ }
     }
   };
+
+  // ==========================================
+  // syncExportDefaults()
+  // A reader's saved language/theme choice should
+  // survive reloads of the SAME export - but when a
+  // NEW export is made with different defaults
+  // (e.g. the exporter now chose Japanese + light),
+  // the new defaults must actually show up. Without
+  // this, a choice stored while viewing an older
+  // export (or the older export's own defaults,
+  // stored on first visit) silently overrode every
+  // newer export's defaults forever. The exporter's
+  // defaults are recorded; whenever they differ from
+  // the record, the stored choices are reset to the
+  // new defaults.
+  // ==========================================
+  function syncExportDefaults() {
+    var lang = window.__DOCSNAP_LANG__ || 'en';
+    var theme = window.__DOCSNAP_THEME__ || 'light';
+    var current = lang + '|' + theme;
+    if (safeStorage.get(DEFAULTS_STORAGE_KEY) !== current) {
+      safeStorage.set(LANG_STORAGE_KEY, lang);
+      safeStorage.set(THEME_STORAGE_KEY, theme);
+      safeStorage.set(DEFAULTS_STORAGE_KEY, current);
+    }
+  }
 
   // ==========================================
   // applyLanguage(lang)
@@ -1191,10 +1318,17 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
   function restoreLanguage() {
     // A reader's own saved choice wins; otherwise fall back to
     // the default language the exporter baked into the page.
+    // The stored value is validated against the real buttons
+    // (never interpolated into a selector, which could throw
+    // on a corrupt stored value and break every wire-up below).
     var stored = safeStorage.get(LANG_STORAGE_KEY);
     var lang = stored || window.__DOCSNAP_LANG__ || 'en';
-    var match = document.querySelector('.ds-lang-btn[data-lang=' + lang + ']');
-    if (match) { applyLanguage(lang); }
+    var buttons = document.querySelectorAll('.ds-lang-btn');
+    var valid = false;
+    for (var i = 0; i < buttons.length; i++) {
+      if (buttons[i].getAttribute('data-lang') === lang) { valid = true; break; }
+    }
+    applyLanguage(valid ? lang : (window.__DOCSNAP_LANG__ || 'en'));
   }
 
   // ==========================================
@@ -1280,6 +1414,15 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
   // ==========================================
   // wireTreeControls()
   // Expand-all / collapse-all for any .ds-tree.
+  // Expand only touches the tree nodes themselves
+  // (details.ds-go - folders / GameObjects), never
+  // the per-item heavy detail (asset cards, Import
+  // Settings, Fields, Prefab Contents). Expanding
+  // literally everything used to force layout of
+  // every field table on the page at once, which
+  // froze the browser on a big Assets page.
+  // Collapse still closes everything, so one click
+  // always returns the page to its lightest state.
   // ==========================================
   function wireTreeControls() {
     var expandButtons = document.querySelectorAll('[data-tree-expand]');
@@ -1288,10 +1431,38 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
         var scope = document.getElementById(evt.currentTarget.getAttribute('data-tree-expand'));
         if (!scope) { return; }
         var open = evt.currentTarget.getAttribute('data-mode') === 'expand';
-        var details = scope.querySelectorAll('details');
+        var details = scope.querySelectorAll(open ? 'details.ds-go' : 'details');
         for (var d = 0; d < details.length; d++) { details[d].open = open; }
       });
     }
+  }
+
+  // ==========================================
+  // revealHashTarget()
+  // Cross-page links and search results point at
+  // anchors (#asset-…, #go-…, #folder-…) that now
+  // live inside collapsed <details>. A closed
+  // <details> never lays out its content, so the
+  // browser cannot scroll to it. This opens every
+  // <details> on the path to the target (and the
+  // target itself when it is a collapsed card),
+  // then scrolls it into view.
+  // ==========================================
+  function revealHashTarget() {
+    var hash = window.location.hash;
+    if (!hash || hash.length < 2) { return; }
+    var id;
+    try { id = decodeURIComponent(hash.slice(1)); } catch (e) { id = hash.slice(1); }
+    var el = document.getElementById(id);
+    if (!el) { return; }
+    var node = el;
+    while (node && node !== document.body) {
+      if (node.tagName === 'DETAILS') { node.open = true; }
+      node = node.parentElement;
+    }
+    window.setTimeout(function () {
+      el.scrollIntoView({ block: 'start' });
+    }, 0);
   }
 
   // ==========================================
@@ -1435,6 +1606,7 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    syncExportDefaults();
     restoreLanguage();
     wireLanguageButtons();
     restoreTheme();
@@ -1444,6 +1616,8 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
     wireTreeControls();
     wireBackToTop();
     wireSearch();
+    revealHashTarget();
+    window.addEventListener('hashchange', revealHashTarget);
   });
 })();
 ";

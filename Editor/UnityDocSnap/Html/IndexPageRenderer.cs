@@ -37,14 +37,23 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
 
             if (exportInfo != null) { sb.Append(DocSnapExportInfo.RenderCard(exportInfo)); }
 
+            // ONE stat grid for the whole dashboard. The Export Info
+            // card above deliberately carries no counts of its own -
+            // previously it showed "Scenes / Assets / Packages /
+            // Updatable" and this grid repeated "Scenes exported /
+            // Files tracked / Packages" right below it with the same
+            // numbers under different labels.
             sb.Append("<div class=\"ds-stat-grid\">");
-            sb.Append(StatTile(manifest.scenes.Count, "Scenes exported", "エクスポート済みシーン", "سین اکسپورت‌شده"));
-            sb.Append(StatTile(totalGameObjects, "GameObjects", "GameObject数", "GameObject ها"));
-            sb.Append(StatTile(manifest.assetFolders.Count, "Asset folders", "アセットフォルダ", "پوشه‌ی فایل‌ها"));
-            sb.Append(StatTile(totalFiles, "Files tracked", "追跡ファイル数", "فایل‌های ردیابی‌شده"));
+            sb.Append(StatTile(manifest.scenes.Count, "Scenes", "シーン", "سین‌ها", "pink"));
+            sb.Append(StatTile(totalGameObjects, "GameObjects", "GameObject数", "GameObject ها", "lav"));
+            sb.Append(StatTile(totalFiles, "Asset files", "アセットファイル", "فایل‌های Assets", "mint"));
             if (manifest.packages != null && manifest.packages.Count > 0)
             {
-                sb.Append(StatTile(manifest.packages.Count, "Packages", "パッケージ", "پکیج‌ها"));
+                sb.Append(StatTile(manifest.packages.Count, "Packages", "パッケージ", "پکیج‌ها", "pink"));
+            }
+            if (exportInfo != null && exportInfo.packagesUpdatable > 0)
+            {
+                sb.Append(StatTile(exportInfo.packagesUpdatable, "Updatable packages", "更新可能パッケージ", "پکیج‌های قابل‌آپدیت", "warn"));
             }
             sb.Append("</div>\n");
 
@@ -90,9 +99,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             return HtmlPageBuilder.RenderPage(manifest, DocSnapConstants.IndexFileName, manifest.projectName, header, sb.ToString());
         }
 
-        private static string StatTile(int num, string labelEn, string labelJa, string labelFa)
+        private static string StatTile(int num, string labelEn, string labelJa, string labelFa, string variant = null)
         {
-            return "<div class=\"ds-stat-tile\"><div class=\"ds-stat-num\">" + num + "</div><div class=\"ds-stat-label\">" + HtmlPageBuilder.I18n("span", null, labelEn, labelJa, labelFa) + "</div></div>";
+            string cls = string.IsNullOrEmpty(variant) ? "ds-stat-tile" : "ds-stat-tile ds-tile-" + variant;
+            return "<div class=\"" + cls + "\"><div class=\"ds-stat-num\">" + num + "</div><div class=\"ds-stat-label\">" + HtmlPageBuilder.I18n("span", null, labelEn, labelJa, labelFa) + "</div></div>";
         }
     }
 }

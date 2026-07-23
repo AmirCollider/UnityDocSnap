@@ -8,7 +8,6 @@
 // wherever a reference can be resolved.
 // ==========================================
 using System;
-using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -857,8 +856,21 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             string mainType = file.Get("mainType").AsString("Asset");
 
             var sb = new StringBuilder(1024);
-            sb.Append("<div class=\"ds-asset-card\" id=\"asset-").Append(guid).Append("\">");
-            sb.Append("<div class=\"ds-asset-card-head\"><h3>").Append(HtmlPageBuilder.Escape(fileName)).Append("</h3></div>");
+            // The card is a collapsed <details>: closed it is one
+            // compact header row (name + type + size), open it shows
+            // everything. A folder with hundreds of files renders a
+            // light list instead of hundreds of full cards, which is
+            // what keeps the Assets page responsive in Advanced mode.
+            // app.js (revealHashTarget) opens the card automatically
+            // when a cross-link or search result points at its anchor.
+            sb.Append("<details class=\"ds-asset-card\" id=\"asset-").Append(guid).Append("\">");
+            sb.Append("<summary class=\"ds-asset-card-head\"><h3>").Append(HtmlPageBuilder.Escape(fileName)).Append("</h3>");
+            sb.Append("<span class=\"ds-asset-head-meta\"><span class=\"t\">").Append(HtmlPageBuilder.Escape(mainType)).Append("</span>");
+            if (file.Has("fileSizeBytes"))
+            {
+                sb.Append("<span>").Append(FormatBytes(file.Get("fileSizeBytes").AsNumber())).Append("</span>");
+            }
+            sb.Append("</span></summary>");
             sb.Append("<div class=\"ds-asset-card-body\">");
 
             sb.Append(RenderAssetMedia(file, fileName, resolver));
@@ -930,7 +942,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 sb.Append(CloseDetail());
             }
 
-            sb.Append("</div></div>\n");
+            sb.Append("</div></details>\n");
             return sb.ToString();
         }
 

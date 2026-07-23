@@ -104,8 +104,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append("<script>window.__DOCSNAP_PREFIX__=\"").Append(prefix).Append("\";")
               .Append("window.__DOCSNAP_LANG__=\"").Append(defLang).Append("\";")
               .Append("window.__DOCSNAP_THEME__=\"").Append(defTheme).Append("\";</script>\n");
-            sb.Append("<script src=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.SearchIndexFileName).Append("\"></script>\n");
-            sb.Append("<script src=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.ScriptFileName).Append("\"></script>\n</body>\n</html>\n");
+            // defer: the (potentially large) search index never blocks
+            // HTML parsing; execution order is still guaranteed, so the
+            // index global is always assigned before app.js runs.
+            sb.Append("<script defer src=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.SearchIndexFileName).Append("\"></script>\n");
+            sb.Append("<script defer src=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.ScriptFileName).Append("\"></script>\n</body>\n</html>\n");
             return sb.ToString();
         }
 

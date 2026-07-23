@@ -1,0 +1,51 @@
+Unity DocSnap — v0.6.1 changes
+==============================
+
+این ZIP شامل ۱۱ فایل تغییرکرده است. همه‌ی فایل‌ها را با همین ساختار پوشه
+روی ریپازیتوری گیت‌هاب (یا داخل پروژه) کپی/آپلود کنید تا فایل‌های قبلی
+جایگزین شوند:
+
+  CHANGELOG.md
+  package.json
+  Editor/UnityDocSnap/DocSnapConstants.cs
+  Editor/UnityDocSnap/DocSnapExportWindow.cs
+  Editor/UnityDocSnap/Export/DocSnapExportService.cs
+  Editor/UnityDocSnap/Export/DocSnapExportInfo.cs
+  Editor/UnityDocSnap/Html/ChangesPageRenderer.cs
+  Editor/UnityDocSnap/Html/DocSnapSiteAssets.cs
+  Editor/UnityDocSnap/Html/FieldRenderer.cs
+  Editor/UnityDocSnap/Html/HtmlPageBuilder.cs
+  Editor/UnityDocSnap/Html/IndexPageRenderer.cs
+
+خلاصه‌ی تغییرات (مطابق شماره‌ی مشکلات گزارش‌شده):
+
+1) بخش Assets در حالت Advanced دیگر سنگین نیست: هر کارت فایل به‌صورت
+   پیش‌فرض بسته است (فقط نام + نوع + حجم). با کلیک روی هر فایل، کارتش
+   باز می‌شود و کل عرض صفحه را می‌گیرد. «Expand all» فقط پوشه‌ها را باز
+   می‌کند، نه جزئیات سنگین فایل‌ها.
+
+2) ظاهر کارت‌ها درست شد: کارت باز تمام عرض را می‌گیرد، نام‌های طولانی
+   بریده می‌شوند (…)، و جدول‌ها جای کافی دارند.
+
+3) اگر گزینه‌ی unitypackage backup روشن باشد، قبل از خروجی گرفتن یک
+   هشدار سه‌زبانه نمایش داده می‌شود (عملیات سنگین است؛ اول پروژه را سیو
+   کنید). خودِ بک‌آپ هم حالا «آخر از همه» ساخته می‌شود؛ یعنی اول کل سایت
+   کامل روی دیسک نوشته می‌شود و اگر بک‌آپ کرش کند خروجی سالم می‌ماند.
+
+4) صفحه‌ی Changes کامل‌تر شد: حجم فایل‌ها و تغییر حجم هر فایل
+   (قبل → بعد ±دلتا)، کاشی‌های Size change / GameObjects / Package
+   changes / Scene changes، جمع کل فایل‌ها و حجم، مسیر کم‌رنگ + نام فایل
+   پررنگ، و لیست‌های خیلی طولانی اسکرول‌دار و جمع‌شده.
+
+5) زبان و تم پیش‌فرض انتخاب‌شده در پنجره‌ی Export حالا واقعاً اعمال
+   می‌شود. (قبلاً انتخاب ذخیره‌شده در localStorage از خروجی‌های قدیمی،
+   پیش‌فرض جدید را برای همیشه بی‌اثر می‌کرد.)
+
+6) سرعت باز شدن سایت: کارت‌های بسته + content-visibility (مرورگر
+   کارت‌های خارج از صفحه را رندر نمی‌کند) + بارگذاری deferred اسکریپت‌ها.
+
+7) آمار تکراری داشبورد حذف شد: فقط یک ردیف آمار واحد نمایش داده می‌شود
+   و کارت Export Info فقط اطلاعات خودِ خروجی (نسخه/زمان/بک‌آپ/...) را دارد.
+
+نکته: این تغییرات فقط خروجی‌های «جدید» را تغییر می‌دهد؛ برای دیدن نتیجه
+باید دوباره خروجی بگیرید (یا Update Previous Export بزنید).
