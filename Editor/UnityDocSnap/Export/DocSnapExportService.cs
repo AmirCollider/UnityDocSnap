@@ -683,7 +683,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
             if (options.recordChanges && changesBase != null)
             {
-                WriteText(siteRoot, DocSnapConstants.ChangesFileName, ChangesPageRenderer.Render(manifest, snap, changesBase));
+                // The base version's folder supplies the "old" file bytes
+                // (from its source-files/ mirror, when it has one); the
+                // renderer copies old + current bytes into changes-files/
+                // so every listed file is downloadable for review.
+                string baseVersionFolder = DocSnapVersioning.VersionFolderAbsolute(baseRoot, changesBase.version);
+                WriteText(siteRoot, DocSnapConstants.ChangesFileName,
+                    ChangesPageRenderer.Render(manifest, snap, changesBase, siteRoot, baseVersionFolder));
             }
 
             DocSnapVersioning.UpsertSnapshot(registry, snap);

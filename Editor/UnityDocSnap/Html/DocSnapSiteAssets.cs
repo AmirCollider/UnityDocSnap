@@ -69,6 +69,15 @@ namespace AmirCollider.UnityDocSnap.Editor
 
 * { box-sizing: border-box; }
 
+/* Set by the tiny boot script in <head> when the
+   reader's stored language differs from the baked
+   one: the body stays invisible until app.js swaps
+   the text (applyLanguage removes the class), so
+   there is never a flash of the wrong language or
+   direction. A timeout in the boot script clears it
+   after 1.5s even if app.js never runs. */
+html.ds-lang-pending body { visibility: hidden; }
+
 html { scroll-behavior: smooth; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1104,6 +1113,10 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
 }
 .ds-diff-size .plus { color: var(--mint-strong); font-weight: 700; }
 .ds-diff-size .minus { color: var(--warn); font-weight: 700; }
+/* Per-entry download chips: the file as it was in the
+   compared version and as it is in this export. */
+.ds-diff-links { flex: none; display: inline-flex; gap: 4px; }
+.ds-diff-item .ds-file-link { font-size: 10.5px; padding: 2px 8px; }
 .ds-diff-item.ds-diff-added { border-inline-start-color: var(--mint-strong); }
 .ds-diff-item.ds-diff-removed { border-inline-start-color: var(--warn); }
 .ds-diff-item.ds-diff-changed { border-inline-start-color: var(--lavender); }
@@ -1313,6 +1326,10 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
     }
 
     safeStorage.set(LANG_STORAGE_KEY, lang);
+
+    // The <head> boot script hides the body while a language
+    // swap is pending; the swap just happened, so reveal it.
+    root.classList.remove('ds-lang-pending');
   }
 
   function restoreLanguage() {

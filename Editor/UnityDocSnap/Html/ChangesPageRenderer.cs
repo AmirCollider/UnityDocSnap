@@ -10,13 +10,23 @@
 // entirely in C# from the two stored
 // VersionSnapshots, so the page is plain static
 // HTML - no data left to fetch, works under file://.
+//
+// Every listed file is also DOWNLOADABLE for review:
+// the current bytes are copied from the live project
+// into changes-files/new/, and the old bytes - when
+// the compared version was exported with "Include
+// file copies" - are copied out of that version's
+// source-files/ into changes-files/old/, so the
+// version folder stays fully self-contained.
 // ==========================================
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Text;
 using AmirCollider.UnityDocSnap.Editor.Export;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
+using UnityEngine;
 
 namespace AmirCollider.UnityDocSnap.Editor.Html
 {
@@ -38,8 +48,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // Render
         // current = the export just produced; baseSnap =
         // the earlier version it is being compared against.
+        // siteRoot = this version's output folder (where
+        // changes-files/ copies are written); baseVersionFolder
+        // = the compared version's output folder on disk (its
+        // source-files/, when present, supplies the old bytes).
+        // Both may be null/empty; the page then simply carries
+        // no download links.
         // ==========================================
-        public static string Render(ManifestState manifest, VersionSnapshot current, VersionSnapshot baseSnap)
+        public static string Render(ManifestState manifest, VersionSnapshot current, VersionSnapshot baseSnap,
+            string siteRoot = null, string baseVersionFolder = null)
         {
             var badges = new List<string>
             {
@@ -57,6 +74,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             var removed = new List<FileDiff>();
             var modified = new List<FileDiff>();
             DiffFiles(baseSnap, current, added, removed, modified);
+
+            // ----- Copy the actual bytes so each entry is downloadable -----
+            var oldLinks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var newLinks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            CopyChangeFiles(siteRoot, baseVersionFolder, added, removed, modified, oldLinks, newLinks);
 
             long baseBytes = 0;
             foreach (VersionFileEntry f in baseSnap.files) { baseBytes += f.size; }
@@ -108,16 +130,28 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
 
             // ----- File lists -----
             var addedHtml = new List<string>(added.Count);
-            foreach (FileDiff d in added) { addedHtml.Add(FileItem("added", d)); }
+            foreach (FileDiff d in added) { addedHtml.Add(FileItem("added", d, baseSnap, current, oldLinks, newLinks)); }
             var removedHtml = new List<string>(removed.Count);
-            foreach (FileDiff d in removed) { removedHtml.Add(FileItem("removed", d)); }
+            foreach (FileDiff d in removed) { removedHtml.Add(FileItem("removed", d, baseSnap, current, oldLinks, newLinks)); }
             var modifiedHtml = new List<string>(modified.Count);
-            foreach (FileDiff d in modified) { modifiedHtml.Add(FileItem("changed", d)); }
+            foreach (FileDiff d in modified) { modifiedHtml.Add(FileItem("changed", d, baseSnap, current, oldLinks, newLinks)); }
 
-            sb.Append(DiffSection("📄", "Files", "ファイル", "فایル‌ها", addedHtml, removedHtml, modifiedHtml,
+            sb.Append(DiffSection("📄", "Files", "ファイル", "فایل‌ها", addedHtml, removedHtml, modifiedHtml,
                 "Added", "追加", "اضافه‌شده",
                 "Removed", "削除", "حذف‌شده",
                 "Modified", "変更", "تغییرکرده"));
+
+            // When the compared version has no stored file bytes, the
+            // old side of a modified/removed file simply cannot be
+            // offered - say so instead of leaving readers wondering
+            // why only the current file is downloadable.
+            if ((modified.Count > 0 || removed.Count > 0) && oldLinks.Count == 0)
+            {
+                sb.Append("<div class=\"ds-callout\">").Append(HtmlPageBuilder.I18n("span", null,
+                    "Old file versions are not downloadable here: " + baseSnap.version + " was exported without \"Include file copies\", so it stored no file bytes.",
+                    "旧バージョンのファイルはダウンロードできません: " + baseSnap.version + " は「ファイル本体もコピー」なしでエクスポートされたため、ファイル本体が保存されていません。",
+                    "نسخه‌ی قدیمی فایل‌ها برای دانلود موجود نیست: خروجی " + baseSnap.version + " بدون گزینه‌ی «کپی خود فایل‌ها» گرفته شده و بایت فایل‌ها در آن ذخیره نشده است.")).Append("</div>\n");
+            }
 
             // ----- Packages -----
             sb.Append(DiffSection("📦", "Packages", "パッケージ", "پکیج‌ها", pkgItems[0], pkgItems[1], pkgItems[2],
@@ -244,10 +278,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // ==========================================
         // FileItem / NamedItem
         // One diff line: the path split into a light
-        // directory part and a bold file name, plus a
-        // right-aligned size / detail column.
+        // directory part and a bold file name, a
+        // right-aligned size / detail column, and -
+        // when the bytes were copied out - download
+        // chips for the old and/or current file.
         // ==========================================
-        private static string FileItem(string variant, FileDiff d)
+        private static string FileItem(string variant, FileDiff d, VersionSnapshot baseSnap, VersionSnapshot current,
+            Dictionary<string, string> oldLinks, Dictionary<string, string> newLinks)
         {
             string normalized = (d.path ?? "").Replace('\\', '/');
             int slash = normalized.LastIndexOf('/');
@@ -273,10 +310,96 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 }
             }
 
+            var links = new StringBuilder();
+            string oldRel, newRel;
+            if (oldLinks.TryGetValue(normalized, out oldRel))
+            {
+                links.Append(DownloadChip(oldRel, baseSnap.version));
+            }
+            if (newLinks.TryGetValue(normalized, out newRel))
+            {
+                links.Append(DownloadChip(newRel, current.version));
+            }
+
             return "<li class=\"ds-diff-item ds-diff-" + variant + "\">"
                 + "<span class=\"ds-diff-pathwrap\"><span class=\"ds-diff-dir\">" + HtmlPageBuilder.Escape(dir)
                 + "</span><span class=\"ds-diff-file\">" + HtmlPageBuilder.Escape(name) + "</span></span>"
-                + "<span class=\"ds-diff-size\">" + sizeHtml + "</span></li>";
+                + "<span class=\"ds-diff-size\">" + sizeHtml + "</span>"
+                + (links.Length > 0 ? "<span class=\"ds-diff-links\">" + links + "</span>" : "")
+                + "</li>";
+        }
+
+        private static string DownloadChip(string relativeHref, string versionLabel)
+        {
+            return "<a class=\"ds-file-link\" download href=\"" + FieldRenderer.EncodeUrlPath(relativeHref) + "\">⬇ "
+                + HtmlPageBuilder.Escape(versionLabel) + "</a>";
+        }
+
+        // ==========================================
+        // CopyChangeFiles
+        // Mirrors the bytes of every listed file into the
+        // version folder so the page's download chips have
+        // something real to point at:
+        //   current side (added + modified) - copied from
+        //     the live project, which IS the state this
+        //     export captured;
+        //   old side (removed + modified) - copied from the
+        //     compared version's source-files/ mirror, which
+        //     only exists when that export was made with
+        //     "Include file copies".
+        // Everything is best-effort: a file that cannot be
+        // copied simply has no chip. The whole changes-files/
+        // folder is rebuilt from scratch on every run so no
+        // stale copies from an earlier diff survive.
+        // ==========================================
+        private static void CopyChangeFiles(string siteRoot, string baseVersionFolder,
+            List<FileDiff> added, List<FileDiff> removed, List<FileDiff> modified,
+            Dictionary<string, string> oldLinks, Dictionary<string, string> newLinks)
+        {
+            if (string.IsNullOrEmpty(siteRoot)) { return; }
+
+            string changesDir = Path.Combine(siteRoot, DocSnapConstants.ChangesFilesSubFolder);
+            try { if (Directory.Exists(changesDir)) { Directory.Delete(changesDir, true); } }
+            catch { /* stale copies are merely overwritten below */ }
+
+            string projectRoot = null;
+            try { projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, "..")); }
+            catch { /* no project context (tests) - new side skipped */ }
+
+            string newPrefix = DocSnapConstants.ChangesFilesSubFolder + "/" + DocSnapConstants.ChangesFilesNewSubFolder + "/";
+            if (!string.IsNullOrEmpty(projectRoot))
+            {
+                foreach (FileDiff d in added) { RecordCopy(projectRoot, d.path, siteRoot, newPrefix, newLinks); }
+                foreach (FileDiff d in modified) { RecordCopy(projectRoot, d.path, siteRoot, newPrefix, newLinks); }
+            }
+
+            string baseFilesRoot = string.IsNullOrEmpty(baseVersionFolder)
+                ? null
+                : Path.Combine(baseVersionFolder, DocSnapConstants.FilesSubFolder);
+            string oldPrefix = DocSnapConstants.ChangesFilesSubFolder + "/" + DocSnapConstants.ChangesFilesOldSubFolder + "/";
+            if (!string.IsNullOrEmpty(baseFilesRoot) && Directory.Exists(baseFilesRoot))
+            {
+                foreach (FileDiff d in removed) { RecordCopy(baseFilesRoot, d.path, siteRoot, oldPrefix, oldLinks); }
+                foreach (FileDiff d in modified) { RecordCopy(baseFilesRoot, d.path, siteRoot, oldPrefix, oldLinks); }
+            }
+        }
+
+        private static void RecordCopy(string sourceRoot, string assetPath, string siteRoot, string targetPrefix, Dictionary<string, string> links)
+        {
+            try
+            {
+                string normalized = (assetPath ?? "").Replace('\\', '/');
+                if (normalized.Length == 0) { return; }
+                string sourceAbsolute = Path.Combine(sourceRoot, normalized.Replace('/', Path.DirectorySeparatorChar));
+                if (!File.Exists(sourceAbsolute)) { return; }
+
+                string relative = targetPrefix + normalized;
+                string destination = Path.Combine(siteRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+                Directory.CreateDirectory(Path.GetDirectoryName(destination));
+                File.Copy(sourceAbsolute, destination, true);
+                links[normalized] = relative;
+            }
+            catch { /* best-effort: no chip for this file */ }
         }
 
         private static string NamedItem(string variant, string name, string detail)
