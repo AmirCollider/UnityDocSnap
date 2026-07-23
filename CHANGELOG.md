@@ -2,6 +2,15 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.6.2] - 2026-07-23
+
+### Added
+- **Downloadable files on the Changes page.** Every listed file now carries download chips: the file **as it is in this export** (copied from the live project into `changes-files/new/`) and — when the compared version was exported with *Include file copies* — the file **as it was in that version** (copied from its `source-files/` into `changes-files/old/`), so a modified file can be reviewed side by side. Added files offer the new copy, removed files the old one, modified files both. The version folder stays fully self-contained, `changes-files/` is rebuilt from scratch on every diff, and when the base version stored no file bytes the page says so explicitly instead of silently offering nothing.
+
+### Fixed
+- **No more RTL/LTR flash on load.** The page's direction, language and theme came from the exporter's defaults baked into `<html>`, while the reader's own stored choice was only applied at `DOMContentLoaded` — so a reader viewing an RTL-default export in English watched every page (worst on the heavy Assets page) render right-to-left for a moment and then flip. A tiny boot script in `<head>` now applies the effective language/direction/theme **before the body is parsed**; visible text is pre-rendered in the export's default language (not always English), the sidebar's active language button / theme icon / search placeholder match the defaults, and when a stored choice still requires a text swap the body stays hidden until the swap lands (with a 1.5 s failsafe so the page can never stay blank).
+- Fixed a stray Japanese katakana character (`ル`) that had slipped into the Persian word «فایل‌ها» on the Changes page.
+
 ## [0.6.1] - 2026-07-23
 
 ### Fixed

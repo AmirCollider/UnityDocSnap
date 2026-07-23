@@ -1106,8 +1106,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // leaving the separators intact. Unity asset
         // paths routinely contain spaces, '#' and '?',
         // every one of which silently breaks an href.
+        // Public: ChangesPageRenderer builds hrefs to
+        // the copied old/new files with it too.
         // ==========================================
-        private static string EncodeUrlPath(string path)
+        public static string EncodeUrlPath(string path)
         {
             if (string.IsNullOrEmpty(path)) { return ""; }
             string[] segments = path.Replace('\\', '/').Split('/');

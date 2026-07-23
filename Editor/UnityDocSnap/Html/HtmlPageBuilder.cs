@@ -48,14 +48,20 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // ==========================================
         // I18n
         // Emits one element carrying all three
-        // language variants as data attributes, with
-        // English pre-rendered as the visible default
-        // (see theme/app.js for the switch logic).
+        // language variants as data attributes. The
+        // VISIBLE text is pre-rendered in the export's
+        // default language (not always English), so the
+        // very first paint of a ja/fa site is already in
+        // the right language - no flash of English text
+        // while app.js waits for DOMContentLoaded.
         // ==========================================
         public static string I18n(string tag, string cssClass, string en, string ja, string fa)
         {
             string cls = string.IsNullOrEmpty(cssClass) ? "" : " class=\"" + cssClass + "\"";
-            return "<" + tag + cls + " data-en=\"" + Escape(en) + "\" data-ja=\"" + Escape(ja) + "\" data-fa=\"" + Escape(fa) + "\">" + Escape(en) + "</" + tag + ">";
+            string visible = DocSnapRenderContext.DefaultLanguage == "ja" ? ja
+                : DocSnapRenderContext.DefaultLanguage == "fa" ? fa
+                : en;
+            return "<" + tag + cls + " data-en=\"" + Escape(en) + "\" data-ja=\"" + Escape(ja) + "\" data-fa=\"" + Escape(fa) + "\">" + Escape(visible) + "</" + tag + ">";
         }
 
         // ==========================================
@@ -83,6 +89,22 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
               .Append("\" data-theme=\"").Append(defTheme).Append("\">\n<head>\n<meta charset=\"utf-8\">\n");
             sb.Append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
             sb.Append("<title>").Append(Escape(titleEn)).Append(" - Unity DocSnap</title>\n");
+            // Pre-paint boot script. It applies the reader's stored
+            // language / theme (when their choice belongs to THIS
+            // export's defaults - same marker app.js maintains) to
+            // <html> BEFORE the body is parsed, so direction, fonts
+            // and theme are right from the very first paint. Without
+            // it, a reader viewing an RTL-default export in English
+            // watched the whole page flip rtl→ltr a moment after
+            // load. When the stored language differs from the baked
+            // one (a text swap is coming at DOMContentLoaded), the
+            // body is briefly hidden via html.ds-lang-pending so the
+            // swap is invisible; a 1.5s timeout guarantees the page
+            // can never stay hidden even if app.js fails to load.
+            sb.Append("<script>(function(){var d=document.documentElement;var bakedLang=d.getAttribute('lang')||'en';var lang=bakedLang;var theme=d.getAttribute('data-theme')||'light';")
+              .Append("try{if(localStorage.getItem('unityDocSnapDefaults')===bakedLang+'|'+theme){var L=localStorage.getItem('unityDocSnapLang');var T=localStorage.getItem('unityDocSnapTheme');if(L){lang=L;}if(T){theme=T;}}}catch(e){}")
+              .Append("if(lang!==bakedLang){d.classList.add('ds-lang-pending');setTimeout(function(){d.classList.remove('ds-lang-pending');},1500);}")
+              .Append("d.setAttribute('lang',lang);d.setAttribute('dir',lang==='fa'?'rtl':'ltr');d.setAttribute('data-theme',theme);})();</script>\n");
             sb.Append("<link rel=\"stylesheet\" href=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.StyleFileName).Append("\">\n</head>\n");
             // Default to the calmer Simple view; app.js restores whichever
             // view the reader last chose. Advanced-only detail is present
@@ -128,16 +150,21 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append("</div></div>\n");
             sb.Append("<p class=\"ds-tagline\">").Append(Escape(manifest.projectName)).Append("</p>\n");
 
+            // The pre-rendered active state / icon match the export's
+            // defaults so nothing visibly changes when app.js re-applies
+            // them at DOMContentLoaded (no flash).
+            string defLang = DocSnapRenderContext.DefaultLanguage;
+            string defTheme = DocSnapRenderContext.DefaultTheme;
             sb.Append("<div class=\"ds-topbar\">");
             sb.Append("<div class=\"ds-langbar\" role=\"group\" aria-label=\"Language\">");
-            sb.Append("<button class=\"ds-lang-btn is-active\" data-lang=\"en\">EN</button>");
-            sb.Append("<button class=\"ds-lang-btn\" data-lang=\"ja\">日本語</button>");
-            sb.Append("<button class=\"ds-lang-btn\" data-lang=\"fa\">فارسی</button>");
+            sb.Append("<button class=\"ds-lang-btn").Append(defLang == "en" ? " is-active" : "").Append("\" data-lang=\"en\">EN</button>");
+            sb.Append("<button class=\"ds-lang-btn").Append(defLang == "ja" ? " is-active" : "").Append("\" data-lang=\"ja\">日本語</button>");
+            sb.Append("<button class=\"ds-lang-btn").Append(defLang == "fa" ? " is-active" : "").Append("\" data-lang=\"fa\">فارسی</button>");
             sb.Append("</div>");
             // Light / dark theme toggle. app.js swaps the icon,
             // flips <html data-theme>, and remembers the choice.
             sb.Append("<button class=\"ds-theme-toggle\" data-theme-toggle aria-label=\"Toggle theme\" title=\"Light / Dark\">")
-              .Append("<span class=\"ds-theme-icon\">🌙</span></button>");
+              .Append("<span class=\"ds-theme-icon\">").Append(defTheme == "dark" ? "☀️" : "🌙").Append("</span></button>");
             sb.Append("</div>\n");
 
             // Detail-level switch. Simple hides the heavy, every-field
@@ -155,10 +182,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // app.js via the data-ph-* attributes (applyLanguage sets it),
             // and the results panel is populated from the embedded search
             // index entirely client-side - no network, works under file://.
+            string defPlaceholder = defLang == "ja" ? "オブジェクト・アセットを検索…"
+                : defLang == "fa" ? "جستجوی آبجکت‌ها، فایل‌ها…"
+                : "Search objects, assets…";
             sb.Append("<div class=\"ds-search\">");
             sb.Append("<input type=\"search\" class=\"ds-search-input\" autocomplete=\"off\" spellcheck=\"false\" aria-label=\"Search\" ")
               .Append("data-ph-en=\"Search objects, assets…\" data-ph-ja=\"オブジェクト・アセットを検索…\" data-ph-fa=\"جستجوی آبجکت‌ها، فایل‌ها…\" ")
-              .Append("placeholder=\"Search objects, assets…\">");
+              .Append("placeholder=\"").Append(defPlaceholder).Append("\">");
             sb.Append("<div class=\"ds-search-filters\" role=\"group\" aria-label=\"Search filter\">");
             sb.Append("<button class=\"ds-search-filter is-active\" data-search-filter=\"all\">").Append(I18n("span", null, "All", "すべて", "همه")).Append("</button>");
             sb.Append("<button class=\"ds-search-filter\" data-search-filter=\"scene\">").Append(I18n("span", null, "Scenes", "シーン", "سین‌ها")).Append("</button>");

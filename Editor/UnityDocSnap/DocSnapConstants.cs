@@ -12,7 +12,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // Identity
         // ==========================================
         public const string ToolName = "Unity DocSnap";
-        public const string Version = "0.6.1";
+        public const string Version = "0.6.2";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
 
@@ -85,6 +85,20 @@ namespace AmirCollider.UnityDocSnap.Editor
         // optional and both living inside the version folder.
         public const string ChangesFileName = "changes.html";
         public const string BackupFileName = "project-backup.unitypackage";
+
+        // Byte copies of the files the Changes page lists,
+        // so each entry is downloadable for review:
+        //   changes-files/new/Assets/…  the file as it is in
+        //                               THIS export (copied
+        //                               from the live project)
+        //   changes-files/old/Assets/…  the file as it was in
+        //                               the compared version
+        //                               (copied from that
+        //                               version's source-files/,
+        //                               when it has one)
+        public const string ChangesFilesSubFolder = "changes-files";
+        public const string ChangesFilesNewSubFolder = "new";
+        public const string ChangesFilesOldSubFolder = "old";
 
         public const string ScenesSubFolder = "scenes";
         public const string AssetsSubFolder = "folders";
