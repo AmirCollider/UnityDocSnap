@@ -189,6 +189,119 @@ namespace AmirCollider.UnityDocSnap.Editor.Json
         }
 
         // ==========================================
+        // ToCompactString() — a leaf-inlining variant of
+        // ToString(). An object or array whose values are
+        // ALL scalars is printed inline on a single line
+        // ("{ "a": 1, "b": "x" }" / "[1, 2, 3]"); anything
+        // holding a nested object/array still expands one
+        // member per line. Used by the concise "simple"
+        // JSON summaries so a small Scene is a few hundred
+        // lines instead of one line per scalar. Does not
+        // affect ToString(), so the full export is byte-
+        // for-byte unchanged.
+        // ==========================================
+        public string ToCompactString()
+        {
+            var sb = new StringBuilder(256);
+            WriteCompact(sb, 0);
+            return sb.ToString();
+        }
+
+        private bool IsScalar()
+        {
+            return Kind != JsonKind.Object && Kind != JsonKind.Array;
+        }
+
+        private bool IsInlineable()
+        {
+            if (Kind == JsonKind.Object)
+            {
+                foreach (var m in _members) { if (!m.Value.IsScalar()) { return false; } }
+                return true;
+            }
+            if (Kind == JsonKind.Array)
+            {
+                foreach (var it in _items) { if (!it.IsScalar()) { return false; } }
+                return true;
+            }
+            return true;
+        }
+
+        private void WriteCompact(StringBuilder sb, int indent)
+        {
+            switch (Kind)
+            {
+                case JsonKind.Object:
+                    if (_members.Count == 0) { sb.Append("{}"); return; }
+                    if (IsInlineable()) { WriteInlineObject(sb); return; }
+                    WriteBlockObjectCompact(sb, indent);
+                    return;
+                case JsonKind.Array:
+                    if (_items.Count == 0) { sb.Append("[]"); return; }
+                    if (IsInlineable()) { WriteInlineArray(sb); return; }
+                    WriteBlockArrayCompact(sb, indent);
+                    return;
+                default:
+                    Write(sb, indent);
+                    return;
+            }
+        }
+
+        private void WriteInlineObject(StringBuilder sb)
+        {
+            sb.Append("{ ");
+            for (int i = 0; i < _members.Count; i++)
+            {
+                WriteEscapedString(sb, _members[i].Key);
+                sb.Append(": ");
+                _members[i].Value.Write(sb, 0);
+                if (i < _members.Count - 1) { sb.Append(", "); }
+            }
+            sb.Append(" }");
+        }
+
+        private void WriteInlineArray(StringBuilder sb)
+        {
+            sb.Append('[');
+            for (int i = 0; i < _items.Count; i++)
+            {
+                _items[i].Write(sb, 0);
+                if (i < _items.Count - 1) { sb.Append(", "); }
+            }
+            sb.Append(']');
+        }
+
+        private void WriteBlockObjectCompact(StringBuilder sb, int indent)
+        {
+            sb.Append("{\n");
+            string childPad = Pad(indent + 1);
+            for (int i = 0; i < _members.Count; i++)
+            {
+                sb.Append(childPad);
+                WriteEscapedString(sb, _members[i].Key);
+                sb.Append(": ");
+                _members[i].Value.WriteCompact(sb, indent + 1);
+                if (i < _members.Count - 1) { sb.Append(','); }
+                sb.Append('\n');
+            }
+            sb.Append(Pad(indent)).Append('}');
+        }
+
+        private void WriteBlockArrayCompact(StringBuilder sb, int indent)
+        {
+            sb.Append("[\n");
+            string childPad = Pad(indent + 1);
+            for (int i = 0; i < _items.Count; i++)
+            {
+                sb.Append(childPad);
+                _items[i].WriteCompact(sb, indent + 1);
+                if (i < _items.Count - 1) { sb.Append(','); }
+                sb.Append('\n');
+            }
+            sb.Append(Pad(indent)).Append(']');
+        }
+
+        // ==========================================
         // Write(sb, indent) — recursive pretty-printer.
         // ==========================================
         private void Write(StringBuilder sb, int indent)

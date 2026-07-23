@@ -12,7 +12,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // Identity
         // ==========================================
         public const string ToolName = "Unity DocSnap";
-        public const string Version = "0.4.0";
+        public const string Version = "0.4.1";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
 
@@ -63,16 +63,25 @@ namespace AmirCollider.UnityDocSnap.Editor
         public const string EntireProjectFolderKey = "Assets";
 
         // ==========================================
-        // Plain-text summary output (the "simple",
-        // AI-friendly form). Each Scene / folder gets a
-        // short Markdown file next to its HTML page, and
-        // one project-level index ties them together.
-        // Filename prefixes below keep the data JSON
-        // self-describing: "scene-<Name>.json" and
-        // "folder-<Key>.json" instead of the old
-        // "scene_"/"assets_" prefixes.
+        // Simple, AI-friendly summary output.
+        //
+        // Every export writes a short summary of each
+        // Scene / folder in TWO forms - readable Markdown
+        // (.md) and structured, compact JSON (.json) - all
+        // gathered in one obvious place: the summary/
+        // folder. These are the small files (a few hundred
+        // lines) meant to be handed to an AI assistant;
+        // data/ still holds the exhaustive every-field
+        // JSON. A project-level summary.md at the output
+        // root ties them together.
+        //
+        // Names inside summary/ and data/ share the same
+        // self-describing prefixes: "scene-<Name>" and
+        // "folder-<Key>".
         // ==========================================
-        public const string SummaryFileExtension = ".md";
+        public const string SummarySubFolder = "summary";
+        public const string SummaryMarkdownExtension = ".md";
+        public const string SummaryJsonExtension = ".json";
         public const string ProjectSummaryFileName = "summary.md";
         public const string SceneJsonPrefix = "scene-";
         public const string FolderJsonPrefix = "folder-";

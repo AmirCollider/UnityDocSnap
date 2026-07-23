@@ -91,19 +91,22 @@ By default, output lands in `<ProjectRoot>/UnityDocSnap_Output/`. Use `Unity Doc
 
 ### 📁 Output Structure
 
-Every export writes **two forms of the same information** side by side: the **full** offline site (browse it, or read the raw JSON) and a **simple** set of short Markdown summaries you can paste straight into an AI assistant.
+Every export writes **two forms of the same information** side by side: the **full** offline site (browse it, or read the raw JSON) and a **simple** set of short summaries — Markdown *and* JSON — gathered in the `summary/` folder, small enough to paste straight into an AI assistant.
 
 ```
 UnityDocSnap_Output/
 ├── index.html         ← the full offline site (start here)
-├── summary.md         ← plain-text project index (simple / AI-friendly)
+├── summary.md         ← project index → points into summary/
+├── summary/           ← simple, AI-friendly (short — hand these to an AI)
+│   ├── scene-MainMenu.md            ← readable
+│   ├── scene-MainMenu.json          ← structured (a few hundred lines)
+│   ├── folder-Images_Backgrounds.md
+│   └── folder-Images_Backgrounds.json
 ├── scenes/
-│   ├── MainMenu.html      ← full page
-│   └── MainMenu.md        ← short summary
+│   └── MainMenu.html                ← full interactive page
 ├── folders/
-│   ├── Images_Backgrounds.html
-│   └── Images_Backgrounds.md
-├── data/              ← full structured JSON (the advanced, every-field form)
+│   └── Images_Backgrounds.html
+├── data/              ← full, every-field JSON (the advanced form)
 ├── theme/             ← css/js + thumbnails for the site itself
 └── source-files/      ← optional verbatim asset copies (With Files export only)
 ```
@@ -205,18 +208,21 @@ Unity DocSnap
 
 ### 📁 出力構造
 
-エクスポートするたびに、**同じ情報が2つの形**で並んで書き出されます。**フル版**のオフラインサイト(ブラウザで見る、または生のJSONを読む)と、AIアシスタントにそのまま貼り付けられる**シンプル版**の短いMarkdown要約です。
+エクスポートするたびに、**同じ情報が2つの形**で並んで書き出されます。**フル版**のオフラインサイト(ブラウザで見る、または生のJSONを読む)と、AIアシスタントにそのまま貼り付けられる**シンプル版**の短い要約(MarkdownとJSONの両方)で、後者はすべて `summary/` フォルダにまとまっています。
 
 ```
 UnityDocSnap_Output/
 ├── index.html         ← フル版のオフラインサイト(まずここから)
-├── summary.md         ← プレーンテキストのプロジェクト索引(シンプル / AI向け)
+├── summary.md         ← プロジェクト索引 → summary/ への案内
+├── summary/           ← シンプル / AI向け(短い。AIにはこれを渡す)
+│   ├── scene-MainMenu.md            ← 読みやすい版
+│   ├── scene-MainMenu.json          ← 構造化版(数百行)
+│   ├── folder-Images_Backgrounds.md
+│   └── folder-Images_Backgrounds.json
 ├── scenes/
-│   ├── MainMenu.html      ← フルページ
-│   └── MainMenu.md        ← 短い要約
+│   └── MainMenu.html                ← フルの対話ページ
 ├── folders/
-│   ├── Images_Backgrounds.html
-│   └── Images_Backgrounds.md
+│   └── Images_Backgrounds.html
 ├── data/              ← 完全な構造化JSON(全フィールドを含む詳細版)
 ├── theme/             ← サイト自体のcss/js + サムネイル
 └── source-files/      ← アセット実体のコピー(任意 / With Files エクスポート時のみ)
@@ -321,18 +327,21 @@ Unity DocSnap
 
 ### 📁 ساختار خروجی
 
-هر اکسپورت **دو شکل از یک اطلاعات** رو کنار هم می‌نویسه: نسخه‌ی **کامل** یعنی سایت آفلاین (توی مرورگر ببینش یا JSON خامش رو بخون) و نسخه‌ی **ساده** یعنی چندتا فایل Markdown کوتاه که می‌تونی مستقیم بچسبونی توی یه دستیار هوش مصنوعی.
+هر اکسپورت **دو شکل از یک اطلاعات** رو کنار هم می‌نویسه: نسخه‌ی **کامل** یعنی سایت آفلاین (توی مرورگر ببینش یا JSON خامش رو بخون) و نسخه‌ی **ساده** یعنی چند فایل خلاصه‌ی کوتاه — هم Markdown هم JSON — که همه توی پوشه‌ی `summary/` جمع شدن و می‌تونی مستقیم بچسبونی توی یه دستیار هوش مصنوعی.
 
 ```
 UnityDocSnap_Output/
 ├── index.html         ← سایت آفلاین کامل (از اینجا شروع کن)
-├── summary.md         ← فهرست متنی پروژه (ساده / مناسب هوش مصنوعی)
+├── summary.md         ← فهرست پروژه → راهنما به summary/
+├── summary/           ← ساده / مناسب هوش مصنوعی (کوتاه — اینا رو به AI بده)
+│   ├── scene-MainMenu.md            ← نسخه‌ی خوانا
+│   ├── scene-MainMenu.json          ← نسخه‌ی ساختاریافته (چند صد خط)
+│   ├── folder-Images_Backgrounds.md
+│   └── folder-Images_Backgrounds.json
 ├── scenes/
-│   ├── MainMenu.html      ← صفحه‌ی کامل
-│   └── MainMenu.md        ← خلاصه‌ی کوتاه
+│   └── MainMenu.html                ← صفحه‌ی کامل و تعاملی
 ├── folders/
-│   ├── Images_Backgrounds.html
-│   └── Images_Backgrounds.md
+│   └── Images_Backgrounds.html
 ├── data/              ← JSON کامل و ساختاریافته (نسخه‌ی پیشرفته، همه‌ی فیلدها)
 ├── theme/             ← css/js و تصاویر بندانگشتی خود سایت
 └── source-files/      ← کپی خام فایل‌ها (اختیاری / فقط در اکسپورت With Files)

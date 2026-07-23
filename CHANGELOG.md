@@ -2,6 +2,15 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.4.1] - 2026-07-23
+
+### Added
+- **The simple summary is now also written as JSON**, not just Markdown. Each Scene and folder gets a compact, structured `.json` next to its `.md` — the same view (hierarchy + custom-script configuration for a Scene; one-object-per-file inventory for a folder), rendered with a new leaf-inlining JSON writer so it stays a few hundred lines instead of the tens of thousands the exhaustive `data/…json` needs. This is the machine-readable form to hand an AI assistant. (`JsonValue.ToCompactString()` inlines any object/array whose values are all scalars; the full export is byte-for-byte unchanged.)
+- All simple outputs now live in one obvious place: the **`summary/`** folder (`summary/scene-<Name>.md` + `.json`, `summary/folder-<Key>.md` + `.json`). The root `summary.md` index links to both forms and points readers at `summary/` for AI and at `index.html` / `data/` for the full detail.
+
+### Fixed
+- **Stale output is now actually removed.** Earlier versions only pruned scene/asset HTML pages, so renaming the data files (`scene_*.json` → `scene-*.json`, `assets_*.json` → `folder-*.json` in 0.4.0) left the old-named JSON behind, and every export appeared to produce "two of each file". Pruning now rewrites each managed folder (`scenes/`, `folders/`, `data/`, `summary/`) to exactly the files the current manifest describes and deletes everything else, including files left under any older naming. On top of that, upgrading from an older layout deletes the now-unused sibling folders (`assets/`, `assets_ui/`, `files/`) and the old browser `export_complete.html` on the next export.
+
 ## [0.4.0] - 2026-07-23
 
 ### Added

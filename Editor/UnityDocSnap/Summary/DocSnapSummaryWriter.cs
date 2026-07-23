@@ -331,6 +331,264 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
         }
 
         // ==========================================
+        // RenderSceneJson
+        // The structured counterpart to RenderScene: the
+        // same compact view (hierarchy + custom-script
+        // configuration) as machine-readable JSON, printed
+        // with the leaf-inlining writer so it stays a few
+        // hundred lines. Field/container values are
+        // summarised exactly as in the Markdown, never
+        // expanded, so this can never blow back up to the
+        // size of the exhaustive data/ JSON.
+        // ==========================================
+        public static string RenderSceneJson(JsonValue sceneData)
+        {
+            JsonValue rootObjects = sceneData.Get("rootObjects");
+
+            int componentCount = 0, scriptCount = 0, missingCount = 0;
+            var missing = new List<string>();
+            Walk(rootObjects, 0, (go, depth) =>
+            {
+                foreach (JsonValue comp in go.Get("components").Items)
+                {
+                    componentCount++;
+                    if (comp.Get("isMissing").AsBool()) { missingCount++; missing.Add(go.Get("name").AsString("GameObject")); }
+                    else if (comp.Get("isUserScript").AsBool()) { scriptCount++; }
+                }
+            });
+
+            var root = JsonValue.Obj();
+            root.Set("kind", "scene-summary");
+            root.Set("generatedBy", DocSnapConstants.ToolName + " v" + DocSnapConstants.Version);
+            root.Set("scene", sceneData.Get("sceneName").AsString("Scene"));
+            root.Set("path", sceneData.Get("scenePath").AsString(""));
+            root.Set("unityVersion", sceneData.Get("unityVersion").AsString(""));
+            root.Set("exportedUtc", sceneData.Get("exportedUtc").AsString(""));
+            root.Set("totals", JsonValue.Obj()
+                .Set("gameObjects", (int)sceneData.Get("totalGameObjects").AsNumber())
+                .Set("components", componentCount)
+                .Set("customScripts", scriptCount)
+                .Set("missingScripts", missingCount));
+
+            root.Set("hierarchy", HierarchyJson(rootObjects));
+            root.Set("scripts", ScriptsJson(rootObjects));
+
+            if (missing.Count > 0)
+            {
+                var missingArr = JsonValue.Arr();
+                foreach (string name in Distinct(missing)) { missingArr.Add(JsonValue.Str(Clean(name))); }
+                root.Set("missingScripts", missingArr);
+            }
+
+            return root.ToCompactString() + "\n";
+        }
+
+        // ==========================================
+        // HierarchyJson
+        // One compact node per GameObject: name, optional
+        // tag / inactive flag, its component types as a
+        // single joined string, and nested children. A
+        // leaf is all-scalar, so the compact writer prints
+        // it on one line.
+        // ==========================================
+        private static JsonValue HierarchyJson(JsonValue objects)
+        {
+            var arr = JsonValue.Arr();
+            foreach (JsonValue go in objects.Items)
+            {
+                var node = JsonValue.Obj();
+                node.Set("name", Clean(go.Get("name").AsString("GameObject")));
+
+                string tag = go.Get("tag").AsString("Untagged");
+                if (!string.Equals(tag, "Untagged", StringComparison.Ordinal)) { node.Set("tag", Clean(tag)); }
+                if (!go.Get("activeSelf").AsBool(true)) { node.Set("active", false); }
+
+                string comps = ComponentTypeList(go);
+                if (!string.IsNullOrEmpty(comps)) { node.Set("components", comps); }
+
+                JsonValue children = go.Get("children");
+                if (children.Items.Count > 0) { node.Set("children", HierarchyJson(children)); }
+
+                arr.Add(node);
+            }
+            return arr;
+        }
+
+        // ==========================================
+        // ScriptsJson
+        // A flat list of every GameObject that carries a
+        // custom script, each with its transform and the
+        // serialized fields of its user scripts (compact,
+        // capped, mirroring the Markdown Script
+        // Configuration section).
+        // ==========================================
+        private static JsonValue ScriptsJson(JsonValue rootObjects)
+        {
+            var arr = JsonValue.Arr();
+            Walk(rootObjects, 0, (go, depth) =>
+            {
+                if (!HasUserScript(go)) { return; }
+
+                var node = JsonValue.Obj();
+                node.Set("gameObject", Clean(go.Get("name").AsString("GameObject")));
+
+                string tag = go.Get("tag").AsString("Untagged");
+                if (!string.Equals(tag, "Untagged", StringComparison.Ordinal)) { node.Set("tag", Clean(tag)); }
+                node.Set("layer", Clean(go.Get("layerName").AsString("Default")));
+                if (!go.Get("activeSelf").AsBool(true)) { node.Set("active", false); }
+
+                JsonValue t = go.Get("transform");
+                node.Set("position", NumArr(t.Get("localPosition")));
+                node.Set("rotation", NumArr(t.Get("localEulerAngles")));
+                node.Set("scale", NumArr(t.Get("localScale")));
+
+                var compsArr = JsonValue.Arr();
+                foreach (JsonValue comp in go.Get("components").Items)
+                {
+                    if (comp.Get("isMissing").AsBool() || !comp.Get("isUserScript").AsBool()) { continue; }
+
+                    var c = JsonValue.Obj();
+                    c.Set("type", Clean(comp.Get("typeName").AsString("Script")));
+                    if (comp.Get("isBehaviour").AsBool()) { c.Set("enabled", comp.Get("enabled").AsBool(true)); }
+
+                    var fields = JsonValue.Obj();
+                    JsonValue fieldItems = comp.Get("fields");
+                    int shown = 0;
+                    foreach (JsonValue field in fieldItems.Items)
+                    {
+                        if (shown >= MaxFieldsPerScript)
+                        {
+                            fields.Set("…", "+" + (fieldItems.Items.Count - shown) + " more fields (see full export)");
+                            break;
+                        }
+                        string name = field.Has("label") ? field.Get("label").AsString("") : field.Get("name").AsString("");
+                        fields.Set(Clean(name), FormatValue(field));
+                        shown++;
+                    }
+                    c.Set("fields", fields);
+                    compsArr.Add(c);
+                }
+                node.Set("components", compsArr);
+                arr.Add(node);
+            });
+            return arr;
+        }
+
+        // ==========================================
+        // RenderFolderJson
+        // The structured counterpart to RenderFolder: the
+        // directory tree with counts, then a one-object-
+        // per-file inventory grouped by folder. Each file
+        // object is all-scalar, so it prints on one line.
+        // ==========================================
+        public static string RenderFolderJson(JsonValue folderData)
+        {
+            var filesByPath = new Dictionary<string, JsonValue>(StringComparer.OrdinalIgnoreCase);
+            foreach (JsonValue file in folderData.Get("files").Items)
+            {
+                string path = file.Get("path").AsString("");
+                if (!string.IsNullOrEmpty(path)) { filesByPath[path.Replace('\\', '/')] = file; }
+            }
+
+            var root = JsonValue.Obj();
+            root.Set("kind", "folder-summary");
+            root.Set("generatedBy", DocSnapConstants.ToolName + " v" + DocSnapConstants.Version);
+            root.Set("folder", folderData.Get("folderPath").AsString("Assets"));
+            root.Set("files", (int)folderData.Get("fileCount").AsNumber());
+            root.Set("exportedUtc", folderData.Get("exportedUtc").AsString(""));
+
+            root.Set("tree", FolderTreeJson(folderData.Get("folderTree")));
+
+            var sections = JsonValue.Arr();
+            FolderFileSectionsJson(folderData.Get("folderTree"), filesByPath, sections);
+            root.Set("byFolder", sections);
+
+            return root.ToCompactString() + "\n";
+        }
+
+        private static JsonValue FolderTreeJson(JsonValue folder)
+        {
+            var node = JsonValue.Obj();
+            node.Set("name", Clean(folder.Get("folderName").AsString("?")));
+            node.Set("direct", (int)folder.Get("directFileCount").AsNumber());
+            node.Set("total", (int)folder.Get("totalFileCount").AsNumber());
+            JsonValue subs = folder.Get("subfolders");
+            if (subs.Items.Count > 0)
+            {
+                var childrenArr = JsonValue.Arr();
+                foreach (JsonValue child in subs.Items) { childrenArr.Add(FolderTreeJson(child)); }
+                node.Set("children", childrenArr);
+            }
+            return node;
+        }
+
+        private static void FolderFileSectionsJson(JsonValue folder, Dictionary<string, JsonValue> filesByPath, JsonValue sections)
+        {
+            JsonValue filePaths = folder.Get("filePaths");
+            if (filePaths.Items.Count > 0)
+            {
+                var section = JsonValue.Obj();
+                section.Set("folder", Clean(folder.Get("folderPath").AsString("")));
+                var filesArr = JsonValue.Arr();
+                int shown = 0;
+                foreach (JsonValue p in filePaths.Items)
+                {
+                    JsonValue entry;
+                    if (!filesByPath.TryGetValue(p.AsString(""), out entry)) { continue; }
+                    if (shown >= MaxFilesPerFolderSection)
+                    {
+                        filesArr.Add(JsonValue.Obj().Set("name", "…+" + (filePaths.Items.Count - shown) + " more files (see full export)"));
+                        break;
+                    }
+                    filesArr.Add(FileJson(entry));
+                    shown++;
+                }
+                section.Set("files", filesArr);
+                sections.Add(section);
+            }
+            foreach (JsonValue child in folder.Get("subfolders").Items) { FolderFileSectionsJson(child, filesByPath, sections); }
+        }
+
+        private static JsonValue FileJson(JsonValue file)
+        {
+            var node = JsonValue.Obj();
+            node.Set("name", Clean(file.Get("fileName").AsString("")));
+            node.Set("type", Clean(file.Get("mainType").AsString("Asset")));
+
+            if (file.Has("imageWidth"))
+            {
+                node.Set("dimensions", (int)file.Get("imageWidth").AsNumber() + "×" + (int)file.Get("imageHeight").AsNumber());
+            }
+            else if (file.Has("audioInfo") && file.Get("audioInfo").Has("lengthSeconds"))
+            {
+                node.Set("duration", FormatDuration(file.Get("audioInfo").Get("lengthSeconds").AsNumber()));
+            }
+            else if (file.Has("prefabGameObjectCount"))
+            {
+                node.Set("objects", (int)file.Get("prefabGameObjectCount").AsNumber());
+            }
+            else if (file.Has("scriptInfo") && file.Get("scriptInfo").Has("className"))
+            {
+                node.Set("class", Clean(file.Get("scriptInfo").Get("className").AsString("")));
+            }
+            else if (file.Has("materialInfo"))
+            {
+                node.Set("shader", Clean(file.Get("materialInfo").Get("shaderName").AsString("")));
+            }
+
+            if (file.Has("fileSizeBytes")) { node.Set("size", FormatBytes(file.Get("fileSizeBytes").AsNumber())); }
+            return node;
+        }
+
+        private static JsonValue NumArr(JsonValue v)
+        {
+            return JsonValue.Arr()
+                .Add(JsonValue.Num(v.Get("x").AsNumber()))
+                .Add(JsonValue.Num(v.Get("y").AsNumber()))
+                .Add(JsonValue.Num(v.Get("z").AsNumber()));
+        }
+
+        // ==========================================
         // RenderProjectIndex
         // The one file to hand someone (or an AI) first:
         // what this output folder is, which two forms it
@@ -351,8 +609,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
               .Append(" · last export ").Append(Clean(manifest.lastUpdatedUtc))
               .Append(" · ").Append(DocSnapConstants.ToolName).Append(" v").Append(DocSnapConstants.Version).Append("\n\n");
 
-            sb.Append("This folder holds two forms of the same export:\n\n");
-            sb.Append("- **Simple (AI-friendly)** — the short `.md` files linked below. Plain text, a few hundred lines each, safe to paste into an AI assistant.\n");
+            sb.Append("This export comes in two forms:\n\n");
+            sb.Append("- **Simple (give this to an AI)** — the short files in **`").Append(DocSnapConstants.SummarySubFolder)
+              .Append("/`**, linked below. Each Scene / folder has a readable `.md` and a structured `.json`, only a few hundred lines each.\n");
             sb.Append("- **Full (advanced)** — open **`").Append(DocSnapConstants.IndexFileName)
               .Append("`** in a browser for the complete interactive site, or read the raw **`")
               .Append(DocSnapConstants.DataSubFolder).Append("/…json`** for every single field.\n\n");
@@ -367,7 +626,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                 foreach (ManifestSceneEntry s in manifest.scenes)
                 {
                     sb.Append("- **").Append(Clean(s.sceneName)).Append("** — ").Append(s.gameObjectCount)
-                      .Append(" GameObjects → [").Append(SummaryRelative(s.htmlFile)).Append("](").Append(SummaryRelative(s.htmlFile)).Append(")\n");
+                      .Append(" GameObjects · [json](").Append(SceneSummaryJson(s.sceneName)).Append(")")
+                      .Append(" · [md](").Append(SceneSummaryMarkdown(s.sceneName)).Append(")\n");
                 }
                 sb.Append("\n");
             }
@@ -382,7 +642,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                 foreach (ManifestFolderEntry f in manifest.assetFolders)
                 {
                     sb.Append("- **").Append(Clean(f.folderPath)).Append("** — ").Append(f.fileCount)
-                      .Append(" files → [").Append(SummaryRelative(f.htmlFile)).Append("](").Append(SummaryRelative(f.htmlFile)).Append(")\n");
+                      .Append(" files · [json](").Append(FolderSummaryJson(f.folderKey)).Append(")")
+                      .Append(" · [md](").Append(FolderSummaryMarkdown(f.folderKey)).Append(")\n");
                 }
                 sb.Append("\n");
             }
@@ -396,18 +657,30 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
         }
 
         // ==========================================
-        // SummaryRelative
-        // The .md summary path that sits next to an HTML
-        // page ("scenes/Foo.html" -> "scenes/Foo.md").
+        // Summary output paths
+        // Every simple summary lives in the summary/
+        // folder, named with the same self-describing
+        // prefixes as the data JSON: "scene-<Name>" and
+        // "folder-<Key>", one .md and one .json each.
         // ==========================================
-        public static string SummaryRelative(string htmlFile)
+        public static string SceneSummaryMarkdown(string sceneName)
         {
-            if (string.IsNullOrEmpty(htmlFile)) { return ""; }
-            if (htmlFile.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
-            {
-                return htmlFile.Substring(0, htmlFile.Length - 5) + DocSnapConstants.SummaryFileExtension;
-            }
-            return htmlFile + DocSnapConstants.SummaryFileExtension;
+            return DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneName + DocSnapConstants.SummaryMarkdownExtension;
+        }
+
+        public static string SceneSummaryJson(string sceneName)
+        {
+            return DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneName + DocSnapConstants.SummaryJsonExtension;
+        }
+
+        public static string FolderSummaryMarkdown(string folderKey)
+        {
+            return DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.FolderJsonPrefix + folderKey + DocSnapConstants.SummaryMarkdownExtension;
+        }
+
+        public static string FolderSummaryJson(string folderKey)
+        {
+            return DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.FolderJsonPrefix + folderKey + DocSnapConstants.SummaryJsonExtension;
         }
 
         // ==========================================

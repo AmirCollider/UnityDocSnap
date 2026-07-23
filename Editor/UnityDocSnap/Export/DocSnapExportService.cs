@@ -48,7 +48,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneName + ".json";
 
             WriteText(outputRoot, jsonFile, sceneData.ToString());
-            WriteText(outputRoot, DocSnapSummaryWriter.SummaryRelative(htmlFile), DocSnapSummaryWriter.RenderScene(sceneData));
+            WriteSceneSummaries(outputRoot, sceneName, sceneData);
 
             DocSnapManifest.UpsertScene(manifest, new ManifestSceneEntry
             {
@@ -97,7 +97,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.FolderJsonPrefix + folderKey + ".json";
 
             WriteText(outputRoot, jsonFile, folderData.ToString());
-            WriteText(outputRoot, DocSnapSummaryWriter.SummaryRelative(htmlFile), DocSnapSummaryWriter.RenderFolder(folderData));
+            WriteFolderSummaries(outputRoot, folderKey, folderData);
 
             DocSnapManifest.ReplaceAssetIndexForFolder(manifest, folderKey, indexEntries);
             DocSnapManifest.UpsertFolder(manifest, new ManifestFolderEntry
@@ -151,7 +151,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 string htmlFile = DocSnapConstants.ScenesSubFolder + "/" + sceneName + ".html";
                 string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneName + ".json";
                 WriteText(outputRoot, jsonFile, sceneData.ToString());
-                WriteText(outputRoot, DocSnapSummaryWriter.SummaryRelative(htmlFile), DocSnapSummaryWriter.RenderScene(sceneData));
+                WriteSceneSummaries(outputRoot, sceneName, sceneData);
 
                 DocSnapManifest.UpsertScene(manifest, new ManifestSceneEntry
                 {
@@ -180,7 +180,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string assetHtmlFile = DocSnapConstants.AssetsSubFolder + "/" + rootFolderKey + ".html";
             string assetJsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.FolderJsonPrefix + rootFolderKey + ".json";
             WriteText(outputRoot, assetJsonFile, folderData.ToString());
-            WriteText(outputRoot, DocSnapSummaryWriter.SummaryRelative(assetHtmlFile), DocSnapSummaryWriter.RenderFolder(folderData));
+            WriteFolderSummaries(outputRoot, rootFolderKey, folderData);
 
             DocSnapManifest.ReplaceAssetIndexForFolder(manifest, rootFolderKey, indexEntries);
             DocSnapManifest.UpsertFolder(manifest, new ManifestFolderEntry
@@ -247,7 +247,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 string htmlFile = DocSnapConstants.ScenesSubFolder + "/" + sceneName + ".html";
                 string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneName + ".json";
                 WriteText(outputRoot, jsonFile, sceneData.ToString());
-                WriteText(outputRoot, DocSnapSummaryWriter.SummaryRelative(htmlFile), DocSnapSummaryWriter.RenderScene(sceneData));
+                WriteSceneSummaries(outputRoot, sceneName, sceneData);
 
                 DocSnapManifest.UpsertScene(manifest, new ManifestSceneEntry
                 {
@@ -278,7 +278,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string assetHtmlFile = DocSnapConstants.AssetsSubFolder + "/" + rootFolderKey + ".html";
             string assetJsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.FolderJsonPrefix + rootFolderKey + ".json";
             WriteText(outputRoot, assetJsonFile, folderData.ToString());
-            WriteText(outputRoot, DocSnapSummaryWriter.SummaryRelative(assetHtmlFile), DocSnapSummaryWriter.RenderFolder(folderData));
+            WriteFolderSummaries(outputRoot, rootFolderKey, folderData);
 
             DocSnapManifest.ReplaceAssetIndexForFolder(manifest, rootFolderKey, indexEntries);
             DocSnapManifest.UpsertFolder(manifest, new ManifestFolderEntry
@@ -358,31 +358,49 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
         // ==========================================
         // PruneStaleOutput
-        // Deletes scene/asset pages - and their .md
-        // summaries - whose source no longer appears in
-        // the manifest. Without this a renamed or deleted
-        // Scene left its old page behind forever, and the
-        // sidebar linked to a document that no longer
-        // described anything in the project.
+        // Keeps each managed output folder holding exactly
+        // the files the current manifest describes, and
+        // nothing else. Any file it does not recognise is
+        // deleted, which cleans up in one sweep: pages and
+        // summaries for a Scene/folder that was renamed or
+        // removed, AND files left behind under an older
+        // version's naming (e.g. data/scene_*.json before
+        // the scene-*.json rename, or a Scene's .md when
+        // summaries still lived beside the HTML). The
+        // manifest lists every Scene/folder ever exported
+        // in this project, so a single-item export never
+        // deletes another item's still-valid output.
         // ==========================================
         private static void PruneStaleOutput(string outputRoot, ManifestState manifest)
         {
             try
             {
-                var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var liveScenes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var liveFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var liveData = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var liveSummary = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                liveData.Add(DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.ManifestFileName);
+
                 foreach (ManifestSceneEntry scene in manifest.scenes)
                 {
-                    live.Add(scene.htmlFile);
-                    live.Add(DocSnapSummaryWriter.SummaryRelative(scene.htmlFile));
+                    liveScenes.Add(scene.htmlFile);
+                    liveData.Add(scene.jsonFile);
+                    liveSummary.Add(DocSnapSummaryWriter.SceneSummaryMarkdown(scene.sceneName));
+                    liveSummary.Add(DocSnapSummaryWriter.SceneSummaryJson(scene.sceneName));
                 }
                 foreach (ManifestFolderEntry folder in manifest.assetFolders)
                 {
-                    live.Add(folder.htmlFile);
-                    live.Add(DocSnapSummaryWriter.SummaryRelative(folder.htmlFile));
+                    liveFolders.Add(folder.htmlFile);
+                    liveData.Add(folder.jsonFile);
+                    liveSummary.Add(DocSnapSummaryWriter.FolderSummaryMarkdown(folder.folderKey));
+                    liveSummary.Add(DocSnapSummaryWriter.FolderSummaryJson(folder.folderKey));
                 }
 
-                PruneFolder(outputRoot, DocSnapConstants.ScenesSubFolder, live);
-                PruneFolder(outputRoot, DocSnapConstants.AssetsSubFolder, live);
+                PruneDir(outputRoot, DocSnapConstants.ScenesSubFolder, liveScenes);
+                PruneDir(outputRoot, DocSnapConstants.AssetsSubFolder, liveFolders);
+                PruneDir(outputRoot, DocSnapConstants.DataSubFolder, liveData);
+                PruneDir(outputRoot, DocSnapConstants.SummarySubFolder, liveSummary);
             }
             catch (Exception ex)
             {
@@ -390,18 +408,24 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             }
         }
 
-        private static void PruneFolder(string outputRoot, string subFolder, HashSet<string> liveFiles)
+        // ==========================================
+        // PruneDir
+        // Deletes every top-level file in one managed
+        // output folder that is not in that folder's live
+        // set. Only DocSnap-owned folders are ever passed
+        // here, and each is rewritten in full on every
+        // export, so an unrecognised file is always a
+        // stale leftover.
+        // ==========================================
+        private static void PruneDir(string outputRoot, string subFolder, HashSet<string> liveFiles)
         {
             string absolute = Path.Combine(outputRoot, subFolder);
             if (!Directory.Exists(absolute)) { return; }
 
-            foreach (string pattern in new[] { "*.html", "*" + DocSnapConstants.SummaryFileExtension })
+            foreach (string file in Directory.GetFiles(absolute, "*", SearchOption.TopDirectoryOnly))
             {
-                foreach (string file in Directory.GetFiles(absolute, pattern, SearchOption.TopDirectoryOnly))
-                {
-                    string relative = subFolder + "/" + Path.GetFileName(file);
-                    if (!liveFiles.Contains(relative)) { File.Delete(file); }
-                }
+                string relative = subFolder + "/" + Path.GetFileName(file);
+                if (!liveFiles.Contains(relative)) { File.Delete(file); }
             }
         }
 
@@ -416,23 +440,64 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             Directory.CreateDirectory(Path.Combine(outputRoot, DocSnapConstants.ScenesSubFolder));
             Directory.CreateDirectory(Path.Combine(outputRoot, DocSnapConstants.AssetsSubFolder));
             Directory.CreateDirectory(Path.Combine(outputRoot, DocSnapConstants.DataSubFolder));
+            Directory.CreateDirectory(Path.Combine(outputRoot, DocSnapConstants.SummarySubFolder));
             Directory.CreateDirectory(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder));
             Directory.CreateDirectory(Path.Combine(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder), DocSnapConstants.ThumbsSubFolder));
 
             File.WriteAllText(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder, DocSnapConstants.StyleFileName), DocSnapSiteAssets.StyleCss);
             File.WriteAllText(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder, DocSnapConstants.ScriptFileName), DocSnapSiteAssets.AppJs);
 
-            // Remove the standalone "success" page older versions
-            // opened in a browser after every export - the export
-            // now confirms with an in-Editor popup instead.
-            TryDelete(Path.Combine(outputRoot, "export_complete.html"));
-
+            CleanLegacyOutput(outputRoot);
             return outputRoot;
+        }
+
+        // ==========================================
+        // WriteSceneSummaries / WriteFolderSummaries
+        // Every export writes the "simple" summary of a
+        // Scene / folder in both forms - readable Markdown
+        // and structured JSON - into the summary/ folder.
+        // ==========================================
+        private static void WriteSceneSummaries(string outputRoot, string sceneName, JsonValue sceneData)
+        {
+            WriteText(outputRoot, DocSnapSummaryWriter.SceneSummaryMarkdown(sceneName), DocSnapSummaryWriter.RenderScene(sceneData));
+            WriteText(outputRoot, DocSnapSummaryWriter.SceneSummaryJson(sceneName), DocSnapSummaryWriter.RenderSceneJson(sceneData));
+        }
+
+        private static void WriteFolderSummaries(string outputRoot, string folderKey, JsonValue folderData)
+        {
+            WriteText(outputRoot, DocSnapSummaryWriter.FolderSummaryMarkdown(folderKey), DocSnapSummaryWriter.RenderFolder(folderData));
+            WriteText(outputRoot, DocSnapSummaryWriter.FolderSummaryJson(folderKey), DocSnapSummaryWriter.RenderFolderJson(folderData));
+        }
+
+        // ==========================================
+        // CleanLegacyOutput
+        // Removes artefacts from older Unity DocSnap
+        // versions that current exports no longer produce
+        // and which PruneStaleOutput does not cover:
+        // the browser "success" page, and the pre-rename
+        // sibling folders (assets/ -> folders/,
+        // assets_ui/ -> theme/, files/ -> source-files/).
+        // Their names are unused by the current tool, so
+        // deleting them only clears stale output.
+        // ==========================================
+        private static void CleanLegacyOutput(string outputRoot)
+        {
+            TryDelete(Path.Combine(outputRoot, "export_complete.html"));
+            foreach (string legacyDir in new[] { "assets", "assets_ui", "files" })
+            {
+                TryDeleteDir(Path.Combine(outputRoot, legacyDir));
+            }
         }
 
         private static void TryDelete(string absolutePath)
         {
             try { if (File.Exists(absolutePath)) { File.Delete(absolutePath); } }
+            catch { /* best-effort cleanup only */ }
+        }
+
+        private static void TryDeleteDir(string absolutePath)
+        {
+            try { if (Directory.Exists(absolutePath)) { Directory.Delete(absolutePath, true); } }
             catch { /* best-effort cleanup only */ }
         }
 
