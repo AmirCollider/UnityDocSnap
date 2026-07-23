@@ -5,6 +5,7 @@
 // exported Scene and Asset folder.
 // ==========================================
 using System.Text;
+using AmirCollider.UnityDocSnap.Editor.Export;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
 
 namespace AmirCollider.UnityDocSnap.Editor.Html
@@ -13,8 +14,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
     {
         // ==========================================
         // Render
+        // exportInfo (optional) surfaces this export's
+        // exact timing + counts as an "Export Info" card
+        // at the top of the dashboard.
         // ==========================================
-        public static string Render(ManifestState manifest)
+        public static string Render(ManifestState manifest, VersionSnapshot exportInfo = null)
         {
             int totalGameObjects = 0;
             foreach (ManifestSceneEntry s in manifest.scenes) { totalGameObjects += s.gameObjectCount; }
@@ -30,6 +34,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             string header = HtmlPageBuilder.RenderPageHeader("\uD83C\uDF70", manifest.projectName, lastExportHtml, badges, true);
 
             var sb = new StringBuilder(2048);
+
+            if (exportInfo != null) { sb.Append(DocSnapExportInfo.RenderCard(exportInfo)); }
 
             sb.Append("<div class=\"ds-stat-grid\">");
             sb.Append(StatTile(manifest.scenes.Count, "Scenes exported", "エクスポート済みシーン", "سین اکسپورت‌شده"));

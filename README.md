@@ -126,8 +126,9 @@ Every exported page follows the same clean, predictable structure — proper hea
 
 - [x] Optional thumbnail previews for image assets
 - [x] Search across the whole exported site
-- [ ] Diff view between two exports
-- [ ] Dark mode for the generated site 🌙
+- [x] Diff view between two exports
+- [x] Dark mode for the generated site 🌙
+- [x] Versioned exports + whole-project `.unitypackage` backup
 
 ### 🤝 Contributing
 
@@ -248,8 +249,9 @@ UnityDocSnap_Output/
 
 - [x] 画像アセットのサムネイルプレビュー(任意)
 - [x] エクスポートしたサイト全体の検索機能
-- [ ] 2つのエクスポート間の差分表示
-- [ ] 生成されたサイトのダークモード 🌙
+- [x] 2つのエクスポート間の差分表示
+- [x] 生成されたサイトのダークモード 🌙
+- [x] バージョン管理付きエクスポート + プロジェクト全体の `.unitypackage` バックアップ
 
 ### 🤝 コントリビュート
 
@@ -372,8 +374,9 @@ UnityDocSnap_Output/
 
 - [x] پیش‌نمایش کوچیک (Thumbnail) برای فایل‌های عکس (اختیاری)
 - [x] جستجو توی کل سایت اکسپورت‌شده
-- [ ] نمایش تفاوت بین دو تا خروجی مختلف
-- [ ] حالت تاریک (Dark Mode) برای سایت تولیدشده 🌙
+- [x] نمایش تفاوت بین دو تا خروجی مختلف
+- [x] حالت تاریک (Dark Mode) برای سایت تولیدشده 🌙
+- [x] خروجی نسخه‌بندی‌شده + بک‌آپ `.unitypackage` از کل پروژه
 
 ### 🤝 مشارکت
 

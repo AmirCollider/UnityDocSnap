@@ -946,6 +946,163 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
 .ds-module-list li { display: flex; gap: 8px; align-items: baseline; font-size: 12px; }
 .ds-module-name { color: var(--ink); overflow-wrap: anywhere; }
 .ds-module-ver { margin-inline-start: auto; font-size: 10.5px; color: var(--ink-faint); }
+
+/* ==========================================
+   Sidebar top bar (language + theme toggle)
+   ========================================== */
+.ds-topbar { display: flex; align-items: stretch; gap: 6px; margin-bottom: 20px; }
+.ds-topbar .ds-langbar { flex: 1; margin-bottom: 0; }
+.ds-theme-toggle {
+  flex: none;
+  width: 40px;
+  border: 1.5px solid var(--lavender);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .15s ease, background .15s ease;
+}
+.ds-theme-toggle:hover { transform: translateY(-1px); background: var(--cream-deep); }
+
+/* ==========================================
+   Export Info card (dashboard) + Changes page
+   ========================================== */
+.ds-info-lines { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.ds-info-line {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: baseline;
+  font-size: 13px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.ds-info-line:last-child { border-bottom: none; }
+.ds-info-key { color: var(--ink-soft); font-weight: 600; }
+.ds-info-val { font-family: var(--font-mono); font-size: 12.5px; overflow-wrap: anywhere; direction: ltr; unicode-bidi: isolate; text-align: start; }
+.ds-info-tz { color: var(--ink-soft); font-size: 11px; }
+
+.ds-stat-tile.ds-tile-mint .ds-stat-num { color: var(--mint-strong); }
+.ds-stat-tile.ds-tile-warn .ds-stat-num { color: var(--warn); }
+.ds-stat-tile.ds-tile-lav .ds-stat-num { color: var(--lavender-strong); }
+.ds-stat-tile.ds-tile-pink .ds-stat-num { color: var(--pink-strong); }
+
+.ds-diff-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ds-diff-item {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border-inline-start: 3px solid var(--line);
+  background: var(--cream-deep);
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.ds-diff-item.ds-diff-added { border-inline-start-color: var(--mint-strong); }
+.ds-diff-item.ds-diff-removed { border-inline-start-color: var(--warn); }
+.ds-diff-item.ds-diff-changed { border-inline-start-color: var(--lavender); }
+.ds-diff-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+.ds-diff-badge.ds-diff-added { background: var(--mint-strong); }
+.ds-diff-badge.ds-diff-removed { background: var(--warn); }
+.ds-diff-badge.ds-diff-changed { background: var(--lavender-strong); }
+
+/* ==========================================
+   Root version-picker landing page
+   ========================================== */
+.ds-versions-page { max-width: 720px; margin: 0 auto; padding: 40px 24px 60px; }
+.ds-versions-page h1 { font-size: 26px; display: flex; align-items: center; gap: 10px; }
+.ds-version-list { list-style: none; margin: 22px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ds-version-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--card);
+  box-shadow: var(--shadow-soft);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.ds-version-row:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); text-decoration: none; }
+.ds-version-tag { font-family: var(--font-display); font-size: 18px; color: var(--pink-strong); }
+.ds-version-when { margin-inline-start: auto; font-size: 12px; color: var(--ink-soft); font-family: var(--font-mono); direction: ltr; unicode-bidi: isolate; }
+.ds-version-latest { font-size: 10.5px; font-weight: 700; color: #fff; background: var(--mint-strong); border-radius: 999px; padding: 2px 9px; }
+
+/* ==========================================
+   Dark theme
+   Overrides the design tokens (so everything
+   built on var(--…) recolours automatically),
+   plus the few surfaces that hard-coded a light
+   value (#fff panels, light pill backgrounds).
+   Driven by <html data-theme=""dark"">, which the
+   exporter sets as the default and app.js toggles
+   / remembers per reader.
+   ========================================== */
+:root[data-theme=""dark""] {
+  --pink: #ff9db0;
+  --pink-strong: #ff86a0;
+  --pink-pale: #3b2a33;
+  --lavender: #b9a6e0;
+  --lavender-strong: #c9b8f0;
+  --mint: #2e3d2e;
+  --mint-strong: #8fd98c;
+  --peach: #6a4a2f;
+  --cream: #1c1922;
+  --cream-deep: #2a2533;
+  --card: #241f2d;
+  --ink: #ece7f2;
+  --ink-soft: #b3a8c2;
+  --ink-faint: #7c7189;
+  --line: #38313f;
+  --warn: #ff8f8f;
+  --warn-ink: #ffb4b4;
+  --warn-bg: #3a2626;
+
+  --shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+:root[data-theme=""dark""] body { background: var(--cream); color: var(--ink); }
+:root[data-theme=""dark""] .ds-lang-btn,
+:root[data-theme=""dark""] .ds-mode-btn,
+:root[data-theme=""dark""] .ds-search-input,
+:root[data-theme=""dark""] .ds-search-filter,
+:root[data-theme=""dark""] .ds-search-results { background: var(--card); color: var(--ink); }
+:root[data-theme=""dark""] .ds-search-filter { color: var(--ink-soft); }
+:root[data-theme=""dark""] .ds-nav-link:hover { background: rgba(255,255,255,.06); }
+:root[data-theme=""dark""] .ds-nav-link.is-current { background: var(--card); color: var(--pink-strong); }
+:root[data-theme=""dark""] .ds-nav-count { background: rgba(255,255,255,.08); }
+:root[data-theme=""dark""] .ds-lang-btn.is-active { background: var(--pink); color: #241f2d; border-color: var(--pink); }
+:root[data-theme=""dark""] .ds-mode-btn.is-active { background: var(--lavender-strong); color: #241f2d; }
+:root[data-theme=""dark""] .ds-mode-btn:hover { background: #332b40; }
+:root[data-theme=""dark""] .ds-badge.mint { background: #24331f; border-color: var(--mint-strong); color: var(--mint-strong); }
+:root[data-theme=""dark""] .ds-badge.lav { background: #2c2740; border-color: var(--lavender); color: var(--lavender-strong); }
+:root[data-theme=""dark""] .ds-pill.bool-true,
+:root[data-theme=""dark""] .ds-component-toggle.on { background: #24331f; color: var(--mint-strong); }
+:root[data-theme=""dark""] .ds-pill.bool-false,
+:root[data-theme=""dark""] .ds-component-toggle.off { background: #332b34; color: var(--ink-soft); }
+:root[data-theme=""dark""] .ds-pill.enum,
+:root[data-theme=""dark""] .ds-ref-chip,
+:root[data-theme=""dark""] .ds-prefab-tag,
+:root[data-theme=""dark""] .ds-search-result .r-cat { background: #2c2740; color: var(--lavender-strong); }
 ";
 
         // ==========================================
@@ -968,6 +1125,7 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
   var RTL_LANGS = { fa: true };
   var LANG_STORAGE_KEY = 'unityDocSnapLang';
   var MODE_STORAGE_KEY = 'unityDocSnapMode';
+  var THEME_STORAGE_KEY = 'unityDocSnapTheme';
 
   // ==========================================
   // safeStorage
@@ -1031,10 +1189,49 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
   }
 
   function restoreLanguage() {
+    // A reader's own saved choice wins; otherwise fall back to
+    // the default language the exporter baked into the page.
     var stored = safeStorage.get(LANG_STORAGE_KEY);
-    if (!stored) { return; }
-    var match = document.querySelector('.ds-lang-btn[data-lang=' + stored + ']');
-    if (match) { applyLanguage(stored); }
+    var lang = stored || window.__DOCSNAP_LANG__ || 'en';
+    var match = document.querySelector('.ds-lang-btn[data-lang=' + lang + ']');
+    if (match) { applyLanguage(lang); }
+  }
+
+  // ==========================================
+  // applyTheme / restoreTheme / wireThemeToggle
+  // Light / dark colour theme. Sets <html data-theme>,
+  // swaps the toggle icon, and remembers the choice.
+  // The page ships with the exporter's default already
+  // on <html>; a reader's saved choice overrides it.
+  // ==========================================
+  function applyTheme(theme) {
+    var dark = theme === 'dark';
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    var icons = document.querySelectorAll('.ds-theme-icon');
+    for (var i = 0; i < icons.length; i++) {
+      icons[i].textContent = dark ? '☀️' : '🌙';
+    }
+    var toggles = document.querySelectorAll('[data-theme-toggle]');
+    for (var t = 0; t < toggles.length; t++) {
+      toggles[t].setAttribute('aria-pressed', dark ? 'true' : 'false');
+    }
+    safeStorage.set(THEME_STORAGE_KEY, dark ? 'dark' : 'light');
+  }
+
+  function restoreTheme() {
+    var stored = safeStorage.get(THEME_STORAGE_KEY);
+    var theme = stored || window.__DOCSNAP_THEME__ || document.documentElement.getAttribute('data-theme') || 'light';
+    applyTheme(theme);
+  }
+
+  function wireThemeToggle() {
+    var toggles = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < toggles.length; i++) {
+      toggles[i].addEventListener('click', function () {
+        var current = document.documentElement.getAttribute('data-theme');
+        applyTheme(current === 'dark' ? 'light' : 'dark');
+      });
+    }
   }
 
   function wireLanguageButtons() {
@@ -1240,6 +1437,8 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
   document.addEventListener('DOMContentLoaded', function () {
     restoreLanguage();
     wireLanguageButtons();
+    restoreTheme();
+    wireThemeToggle();
     restoreMode();
     wireModeButtons();
     wireTreeControls();

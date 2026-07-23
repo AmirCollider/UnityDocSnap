@@ -17,6 +17,20 @@ namespace AmirCollider.UnityDocSnap.Editor
     internal static class UnityDocSnapMenu
     {
         // ==========================================
+        // Export… (DocSnap Window)
+        // The primary export entry point: a small window
+        // where language, theme, version, files, backup and
+        // change-tracking are all chosen in one place -
+        // friendlier than the fixed English menu for a
+        // Japanese or Persian user.
+        // ==========================================
+        [MenuItem(DocSnapConstants.MenuExportWindow, false, 0)]
+        private static void ShowExportWindow()
+        {
+            DocSnapExportWindow.ShowWindow();
+        }
+
+        // ==========================================
         // Export Scene - dynamic dropdown of every
         // Scene currently in the project.
         // ==========================================
@@ -134,8 +148,17 @@ namespace AmirCollider.UnityDocSnap.Editor
         private static void OpenOutputFolderMenuItem()
         {
             string root = DocSnapSettings.ResolveOutputRootAbsolute();
-            string indexPath = Path.Combine(root, DocSnapConstants.IndexFileName);
-            EditorUtility.RevealInFinder(File.Exists(indexPath) ? indexPath : root);
+            // Prefer the newest version's own index; fall back to
+            // the root redirect page, then the folder itself.
+            var registry = Export.DocSnapVersioning.LoadRegistry();
+            string newest = Export.DocSnapVersioning.NewestVersion(registry);
+            if (!string.IsNullOrEmpty(newest))
+            {
+                string versionIndex = Path.Combine(Export.DocSnapVersioning.VersionFolderAbsolute(root, newest), DocSnapConstants.IndexFileName);
+                if (File.Exists(versionIndex)) { EditorUtility.RevealInFinder(versionIndex); return; }
+            }
+            string rootIndex = Path.Combine(root, DocSnapConstants.RootRedirectFileName);
+            EditorUtility.RevealInFinder(File.Exists(rootIndex) ? rootIndex : root);
         }
 
         // ==========================================

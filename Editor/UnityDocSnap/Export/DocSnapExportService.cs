@@ -30,7 +30,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         public static void ExportScene(string scenePath)
         {
-            string outputRoot = PrepareOutput();
+            string version;
+            string outputRoot = ResolveSingleItemSiteRoot(out version);
             ManifestState manifest = DocSnapManifest.Load();
 
             JsonValue sceneData;
@@ -66,7 +67,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             DocSnapManifest.Save(manifest);
 
             WriteText(outputRoot, htmlFile, ScenePageRenderer.Render(sceneData, manifest, htmlFile));
-            RefreshIndexAndManifest(outputRoot, manifest);
+
+            string baseRoot = DocSnapSettings.ResolveOutputRootAbsolute();
+            VersionsState registry = DocSnapVersioning.LoadRegistry();
+            FinalizeVersion(baseRoot, outputRoot, version, manifest, DocSnapExportOptions.Default(), registry, null);
 
             ShowExportComplete(outputRoot,
                 "Exported scene \"" + sceneName + "\" (" + goCount + " GameObjects).",
@@ -81,7 +85,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         public static void ExportFolder(string folderPath)
         {
-            string outputRoot = PrepareOutput();
+            string version;
+            string outputRoot = ResolveSingleItemSiteRoot(out version);
             ManifestState manifest = DocSnapManifest.Load();
 
             string folderKey = AssetProjectExporter.FolderKey(folderPath);
@@ -118,7 +123,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             DocSnapManifest.Save(manifest);
 
             WriteText(outputRoot, htmlFile, AssetPageRenderer.Render(folderData, manifest, htmlFile));
-            RefreshIndexAndManifest(outputRoot, manifest);
+
+            string baseRoot = DocSnapSettings.ResolveOutputRootAbsolute();
+            VersionsState registry = DocSnapVersioning.LoadRegistry();
+            FinalizeVersion(baseRoot, outputRoot, version, manifest, DocSnapExportOptions.Default(), registry, null);
 
             ShowExportComplete(outputRoot,
                 "Exported folder \"" + folderPath + "\" (" + fileCount + " files).",
@@ -140,17 +148,41 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         public static void ExportFullProject()
         {
-            ExportProject(false, false);
+            ExportProject(DocSnapExportOptions.Default(false));
         }
 
         public static void ExportFullProjectWithFiles()
         {
-            ExportProject(true, false);
+            ExportProject(DocSnapExportOptions.Default(true));
         }
 
+        // ==========================================
+        // ExportWithOptions
+        // The full-featured entry point used by the export
+        // window: every choice (target version, language,
+        // theme, files, backup, changes) flows through here.
+        // ==========================================
+        public static void ExportWithOptions(DocSnapExportOptions options)
+        {
+            ExportProject(options ?? DocSnapExportOptions.Default(false));
+        }
+
+        // ==========================================
+        // UpdatePreviousExport
+        // Re-exports onto the newest existing version folder
+        // in place, reusing anything unchanged (incremental).
+        // ==========================================
         public static void UpdatePreviousExport()
         {
-            ExportProject(false, true);
+            VersionsState registry = DocSnapVersioning.LoadRegistry();
+            string newest = DocSnapVersioning.NewestVersion(registry);
+            var options = DocSnapExportOptions.Default(false);
+            if (!string.IsNullOrEmpty(newest))
+            {
+                options.versionTarget = VersionTarget.ExistingVersion;
+                options.existingVersion = newest;
+            }
+            ExportProject(options);
         }
 
         // ==========================================
@@ -172,9 +204,48 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         //                 is re-rendered cheaply so sidebars
         //                 and cross-links stay consistent.
         // ==========================================
-        private static void ExportProject(bool copyFiles, bool incremental)
+        private static void ExportProject(DocSnapExportOptions options)
         {
-            string outputRoot = PrepareOutput();
+            string baseRoot = DocSnapSettings.ResolveOutputRootAbsolute();
+            VersionsState registry = DocSnapVersioning.LoadRegistry();
+
+            // Resolve which version folder this export writes into.
+            string version;
+            bool incremental;
+            if (options.versionTarget == VersionTarget.ExistingVersion
+                && !string.IsNullOrEmpty(options.existingVersion)
+                && Directory.Exists(DocSnapVersioning.VersionFolderAbsolute(baseRoot, options.existingVersion)))
+            {
+                version = options.existingVersion;
+                incremental = true;   // refresh an existing version in place, reusing unchanged items
+            }
+            else if (!string.IsNullOrEmpty(options.customVersionName)
+                && DocSnapVersioning.IsValidCustomName(options.customVersionName)
+                && !DocSnapVersioning.ExistingVersionNames(baseRoot, registry).Contains(options.customVersionName))
+            {
+                version = options.customVersionName;
+                incremental = false;  // a brand-new, custom-named folder
+            }
+            else
+            {
+                version = DocSnapVersioning.NextVersion(baseRoot, registry);
+                incremental = false;
+            }
+
+            // A Changes page is only produced when a real base
+            // snapshot to diff against exists.
+            VersionSnapshot changesBase = options.recordChanges
+                ? DocSnapVersioning.FindSnapshot(registry, options.changesBaseVersion)
+                : null;
+
+            DocSnapRenderContext.Apply(options, version);
+            DocSnapRenderContext.HasChangesPage = options.recordChanges && changesBase != null;
+            if (!DocSnapRenderContext.HasChangesPage) { DocSnapRenderContext.ChangesBaseVersion = ""; }
+
+            string outputRoot = DocSnapVersioning.VersionFolderAbsolute(baseRoot, version);
+            PrepareOutput(outputRoot);
+
+            bool copyFiles = options.includeFiles;
             string physicalFilesRoot = null;
             if (copyFiles)
             {
@@ -305,21 +376,27 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 WriteText(outputRoot, page.Key, ScenePageRenderer.Render(page.Value, manifest, page.Key));
             }
             WriteText(outputRoot, assetHtmlFile, AssetPageRenderer.Render(folderData, manifest, assetHtmlFile));
-            RefreshIndexAndManifest(outputRoot, manifest);
+
+            // Build this version's snapshot, optional backup +
+            // Changes page, export-info files, dashboard, and the
+            // output-root version-picker landing page.
+            VersionSnapshot snap = FinalizeVersion(baseRoot, outputRoot, version, manifest, options, registry, changesBase);
 
             string reuseNote = incremental
                 ? "  (" + reusedScenes + " scene(s) reused, " + exportedScenes + " re-scanned" + (reusedAssets ? ", assets reused" : ", assets re-scanned") + ")"
                 : "";
             string filesNoteEn = copyFiles ? " (assets copied to \"" + DocSnapConstants.FilesSubFolder + "/\")" : "";
             string filesNoteFa = copyFiles ? " (فایل‌ها توی «" + DocSnapConstants.FilesSubFolder + "/» کپی شدن)" : "";
-            string headEn = incremental ? "Updated previous export" : (copyFiles ? "Exported full project with files" : "Exported full project");
-            string headJa = incremental ? "前回のエクスポートを更新しました" : "プロジェクト全体をエクスポートしました";
-            string headFa = incremental ? "خروجی قبلی بروزرسانی شد" : "کل پروژه اکسپورت شد";
+            string backupEn = snap.hasBackup ? "  ·  backup: " + DocSnapConstants.BackupFileName : "";
+            string changesEn = (options.recordChanges && changesBase != null) ? "  ·  changes vs " + changesBase.version : "";
+            string headEn = incremental ? "Updated export" : (copyFiles ? "Exported full project with files" : "Exported full project");
+            string headJa = incremental ? "エクスポートを更新しました" : "プロジェクト全体をエクスポートしました";
+            string headFa = incremental ? "خروجی بروزرسانی شد" : "کل پروژه اکسپورت شد";
 
             ShowExportComplete(outputRoot,
-                headEn + ": " + scenePages.Count + " scene(s), " + fileCount + " file(s)" + filesNoteEn + "." + reuseNote,
-                headJa + ":シーン" + scenePages.Count + "件、ファイル" + fileCount + "件" + (copyFiles ? "(アセットは source-files/ にコピー済み)" : "") + "。",
-                headFa + ": " + scenePages.Count + " سین، " + fileCount + " فایل" + filesNoteFa + ".");
+                headEn + " " + version + ": " + scenePages.Count + " scene(s), " + fileCount + " file(s)" + filesNoteEn + backupEn + changesEn + "." + reuseNote,
+                headJa + " " + version + ":シーン" + scenePages.Count + "件、ファイル" + fileCount + "件" + (copyFiles ? "(アセットは source-files/ にコピー済み)" : "") + "。",
+                headFa + " " + version + ": " + scenePages.Count + " سین، " + fileCount + " فایل" + filesNoteFa + ".");
         }
 
         // ==========================================
@@ -408,6 +485,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         public static bool HasPreviousExport()
         {
+            VersionsState registry = DocSnapVersioning.LoadRegistry();
+            if (registry.versions.Count > 0) { return true; }
             ManifestState manifest = DocSnapManifest.Load();
             return manifest.scenes.Count > 0 || manifest.assetFolders.Count > 0;
         }
@@ -439,9 +518,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // from the current manifest state - cheap
         // enough to do on every single export.
         // ==========================================
-       private static void RefreshIndexAndManifest(string outputRoot, ManifestState manifest)
+       private static void RefreshIndexAndManifest(string outputRoot, ManifestState manifest, VersionSnapshot exportInfo = null)
         {
-            WriteText(outputRoot, DocSnapConstants.IndexFileName, IndexPageRenderer.Render(manifest));
+            WriteText(outputRoot, DocSnapConstants.IndexFileName, IndexPageRenderer.Render(manifest, exportInfo));
             WriteText(outputRoot, DocSnapConstants.ProjectSummaryFileName, DocSnapSummaryWriter.RenderProjectIndex(manifest));
             DocSnapManifest.WritePublicJson(manifest, Path.Combine(outputRoot, DocSnapConstants.DataSubFolder, DocSnapConstants.ManifestFileName));
 
@@ -559,13 +638,98 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         }
 
         // ==========================================
+        // ResolveSingleItemSiteRoot
+        // A single-Scene / single-folder export writes into
+        // the current *active* version folder (whichever one
+        // was exported into last), creating the very first
+        // V1.0.0 if none exists yet. This keeps quick,
+        // one-item exports and full exports landing in the
+        // same versioned home instead of two different places.
+        // ==========================================
+        private static string ResolveSingleItemSiteRoot(out string version)
+        {
+            string baseRoot = DocSnapSettings.ResolveOutputRootAbsolute();
+            VersionsState registry = DocSnapVersioning.LoadRegistry();
+
+            version = registry.activeVersion;
+            if (string.IsNullOrEmpty(version) || !Directory.Exists(DocSnapVersioning.VersionFolderAbsolute(baseRoot, version)))
+            {
+                version = DocSnapVersioning.NextVersion(baseRoot, registry);
+                registry.activeVersion = version;
+                DocSnapVersioning.SaveRegistry(registry);
+            }
+
+            DocSnapRenderContext.Apply(DocSnapExportOptions.Default(), version);
+            string siteRoot = DocSnapVersioning.VersionFolderAbsolute(baseRoot, version);
+            PrepareOutput(siteRoot);
+            return siteRoot;
+        }
+
+        // ==========================================
+        // FinalizeVersion
+        // The shared tail of every export: build this
+        // version's snapshot (counts + timing + inventory),
+        // optionally write the whole-project .unitypackage
+        // backup and the Changes page, record the snapshot in
+        // the registry, write export-info.{json,txt}, refresh
+        // the dashboard/manifest, and rewrite the output
+        // root's version-picker landing page.
+        // ==========================================
+        private static VersionSnapshot FinalizeVersion(
+            string baseRoot, string siteRoot, string version, ManifestState manifest,
+            DocSnapExportOptions options, VersionsState registry, VersionSnapshot changesBase)
+        {
+            VersionSnapshot snap = DocSnapExportInfo.BuildSnapshot(version, manifest, options);
+
+            if (options.makeBackup)
+            {
+                string err;
+                snap.hasBackup = DocSnapProjectBackup.ExportProjectPackage(siteRoot, out err);
+            }
+
+            if (options.recordChanges && changesBase != null)
+            {
+                WriteText(siteRoot, DocSnapConstants.ChangesFileName, ChangesPageRenderer.Render(manifest, snap, changesBase));
+            }
+
+            DocSnapVersioning.UpsertSnapshot(registry, snap);
+            registry.activeVersion = version;
+            DocSnapVersioning.SaveRegistry(registry);
+
+            DocSnapExportInfo.WriteFiles(siteRoot, snap, manifest);
+            RefreshIndexAndManifest(siteRoot, manifest, snap);
+            WriteRootLandingPages(baseRoot, registry);
+            return snap;
+        }
+
+        // ==========================================
+        // WriteRootLandingPages
+        // The output root itself is no longer a site - it is
+        // a shelf of versioned sites. It gets a friendly
+        // versions.html listing every export newest-first
+        // (each linking into its own index.html), plus a tiny
+        // index.html that redirects straight to the newest
+        // one so a double-click on the root still lands
+        // somewhere useful.
+        // ==========================================
+        private static void WriteRootLandingPages(string baseRoot, VersionsState registry)
+        {
+            string newest = DocSnapVersioning.NewestVersion(registry);
+            File.WriteAllText(Path.Combine(baseRoot, DocSnapConstants.RootVersionsFileName), DocSnapRootPage.RenderVersions(registry, newest));
+            if (!string.IsNullOrEmpty(newest))
+            {
+                File.WriteAllText(Path.Combine(baseRoot, DocSnapConstants.RootRedirectFileName), DocSnapRootPage.RenderRedirect(newest));
+            }
+        }
+
+        // ==========================================
         // PrepareOutput
-        // Ensures the output folder tree and the
+        // Ensures a version folder's tree and the
         // (version-pinned) shared CSS/JS assets exist.
         // ==========================================
-        private static string PrepareOutput()
+        private static string PrepareOutput(string outputRoot)
         {
-            string outputRoot = DocSnapSettings.ResolveOutputRootAbsolute();
+            Directory.CreateDirectory(outputRoot);
             Directory.CreateDirectory(Path.Combine(outputRoot, DocSnapConstants.ScenesSubFolder));
             Directory.CreateDirectory(Path.Combine(outputRoot, DocSnapConstants.AssetsSubFolder));
             Directory.CreateDirectory(Path.Combine(outputRoot, DocSnapConstants.DataSubFolder));

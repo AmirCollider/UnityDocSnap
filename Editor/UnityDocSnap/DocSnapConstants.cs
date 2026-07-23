@@ -12,7 +12,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // Identity
         // ==========================================
         public const string ToolName = "Unity DocSnap";
-        public const string Version = "0.5.0";
+        public const string Version = "0.6.0";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
 
@@ -20,6 +20,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // Menu paths (must match README.md exactly)
         // ==========================================
         public const string MenuRoot = "Unity DocSnap/";
+        public const string MenuExportWindow = MenuRoot + "Export… (DocSnap Window)";
         public const string MenuExportScene = MenuRoot + "Export Scene";
         public const string MenuExportAssetInfoEntire = MenuRoot + "Export Asset Info/Entire Assets Folder";
         public const string MenuExportAssetInfoSelected = MenuRoot + "Export Asset Info/Selected Folder...";
@@ -51,6 +52,40 @@ namespace AmirCollider.UnityDocSnap.Editor
         //                 copies (renamed from "files")
         // ==========================================
         public const string DefaultOutputFolderName = "UnityDocSnap_Output";
+
+        // ==========================================
+        // Versioned output (see DocSnapVersioning).
+        //
+        // Every export now lands in its own versioned
+        // sub-folder inside the output root, named
+        // "V<major>.<minor>.<patch>" where minor and
+        // patch roll over 0→9 (V1.0.0 … V1.0.9, V1.1.0
+        // … V1.9.9, V2.0.0 …). The output root itself
+        // keeps a versions.html landing page plus a tiny
+        // index.html that redirects to the newest one,
+        // and a versions_state.json registry (in Library)
+        // that records a snapshot of every version so the
+        // Changes page can diff any two of them without
+        // re-opening old folders.
+        // ==========================================
+        public const string VersionFolderPrefix = "V";
+        public const string RootVersionsFileName = "versions.html";
+        public const string RootRedirectFileName = "index.html";
+        public const string VersionsStateRelativePath = "Library/UnityDocSnap/versions_state.json";
+
+        // Per-version export metadata: a machine-readable
+        // export-info.json plus a plain, readable copy, both
+        // written into the version folder, and surfaced on
+        // the dashboard as an "Export Info" card.
+        public const string ExportInfoFileName = "export-info.json";
+        public const string ExportInfoReadableName = "export-info.txt";
+
+        // The Changes (diff-vs-a-previous-version) page and
+        // the whole-project .unitypackage backup, both
+        // optional and both living inside the version folder.
+        public const string ChangesFileName = "changes.html";
+        public const string BackupFileName = "project-backup.unitypackage";
+
         public const string ScenesSubFolder = "scenes";
         public const string AssetsSubFolder = "folders";
         public const string DataSubFolder = "data";

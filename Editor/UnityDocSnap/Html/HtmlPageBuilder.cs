@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using AmirCollider.UnityDocSnap.Editor.Export;
 using AmirCollider.UnityDocSnap.Editor.Json;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
 
@@ -68,8 +69,18 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         {
             string prefix = currentHtmlFile.IndexOf('/') >= 0 ? "../" : "";
             string themeDir = DocSnapConstants.SiteAssetsSubFolder + "/";
+
+            // The default language + colour theme the exporter
+            // chose. Set straight on <html> so the very first
+            // paint already matches (no flash of the wrong theme);
+            // app.js still lets a reader's own saved choice win.
+            string defLang = DocSnapRenderContext.DefaultLanguage;
+            string defTheme = DocSnapRenderContext.DefaultTheme == "dark" ? "dark" : "light";
+            string dir = defLang == "fa" ? "rtl" : "ltr";
+
             var sb = new StringBuilder(4096);
-            sb.Append("<!doctype html>\n<html lang=\"en\" dir=\"ltr\">\n<head>\n<meta charset=\"utf-8\">\n");
+            sb.Append("<!doctype html>\n<html lang=\"").Append(defLang).Append("\" dir=\"").Append(dir)
+              .Append("\" data-theme=\"").Append(defTheme).Append("\">\n<head>\n<meta charset=\"utf-8\">\n");
             sb.Append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
             sb.Append("<title>").Append(Escape(titleEn)).Append(" - Unity DocSnap</title>\n");
             sb.Append("<link rel=\"stylesheet\" href=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.StyleFileName).Append("\">\n</head>\n");
@@ -87,8 +98,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append("<button class=\"ds-back-top\" aria-label=\"Back to top\">\u2B06</button>\n");
             // The page's own depth prefix ("" at root, "../" one level down)
             // so the search script can rewrite its root-relative record links
-            // to work from wherever this page lives. Loaded before app.js.
-            sb.Append("<script>window.__DOCSNAP_PREFIX__=\"").Append(prefix).Append("\";</script>\n");
+            // to work from wherever this page lives, plus the exporter's chosen
+            // default language + theme (used by app.js only when the reader has
+            // no saved preference of their own). Loaded before app.js.
+            sb.Append("<script>window.__DOCSNAP_PREFIX__=\"").Append(prefix).Append("\";")
+              .Append("window.__DOCSNAP_LANG__=\"").Append(defLang).Append("\";")
+              .Append("window.__DOCSNAP_THEME__=\"").Append(defTheme).Append("\";</script>\n");
             sb.Append("<script src=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.SearchIndexFileName).Append("\"></script>\n");
             sb.Append("<script src=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.ScriptFileName).Append("\"></script>\n</body>\n</html>\n");
             return sb.ToString();
@@ -110,10 +125,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append("</div></div>\n");
             sb.Append("<p class=\"ds-tagline\">").Append(Escape(manifest.projectName)).Append("</p>\n");
 
+            sb.Append("<div class=\"ds-topbar\">");
             sb.Append("<div class=\"ds-langbar\" role=\"group\" aria-label=\"Language\">");
             sb.Append("<button class=\"ds-lang-btn is-active\" data-lang=\"en\">EN</button>");
             sb.Append("<button class=\"ds-lang-btn\" data-lang=\"ja\">日本語</button>");
             sb.Append("<button class=\"ds-lang-btn\" data-lang=\"fa\">فارسی</button>");
+            sb.Append("</div>");
+            // Light / dark theme toggle. app.js swaps the icon,
+            // flips <html data-theme>, and remembers the choice.
+            sb.Append("<button class=\"ds-theme-toggle\" data-theme-toggle aria-label=\"Toggle theme\" title=\"Light / Dark\">")
+              .Append("<span class=\"ds-theme-icon\">🌙</span></button>");
             sb.Append("</div>\n");
 
             // Detail-level switch. Simple hides the heavy, every-field
@@ -145,6 +166,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
 
             bool onIndex = currentHtmlFile == DocSnapConstants.IndexFileName;
             bool onPackages = currentHtmlFile == DocSnapConstants.PackagesFileName;
+            bool onChanges = currentHtmlFile == DocSnapConstants.ChangesFileName;
             sb.Append("<div class=\"ds-nav-section\"><ul class=\"ds-nav-list\">");
             sb.Append("<li><a class=\"ds-nav-link").Append(onIndex ? " is-current" : "").Append("\" href=\"").Append(prefix).Append(DocSnapConstants.IndexFileName).Append("\">");
             sb.Append(I18n("span", null, "\uD83C\uDFE0 Dashboard", "\uD83C\uDFE0 ダッシュボード", "\uD83C\uDFE0 داشبورد"));
@@ -154,6 +176,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 sb.Append("<li><a class=\"ds-nav-link").Append(onPackages ? " is-current" : "").Append("\" href=\"").Append(prefix).Append(DocSnapConstants.PackagesFileName).Append("\">");
                 sb.Append(I18n("span", null, "📦 Packages", "📦 パッケージ", "📦 پکیج‌ها"));
                 sb.Append("<span class=\"ds-nav-count\">").Append(manifest.packages.Count).Append("</span></a></li>");
+            }
+            if (DocSnapRenderContext.HasChangesPage)
+            {
+                sb.Append("<li><a class=\"ds-nav-link").Append(onChanges ? " is-current" : "").Append("\" href=\"").Append(prefix).Append(DocSnapConstants.ChangesFileName).Append("\">");
+                sb.Append(I18n("span", null, "🔀 Changes", "🔀 変更点", "🔀 تغییرات"));
+                if (!string.IsNullOrEmpty(DocSnapRenderContext.ChangesBaseVersion))
+                {
+                    sb.Append("<span class=\"ds-nav-count\">").Append(Escape(DocSnapRenderContext.ChangesBaseVersion)).Append("</span>");
+                }
+                sb.Append("</a></li>");
             }
             sb.Append("</ul></div>\n");
 

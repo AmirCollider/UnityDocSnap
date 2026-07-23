@@ -17,6 +17,9 @@ namespace AmirCollider.UnityDocSnap.Editor
         private const string KeyOutputPath = "UnityDocSnap.OutputPath";
         private const string KeyLogoPath = "UnityDocSnap.CustomLogoPath";
         private const string KeyThumbnails = "UnityDocSnap.GenerateThumbnails";
+        private const string KeyDefaultLang = "UnityDocSnap.DefaultLanguage";
+        private const string KeyDefaultTheme = "UnityDocSnap.DefaultTheme";
+        private const string KeyWindowLang = "UnityDocSnap.WindowLanguage";
 
         // ==========================================
         // OutputRootPath
@@ -57,6 +60,58 @@ namespace AmirCollider.UnityDocSnap.Editor
                 return raw == null ? true : raw == "1";
             }
             set { EditorUserSettings.SetConfigValue(KeyThumbnails, value ? "1" : "0"); }
+        }
+
+        // ==========================================
+        // DefaultSiteLanguage
+        // Which language the generated site opens in the
+        // first time a reader visits it (before they pick
+        // one themselves): "en", "ja" or "fa". The export
+        // window lets a Japanese or Persian user set this
+        // once so the site is friendly out of the box.
+        // ==========================================
+        public static string DefaultSiteLanguage
+        {
+            get
+            {
+                string raw = EditorUserSettings.GetConfigValue(KeyDefaultLang);
+                return string.IsNullOrEmpty(raw) ? "en" : raw;
+            }
+            set { EditorUserSettings.SetConfigValue(KeyDefaultLang, string.IsNullOrEmpty(value) ? "en" : value); }
+        }
+
+        // ==========================================
+        // DefaultSiteTheme
+        // Which colour theme the generated site opens in
+        // the first time a reader visits it: "light" or
+        // "dark". A reader can still flip it in the site's
+        // own sidebar; this is only the initial default.
+        // ==========================================
+        public static string DefaultSiteTheme
+        {
+            get
+            {
+                string raw = EditorUserSettings.GetConfigValue(KeyDefaultTheme);
+                return string.IsNullOrEmpty(raw) ? "light" : raw;
+            }
+            set { EditorUserSettings.SetConfigValue(KeyDefaultTheme, string.IsNullOrEmpty(value) ? "light" : value); }
+        }
+
+        // ==========================================
+        // WindowLanguage
+        // The language the export window's own labels are
+        // drawn in ("en" / "ja" / "fa"), so the window is
+        // as usable for a Japanese or Persian user as the
+        // site it produces.
+        // ==========================================
+        public static string WindowLanguage
+        {
+            get
+            {
+                string raw = EditorUserSettings.GetConfigValue(KeyWindowLang);
+                return string.IsNullOrEmpty(raw) ? "en" : raw;
+            }
+            set { EditorUserSettings.SetConfigValue(KeyWindowLang, string.IsNullOrEmpty(value) ? "en" : value); }
         }
 
         // ==========================================

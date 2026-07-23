@@ -2,6 +2,16 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.6.0] - 2026-07-23
+
+### Added
+- **Dark theme for the generated site.** Every page now ships with a light/dark toggle (🌙/☀️) in the sidebar. The exporter chooses the starting theme, it is written straight onto `<html data-theme>` so the first paint already matches (no flash), and a reader's own choice is remembered in `localStorage` across pages — exactly like the language and Simple/Advanced switches. The whole stylesheet is driven by design tokens, so dark mode is a token override plus a handful of surface patches.
+- **Versioned exports.** Instead of overwriting one output folder, every export now lands in its own snapshot folder named `V<major>.<minor>.<patch>`, where minor and patch roll over 0→9: `V1.0.0 … V1.0.9`, `V1.1.0 … V1.9.9`, `V2.0.0`, and so on. The output root gets a friendly `versions.html` picker (newest first) plus an `index.html` that redirects to the latest. A small registry in `Library/UnityDocSnap/` records a snapshot of every version.
+- **Export window** (`Unity DocSnap → Export…`) — one small, fully localized (English / 日本語 / فارسی) window that drives a whole export: the site's default **language** and **theme**, the **version** (auto-numbered, custom-named, or *onto a previous version*), whether to **include file copies**, whether to also make a **whole-project backup**, and whether to **record a Changes page** (and against which earlier version). No more hunting through an English-only menu.
+- **Export Info** — each export writes `export-info.json` + `export-info.txt` into its version folder and shows an **Export Info** card on the dashboard: the exact export moment **with the local time zone**, plus the scene / asset / package / **updatable-package** counts.
+- **Whole-project `.unitypackage` backup** (optional per export). `project-backup.unitypackage` captures all of `Assets/` with dependencies and full recursion, so the entire project can be restored from the export even if it was deleted.
+- **Changes page** (optional, `changes.html`) — a diff against any earlier version: files **added / removed / modified** (with the file names themselves), **package** changes, **scene** changes (with GameObject-count deltas), and the **time between exports**. Computed entirely in C# from the two stored snapshots, so the page is plain static HTML that works under `file://`.
+
 ## [0.5.0] - 2026-07-23
 
 ### Added
