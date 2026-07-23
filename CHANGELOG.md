@@ -2,6 +2,14 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.4.2] - 2026-07-23
+
+### Fixed
+- **The simple summaries now describe your game's own scripts, not Unity's UI boilerplate.** Unity's built-in components (`Image`, `Button`, `TextMeshProUGUI`, `CanvasScaler`, `GraphicRaycaster`, `Light2D`, `UniversalAdditionalCameraData`, …) are all MonoBehaviours, so the previous summary counted them as "custom scripts" and dumped every one of their serialized fields — a `TextMeshProUGUI` alone added ~60 fields of noise, and a scene's `customScripts` count was wildly inflated (e.g. 61 for a 39-object menu). A component is now treated as a custom script only when its backing script lives in this project's `Assets/` folder; everything else still appears as a plain type name in the hierarchy line but is no longer expanded. This roughly halves each scene summary and makes every detailed block real game logic (managers, controllers, wiring), which is what an AI assistant actually needs.
+
+### Changed
+- Dropped the redundant `Script → X (PPtr<MonoScript>)` line every component repeated (it just restated the component's own type), and rounded transform position/rotation/scale to 4 decimals instead of full float precision.
+
 ## [0.4.1] - 2026-07-23
 
 ### Added

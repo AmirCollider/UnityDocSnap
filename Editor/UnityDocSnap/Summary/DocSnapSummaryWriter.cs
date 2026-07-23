@@ -61,7 +61,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                 {
                     componentCount++;
                     if (comp.Get("isMissing").AsBool()) { missingCount++; missing.Add(go.Get("name").AsString("GameObject")); }
-                    else if (comp.Get("isUserScript").AsBool()) { scriptCount++; }
+                    else if (IsOwnScript(comp)) { scriptCount++; }
                 }
             });
 
@@ -152,7 +152,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
             {
                 if (comp.Get("isMissing").AsBool()) { parts.Add("⚠ Missing Script"); continue; }
                 string typeName = Clean(comp.Get("typeName").AsString("Component"));
-                parts.Add(comp.Get("isUserScript").AsBool() ? typeName + "*" : typeName);
+                parts.Add(IsOwnScript(comp) ? typeName + "*" : typeName);
             }
             return string.Join(", ", parts.ToArray());
         }
@@ -181,7 +181,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
 
             foreach (JsonValue comp in go.Get("components").Items)
             {
-                if (comp.Get("isMissing").AsBool() || !comp.Get("isUserScript").AsBool()) { continue; }
+                if (!IsOwnScript(comp)) { continue; }
 
                 sb.Append("- **").Append(Clean(comp.Get("typeName").AsString("Script"))).Append("**");
                 if (comp.Get("isBehaviour").AsBool()) { sb.Append(comp.Get("enabled").AsBool(true) ? " · ON" : " · OFF"); }
@@ -191,6 +191,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                 int shown = 0;
                 foreach (JsonValue field in fields.Items)
                 {
+                    if (IsScriptRefField(field)) { continue; }
                     if (shown >= MaxFieldsPerScript)
                     {
                         sb.Append("  - _…+").Append(fields.Items.Count - shown).Append(" more fields (see full export)_\n");
@@ -200,7 +201,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                     sb.Append("  - ").Append(Clean(name)).Append(": ").Append(FormatValue(field)).Append("\n");
                     shown++;
                 }
-                if (fields.Items.Count == 0) { sb.Append("  - _(no serialized fields)_\n"); }
+                if (!HasShowableFields(fields)) { sb.Append("  - _(no serialized fields)_\n"); }
             }
             sb.Append("\n");
             return sb.ToString();
@@ -353,7 +354,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                 {
                     componentCount++;
                     if (comp.Get("isMissing").AsBool()) { missingCount++; missing.Add(go.Get("name").AsString("GameObject")); }
-                    else if (comp.Get("isUserScript").AsBool()) { scriptCount++; }
+                    else if (IsOwnScript(comp)) { scriptCount++; }
                 }
             });
 
@@ -445,7 +446,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                 var compsArr = JsonValue.Arr();
                 foreach (JsonValue comp in go.Get("components").Items)
                 {
-                    if (comp.Get("isMissing").AsBool() || !comp.Get("isUserScript").AsBool()) { continue; }
+                    if (!IsOwnScript(comp)) { continue; }
 
                     var c = JsonValue.Obj();
                     c.Set("type", Clean(comp.Get("typeName").AsString("Script")));
@@ -456,6 +457,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                     int shown = 0;
                     foreach (JsonValue field in fieldItems.Items)
                     {
+                        if (IsScriptRefField(field)) { continue; }
                         if (shown >= MaxFieldsPerScript)
                         {
                             fields.Set("…", "+" + (fieldItems.Items.Count - shown) + " more fields (see full export)");
@@ -583,9 +585,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
         private static JsonValue NumArr(JsonValue v)
         {
             return JsonValue.Arr()
-                .Add(JsonValue.Num(v.Get("x").AsNumber()))
-                .Add(JsonValue.Num(v.Get("y").AsNumber()))
-                .Add(JsonValue.Num(v.Get("z").AsNumber()));
+                .Add(JsonValue.Num(Round(v.Get("x").AsNumber())))
+                .Add(JsonValue.Num(Round(v.Get("y").AsNumber())))
+                .Add(JsonValue.Num(Round(v.Get("z").AsNumber())));
+        }
+
+        // Transforms only need a few decimals in a summary;
+        // full float precision is just noise here.
+        private static double Round(double d)
+        {
+            if (double.IsNaN(d) || double.IsInfinity(d)) { return 0; }
+            return Math.Round(d, 4);
         }
 
         // ==========================================
@@ -786,7 +796,54 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
         {
             foreach (JsonValue comp in go.Get("components").Items)
             {
-                if (!comp.Get("isMissing").AsBool() && comp.Get("isUserScript").AsBool()) { return true; }
+                if (IsOwnScript(comp)) { return true; }
+            }
+            return false;
+        }
+
+        // ==========================================
+        // IsOwnScript
+        // True only for a MonoBehaviour whose backing
+        // script lives in THIS project's Assets/ folder -
+        // i.e. the developer's own game logic. Unity's own
+        // components (Image, Button, TextMeshProUGUI,
+        // CanvasScaler, Light2D, …) are MonoBehaviours too,
+        // but their script asset resolves to a package or
+        // precompiled assembly, not Assets/, so they are
+        // excluded. This is what keeps the summary about
+        // the game's scripts instead of UI boilerplate.
+        // ==========================================
+        private static bool IsOwnScript(JsonValue comp)
+        {
+            if (comp.Get("isMissing").AsBool()) { return false; }
+            if (!comp.Get("isUserScript").AsBool()) { return false; }
+            string path = comp.Get("scriptPath").AsString("");
+            return path.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // ==========================================
+        // IsScriptRefField
+        // The m_Script reference every MonoBehaviour
+        // serializes ("Script -> X (PPtr<MonoScript>)").
+        // It just repeats the component's own type, so the
+        // summary drops it.
+        // ==========================================
+        private static bool IsScriptRefField(JsonValue field)
+        {
+            if (field.Get("kind").AsString("") != "objectRef") { return false; }
+            return field.Get("refType").AsString("").IndexOf("MonoScript", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        // ==========================================
+        // HasShowableFields
+        // Whether a component has any field left to show
+        // once the m_Script reference is dropped.
+        // ==========================================
+        private static bool HasShowableFields(JsonValue fields)
+        {
+            foreach (JsonValue field in fields.Items)
+            {
+                if (!IsScriptRefField(field)) { return true; }
             }
             return false;
         }
