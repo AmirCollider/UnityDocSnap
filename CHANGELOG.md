@@ -2,6 +2,11 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.6.4] - 2026-07-23
+
+### Fixed
+- **A fresh export now always opens with the language/theme chosen in the export window.** The 0.6.1 fix reset a reader's stored language/theme only when the new export's *defaults differed* from the recorded ones — so re-exporting with the same defaults (e.g. Japanese + light again) kept opening with whatever language/theme had once been clicked inside the site itself (saved in the browser's `localStorage`, e.g. English + dark), which looked exactly like the chosen defaults being ignored. Every export run now bakes a unique stamp into its pages (`<html data-export>` / `window.__DOCSNAP_EXPORT__`); the first time a browser opens a page from a run it has not seen before, the stored choices are reset to that run's defaults. Choices made while viewing the *same* export are still remembered across pages and reloads, and a record left by an older DocSnap version is migrated automatically (its stamp-less format never matches, so the new export's defaults win).
+
 ## [0.6.3] - 2026-07-23
 
 ### Fixed

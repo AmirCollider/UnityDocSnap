@@ -1275,22 +1275,23 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
   // ==========================================
   // syncExportDefaults()
   // A reader's saved language/theme choice should
-  // survive reloads of the SAME export - but when a
-  // NEW export is made with different defaults
-  // (e.g. the exporter now chose Japanese + light),
-  // the new defaults must actually show up. Without
-  // this, a choice stored while viewing an older
-  // export (or the older export's own defaults,
-  // stored on first visit) silently overrode every
-  // newer export's defaults forever. The exporter's
-  // defaults are recorded; whenever they differ from
-  // the record, the stored choices are reset to the
-  // new defaults.
+  // survive reloads of the SAME export - but any NEW
+  // export must actually open with the defaults the
+  // exporter just chose. Every export run bakes a
+  // unique stamp into its pages; the stamp (plus the
+  // defaults) is recorded here on first visit. When a
+  // page carries a stamp that differs from the record
+  // - a fresh export, even one whose defaults are
+  // unchanged - the stored choices are reset to that
+  // export's defaults. Matching on the defaults alone
+  // was not enough: re-exporting with the same
+  // defaults kept showing whatever language/theme the
+  // exporter had once clicked in the site itself.
   // ==========================================
   function syncExportDefaults() {
     var lang = window.__DOCSNAP_LANG__ || 'en';
     var theme = window.__DOCSNAP_THEME__ || 'light';
-    var current = lang + '|' + theme;
+    var current = (window.__DOCSNAP_EXPORT__ || '') + '|' + lang + '|' + theme;
     if (safeStorage.get(DEFAULTS_STORAGE_KEY) !== current) {
       safeStorage.set(LANG_STORAGE_KEY, lang);
       safeStorage.set(THEME_STORAGE_KEY, theme);

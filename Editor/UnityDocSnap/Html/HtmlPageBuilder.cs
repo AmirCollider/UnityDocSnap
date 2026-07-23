@@ -83,26 +83,32 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             string defLang = DocSnapRenderContext.DefaultLanguage;
             string defTheme = DocSnapRenderContext.DefaultTheme == "dark" ? "dark" : "light";
             string dir = defLang == "fa" ? "rtl" : "ltr";
+            string stamp = DocSnapRenderContext.ExportStamp;
 
             var sb = new StringBuilder(4096);
             sb.Append("<!doctype html>\n<html lang=\"").Append(defLang).Append("\" dir=\"").Append(dir)
-              .Append("\" data-theme=\"").Append(defTheme).Append("\">\n<head>\n<meta charset=\"utf-8\">\n");
+              .Append("\" data-theme=\"").Append(defTheme).Append("\" data-export=\"").Append(Escape(stamp))
+              .Append("\">\n<head>\n<meta charset=\"utf-8\">\n");
             sb.Append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
             sb.Append("<title>").Append(Escape(titleEn)).Append(" - Unity DocSnap</title>\n");
             // Pre-paint boot script. It applies the reader's stored
             // language / theme (when their choice belongs to THIS
-            // export's defaults - same marker app.js maintains) to
+            // export run - same stamped marker app.js maintains) to
             // <html> BEFORE the body is parsed, so direction, fonts
             // and theme are right from the very first paint. Without
             // it, a reader viewing an RTL-default export in English
             // watched the whole page flip rtl→ltr a moment after
-            // load. When the stored language differs from the baked
-            // one (a text swap is coming at DOMContentLoaded), the
-            // body is briefly hidden via html.ds-lang-pending so the
-            // swap is invisible; a 1.5s timeout guarantees the page
-            // can never stay hidden even if app.js fails to load.
-            sb.Append("<script>(function(){var d=document.documentElement;var bakedLang=d.getAttribute('lang')||'en';var lang=bakedLang;var theme=d.getAttribute('data-theme')||'light';")
-              .Append("try{if(localStorage.getItem('unityDocSnapDefaults')===bakedLang+'|'+theme){var L=localStorage.getItem('unityDocSnapLang');var T=localStorage.getItem('unityDocSnapTheme');if(L){lang=L;}if(T){theme=T;}}}catch(e){}")
+            // load. A choice stored while viewing any OTHER export
+            // run (the stamp differs) is ignored here, so a fresh
+            // export always paints its own defaults first; app.js
+            // then resets the stored choice to match. When the
+            // stored language differs from the baked one (a text
+            // swap is coming at DOMContentLoaded), the body is
+            // briefly hidden via html.ds-lang-pending so the swap is
+            // invisible; a 1.5s timeout guarantees the page can
+            // never stay hidden even if app.js fails to load.
+            sb.Append("<script>(function(){var d=document.documentElement;var bakedLang=d.getAttribute('lang')||'en';var lang=bakedLang;var theme=d.getAttribute('data-theme')||'light';var stamp=d.getAttribute('data-export')||'';")
+              .Append("try{if(localStorage.getItem('unityDocSnapDefaults')===stamp+'|'+bakedLang+'|'+theme){var L=localStorage.getItem('unityDocSnapLang');var T=localStorage.getItem('unityDocSnapTheme');if(L){lang=L;}if(T){theme=T;}}}catch(e){}")
               .Append("if(lang!==bakedLang){d.classList.add('ds-lang-pending');setTimeout(function(){d.classList.remove('ds-lang-pending');},1500);}")
               .Append("d.setAttribute('lang',lang);d.setAttribute('dir',lang==='fa'?'rtl':'ltr');d.setAttribute('data-theme',theme);})();</script>\n");
             sb.Append("<link rel=\"stylesheet\" href=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.StyleFileName).Append("\">\n</head>\n");
@@ -121,11 +127,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // The page's own depth prefix ("" at root, "../" one level down)
             // so the search script can rewrite its root-relative record links
             // to work from wherever this page lives, plus the exporter's chosen
-            // default language + theme (used by app.js only when the reader has
-            // no saved preference of their own). Loaded before app.js.
+            // default language + theme and this run's stamp (app.js resets any
+            // stored reader choice the first time it sees a new run's stamp,
+            // so a fresh export always opens with its own defaults). Loaded
+            // before app.js.
             sb.Append("<script>window.__DOCSNAP_PREFIX__=\"").Append(prefix).Append("\";")
               .Append("window.__DOCSNAP_LANG__=\"").Append(defLang).Append("\";")
-              .Append("window.__DOCSNAP_THEME__=\"").Append(defTheme).Append("\";</script>\n");
+              .Append("window.__DOCSNAP_THEME__=\"").Append(defTheme).Append("\";")
+              .Append("window.__DOCSNAP_EXPORT__=\"").Append(Escape(stamp)).Append("\";</script>\n");
             // defer: the (potentially large) search index never blocks
             // HTML parsing; execution order is still guaranteed, so the
             // index global is always assigned before app.js runs.

@@ -85,6 +85,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         public static string ChangesBaseVersion = "";
         public static string VersionLabel = "";
 
+        // A value unique to this export run, baked into every
+        // page. The site's scripts remember it: the first time a
+        // browser opens a page from a run it has not seen before,
+        // any language/theme the reader picked while viewing an
+        // OLDER export is discarded in favour of this run's
+        // defaults. Without it, re-exporting with the same
+        // defaults as last time never showed those defaults to
+        // an exporter who had ever clicked the site's own
+        // language/theme buttons.
+        public static string ExportStamp = "";
+
         public static void Reset()
         {
             DefaultLanguage = "en";
@@ -92,6 +103,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             HasChangesPage = false;
             ChangesBaseVersion = "";
             VersionLabel = "";
+            ExportStamp = "";
         }
 
         public static void Apply(DocSnapExportOptions options, string versionLabel)
@@ -101,6 +113,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             HasChangesPage = options.recordChanges;
             ChangesBaseVersion = options.recordChanges ? options.changesBaseVersion : "";
             VersionLabel = versionLabel ?? "";
+            ExportStamp = System.DateTime.UtcNow.Ticks.ToString("x");
         }
 
         public static string NormalizeLang(string lang)
