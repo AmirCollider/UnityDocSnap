@@ -228,6 +228,22 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         private void RunExport()
         {
+            // Building a whole-project .unitypackage is by far the
+            // heaviest thing an export can do, so it gets its own
+            // explicit confirmation. Cancelling keeps the window
+            // open with every choice intact.
+            if (_makeBackup)
+            {
+                bool proceed = EditorUtility.DisplayDialog(
+                    DocSnapConstants.ToolName + "  ⚠",
+                    L("Exporting a whole-project .unitypackage backup is a very heavy operation.\n\nIt is recommended to save your project first (File > Save Project / Ctrl+S).\n\nThe documentation site is exported completely first, and the backup is built and added at the very end - so even if the backup step fails or crashes, the exported site stays intact.",
+                      "プロジェクト全体の .unitypackage バックアップの作成は非常に重い処理です。\n\n先にプロジェクトを保存することをおすすめします(File > Save Project / Ctrl+S)。\n\nサイトのエクスポートが先に完了し、バックアップは最後に追加されます。途中で失敗してもサイトは無事です。",
+                      "خروجی گرفتن بک‌آپ ‎.unitypackage از کل پروژه کار به‌شدت سنگینی است.\n\nپیشنهاد می‌شود اول پروژه‌ی یونیتی را سیو کنید (File > Save Project / Ctrl+S).\n\nاول کل سایت خروجی گرفته می‌شود و بک‌آپ در انتها اضافه می‌شود؛ پس اگر باگ یا کرشی هم رخ بدهد، خروجی سایت سالم می‌ماند."),
+                    L("Continue", "続行", "ادامه"),
+                    L("Cancel", "キャンセル", "انصراف"));
+                if (!proceed) { return; }
+            }
+
             DocSnapSettings.DefaultSiteLanguage = LangCodes[_siteLang];
             DocSnapSettings.DefaultSiteTheme = _siteTheme == 1 ? "dark" : "light";
 

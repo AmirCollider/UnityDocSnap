@@ -12,7 +12,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // Identity
         // ==========================================
         public const string ToolName = "Unity DocSnap";
-        public const string Version = "0.6.0";
+        public const string Version = "0.6.1";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
 

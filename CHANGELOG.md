@@ -2,6 +2,22 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.6.1] - 2026-07-23
+
+### Fixed
+- **The exporter's chosen default language/theme now actually shows up.** A language/theme stored in `localStorage` while viewing an *older* export (or simply the older export's own defaults, saved on first visit) silently overrode every newer export's defaults forever — exporting with Japanese + light still opened in English + dark. `app.js` now records which defaults each export was made with; whenever they change, the stored reader choices are reset to the new defaults. A choice made while viewing the *same* export is still remembered.
+- **Duplicate dashboard stats.** The dashboard showed two overlapping stat rows ("Scenes / Assets / Packages / Updatable packages" on the Export Info card, then "Scenes exported / GameObjects / Asset folders / Files tracked / Packages" right below, with the same numbers under different labels). There is now exactly one stat grid; the Export Info card carries only the per-export facts (version, timing, file copies, backup, changes base).
+- **Links into collapsed content now work.** Cross-reference chips and search results pointing at an asset / GameObject / folder anchor inside a closed `<details>` could not scroll anywhere (a closed `<details>` is never laid out). The site now opens every `<details>` on the path to the link target, then scrolls to it.
+- A corrupt stored language value could throw inside `querySelector` and break every event wire-up on the page; stored values are now validated against the real buttons instead of being interpolated into a selector.
+- Removed a duplicate `using System;` in `FieldRenderer`.
+
+### Changed
+- **The Assets page is now light even in Advanced mode.** Every asset card is a collapsed `<details>`: closed, it is one compact header row (name + type + file size); opening it reveals the full info, and the open card takes the full row width so its tables have room to breathe (this also fixes cards whose content overflowed and overlapped). Combined with `content-visibility: auto`, a folder with hundreds of files lays out a light list instead of hundreds of full cards.
+- **Expand all no longer freezes the page.** It now expands only the tree nodes themselves (folders / GameObjects), never the per-item heavy detail (asset cards, Import Settings, Fields, Prefab Contents). Collapse all still closes everything.
+- **The whole-project `.unitypackage` backup runs last and warns first.** The export window now shows a trilingual warning (very heavy operation — save your project first) before an export with backup enabled, and the backup is built only *after* the complete site is already on disk, so a failure or crash during the backup can never damage the documentation export. `export-info.*`, the dashboard and `versions.html` are refreshed afterwards to reflect the backup.
+- **Richer Changes page.** File entries now show sizes (added: size, removed: former size, modified: `old → new (±delta)`), with the directory dimmed and the file name emphasized; headline tiles add total **size change**, **GameObject delta**, **package changes** and **scene changes**; the timing card shows total files and total size before → after. Very long lists scroll inside their section and start collapsed above 50 entries.
+- Site scripts (`search-index.js`, `app.js`) load with `defer`, so a large search index never blocks page parsing.
+
 ## [0.6.0] - 2026-07-23
 
 ### Added

@@ -681,12 +681,6 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         {
             VersionSnapshot snap = DocSnapExportInfo.BuildSnapshot(version, manifest, options);
 
-            if (options.makeBackup)
-            {
-                string err;
-                snap.hasBackup = DocSnapProjectBackup.ExportProjectPackage(siteRoot, out err);
-            }
-
             if (options.recordChanges && changesBase != null)
             {
                 WriteText(siteRoot, DocSnapConstants.ChangesFileName, ChangesPageRenderer.Render(manifest, snap, changesBase));
@@ -699,6 +693,30 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             DocSnapExportInfo.WriteFiles(siteRoot, snap, manifest);
             RefreshIndexAndManifest(siteRoot, manifest, snap);
             WriteRootLandingPages(baseRoot, registry);
+
+            // The whole-project .unitypackage backup runs LAST, only
+            // after the complete site (pages, data, export info,
+            // registry, landing pages) is already safely on disk. It
+            // is by far the heaviest step and the most likely to fail
+            // or crash the Editor on a huge project - running it at
+            // the end means a failure can never damage or lose the
+            // documentation export it accompanies.
+            if (options.makeBackup)
+            {
+                string err;
+                snap.hasBackup = DocSnapProjectBackup.ExportProjectPackage(siteRoot, out err);
+                if (snap.hasBackup)
+                {
+                    // Re-record the snapshot and rewrite the small info
+                    // outputs so export-info.{json,txt}, the dashboard
+                    // card and versions.html all reflect the backup.
+                    DocSnapVersioning.UpsertSnapshot(registry, snap);
+                    DocSnapVersioning.SaveRegistry(registry);
+                    DocSnapExportInfo.WriteFiles(siteRoot, snap, manifest);
+                    RefreshIndexAndManifest(siteRoot, manifest, snap);
+                    WriteRootLandingPages(baseRoot, registry);
+                }
+            }
             return snap;
         }
 

@@ -219,7 +219,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // RenderCard
         // The "Export Info" card shown at the top of the
         // dashboard: the exact export moment with its time
-        // zone, and the four headline counts.
+        // zone plus per-export facts (backup, changes base,
+        // included file bytes). The headline COUNTS are
+        // deliberately not repeated here - the dashboard
+        // renders one single stat grid right below this
+        // card, so the same numbers no longer appear twice
+        // with slightly different labels.
         // ==========================================
         public static string RenderCard(VersionSnapshot snap)
         {
@@ -233,13 +238,19 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             sb.Append(InfoLine("🕒", "Exported", "エクスポート日時", "زمان خروجی",
                 HtmlPageBuilder.Escape(snap.exportedLocal) + " <span class=\"ds-info-tz\">" + HtmlPageBuilder.Escape(snap.timeZone) + "</span>"));
             sb.Append(InfoLine("🌐", "UTC", "UTC", "UTC", HtmlPageBuilder.Escape(snap.exportedUtc)));
-            sb.Append("</div>");
-
-            sb.Append("<div class=\"ds-stat-grid\" style=\"margin-top:14px;margin-bottom:0;\">");
-            sb.Append(StatTile(snap.sceneCount, "Scenes", "シーン", "سین‌ها"));
-            sb.Append(StatTile(snap.assetCount, "Assets", "アセット", "فایل‌ها (Assets)"));
-            sb.Append(StatTile(snap.packageCount, "Packages", "パッケージ", "پکیج‌ها"));
-            sb.Append(StatTile(snap.packagesUpdatable, "Updatable packages", "更新可能パッケージ", "پکیج‌های قابل‌آپدیت"));
+            if (snap.withFiles)
+            {
+                sb.Append(InfoLine("🗃", "File copies", "ファイルコピー", "کپی فایل‌ها",
+                    HtmlPageBuilder.I18n("span", null, "included (source-files/)", "含む(source-files/)", "شامل (source-files/)")));
+            }
+            if (snap.hasBackup)
+            {
+                sb.Append(InfoLine("🛟", "Backup", "バックアップ", "بک‌آپ", HtmlPageBuilder.Escape(DocSnapConstants.BackupFileName)));
+            }
+            if (!string.IsNullOrEmpty(snap.changesBaseVersion))
+            {
+                sb.Append(InfoLine("🔀", "Changes vs", "変更点の比較元", "تغییرات نسبت به", HtmlPageBuilder.Escape(snap.changesBaseVersion)));
+            }
             sb.Append("</div>");
             sb.Append("</div>\n");
             return sb.ToString();
@@ -250,12 +261,6 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             return "<div class=\"ds-info-line\"><span class=\"ds-info-key\">" + emoji + " "
                 + HtmlPageBuilder.I18n("span", null, en, ja, fa)
                 + "</span><span class=\"ds-info-val\">" + valueHtml + "</span></div>";
-        }
-
-        private static string StatTile(int num, string en, string ja, string fa)
-        {
-            return "<div class=\"ds-stat-tile\"><div class=\"ds-stat-num\">" + num + "</div><div class=\"ds-stat-label\">"
-                + HtmlPageBuilder.I18n("span", null, en, ja, fa) + "</div></div>";
         }
     }
 }
