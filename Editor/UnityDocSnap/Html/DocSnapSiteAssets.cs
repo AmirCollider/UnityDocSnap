@@ -11,7 +11,7 @@ namespace AmirCollider.UnityDocSnap.Editor
     internal static class DocSnapSiteAssets
     {
         // ==========================================
-        // StyleCss - assets_ui/style.css contents
+        // StyleCss - theme/style.css contents
         // ==========================================
         public const string StyleCss = @"/* ==========================================
    Unity DocSnap — Site Stylesheet
@@ -139,6 +139,34 @@ code, .mono { font-family: var(--font-mono); }
 }
 .ds-lang-btn:hover { transform: translateY(-1px); background: var(--pink-pale); }
 .ds-lang-btn.is-active { background: var(--pink); color: #fff; border-color: var(--pink); }
+
+/* ==========================================
+   Detail-level switch (Simple / Advanced)
+   Simple hides every element tagged .ds-adv
+   (engine-component fields, GUIDs, import
+   settings), leaving a light, skimmable page;
+   Advanced shows the complete export. The
+   chosen mode is remembered in localStorage by
+   app.js, exactly like the UI language.
+   ========================================== */
+.ds-modebar { display: flex; gap: 6px; margin-bottom: 20px; }
+.ds-mode-btn {
+  flex: 1;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 12px;
+  padding: 7px 4px;
+  border: 1.5px solid var(--lavender);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease, color .15s ease;
+}
+.ds-mode-btn:hover { transform: translateY(-1px); background: #f1eaFB; }
+.ds-mode-btn.is-active { background: var(--lavender-strong); color: #fff; border-color: var(--lavender-strong); }
+
+body.ds-mode-simple .ds-adv { display: none !important; }
 
 .ds-nav-section { margin-bottom: 16px; }
 .ds-nav-title {
@@ -790,7 +818,7 @@ code, kbd, samp, pre {
 ";
 
         // ==========================================
-        // AppJs - assets_ui/app.js contents
+        // AppJs - theme/app.js contents
         // ==========================================
         public const string AppJs = @"// ==========================================
 // Unity DocSnap — Site Behaviour
@@ -806,6 +834,7 @@ code, kbd, samp, pre {
 
   var RTL_LANGS = { fa: true };
   var LANG_STORAGE_KEY = 'unityDocSnapLang';
+  var MODE_STORAGE_KEY = 'unityDocSnapMode';
 
   // ==========================================
   // readStoredLanguage() / writeStoredLanguage()
@@ -880,6 +909,48 @@ code, kbd, samp, pre {
   }
 
   // ==========================================
+  // applyMode(mode) / restoreMode() / wireModeButtons()
+  // The Simple / Advanced detail-level switch. Simple
+  // adds body.ds-mode-simple, which the stylesheet uses
+  // to hide every .ds-adv element (engine-component
+  // fields, GUIDs, import settings); Advanced shows the
+  // complete export. The choice is stored the same way
+  // the UI language is, so it carries across pages.
+  // ==========================================
+  function applyMode(mode) {
+    var simple = mode !== 'advanced';
+    var body = document.body;
+    body.classList.toggle('ds-mode-simple', simple);
+    body.classList.toggle('ds-mode-advanced', !simple);
+
+    var buttons = document.querySelectorAll('.ds-mode-btn');
+    for (var i = 0; i < buttons.length; i++) {
+      var isActive = (buttons[i].getAttribute('data-mode') === 'advanced') === !simple;
+      buttons[i].classList.toggle('is-active', isActive);
+      buttons[i].setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    }
+
+    try { window.localStorage.setItem(MODE_STORAGE_KEY, simple ? 'simple' : 'advanced'); }
+    catch (e) { /* localStorage unavailable - non-fatal */ }
+  }
+
+  function restoreMode() {
+    var stored = null;
+    try { stored = window.localStorage.getItem(MODE_STORAGE_KEY); }
+    catch (e) { stored = null; }
+    if (stored) { applyMode(stored); }
+  }
+
+  function wireModeButtons() {
+    var buttons = document.querySelectorAll('.ds-mode-btn');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].addEventListener('click', function (evt) {
+        applyMode(evt.currentTarget.getAttribute('data-mode'));
+      });
+    }
+  }
+
+  // ==========================================
   // wireTreeControls()
   // Optional ""expand all / collapse all"" for
   // any .ds-tree block, operating on the native
@@ -919,6 +990,8 @@ code, kbd, samp, pre {
   document.addEventListener('DOMContentLoaded', function () {
     restoreLanguage();
     wireLanguageButtons();
+    restoreMode();
+    wireModeButtons();
     wireTreeControls();
     wireBackToTop();
   });

@@ -8,12 +8,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using AmirCollider.UnityDocSnap.Editor.Assets;
 using AmirCollider.UnityDocSnap.Editor.Html;
 using AmirCollider.UnityDocSnap.Editor.Json;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
 using AmirCollider.UnityDocSnap.Editor.SceneExport;
+using AmirCollider.UnityDocSnap.Editor.Summary;
 using UnityEditor;
 using UnityEngine;
 
@@ -45,9 +45,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
             string sceneName = Path.GetFileNameWithoutExtension(scenePath);
             string htmlFile = DocSnapConstants.ScenesSubFolder + "/" + sceneName + ".html";
-            string jsonFile = DocSnapConstants.DataSubFolder + "/scene_" + sceneName + ".json";
+            string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneName + ".json";
 
             WriteText(outputRoot, jsonFile, sceneData.ToString());
+            WriteText(outputRoot, DocSnapSummaryWriter.SummaryRelative(htmlFile), DocSnapSummaryWriter.RenderScene(sceneData));
 
             DocSnapManifest.UpsertScene(manifest, new ManifestSceneEntry
             {
@@ -63,11 +64,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             WriteText(outputRoot, htmlFile, ScenePageRenderer.Render(sceneData, manifest, htmlFile));
             RefreshIndexAndManifest(outputRoot, manifest);
 
-            ShowSuccessPage(outputRoot,
+            ShowExportComplete(outputRoot,
                 "Exported scene \"" + sceneName + "\" (" + goCount + " GameObjects).",
                 "シーン「" + sceneName + "」をエクスポートしました(GameObject " + goCount + "個)。",
                 "سین «" + sceneName + "» اکسپورت شد (" + goCount + " گیم‌آبجکت).");
-            RevealOutput(outputRoot);
         }
 
         // ==========================================
@@ -94,9 +94,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             }
 
             string htmlFile = DocSnapConstants.AssetsSubFolder + "/" + folderKey + ".html";
-            string jsonFile = DocSnapConstants.DataSubFolder + "/assets_" + folderKey + ".json";
+            string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.FolderJsonPrefix + folderKey + ".json";
 
             WriteText(outputRoot, jsonFile, folderData.ToString());
+            WriteText(outputRoot, DocSnapSummaryWriter.SummaryRelative(htmlFile), DocSnapSummaryWriter.RenderFolder(folderData));
 
             DocSnapManifest.ReplaceAssetIndexForFolder(manifest, folderKey, indexEntries);
             DocSnapManifest.UpsertFolder(manifest, new ManifestFolderEntry
@@ -113,11 +114,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             WriteText(outputRoot, htmlFile, AssetPageRenderer.Render(folderData, manifest, htmlFile));
             RefreshIndexAndManifest(outputRoot, manifest);
 
-            ShowSuccessPage(outputRoot,
+            ShowExportComplete(outputRoot,
                 "Exported folder \"" + folderPath + "\" (" + fileCount + " files).",
                 "フォルダ「" + folderPath + "」をエクスポートしました(" + fileCount + "ファイル)。",
                 "پوشه‌ی «" + folderPath + "» اکسپورت شد (" + fileCount + " فایل).");
-            RevealOutput(outputRoot);
         }
 
         // ==========================================
@@ -149,8 +149,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
                 string sceneName = Path.GetFileNameWithoutExtension(scenePath);
                 string htmlFile = DocSnapConstants.ScenesSubFolder + "/" + sceneName + ".html";
-                string jsonFile = DocSnapConstants.DataSubFolder + "/scene_" + sceneName + ".json";
+                string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneName + ".json";
                 WriteText(outputRoot, jsonFile, sceneData.ToString());
+                WriteText(outputRoot, DocSnapSummaryWriter.SummaryRelative(htmlFile), DocSnapSummaryWriter.RenderScene(sceneData));
 
                 DocSnapManifest.UpsertScene(manifest, new ManifestSceneEntry
                 {
@@ -177,8 +178,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 EditorUtility.ClearProgressBar();
             }
             string assetHtmlFile = DocSnapConstants.AssetsSubFolder + "/" + rootFolderKey + ".html";
-            string assetJsonFile = DocSnapConstants.DataSubFolder + "/assets_" + rootFolderKey + ".json";
+            string assetJsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.FolderJsonPrefix + rootFolderKey + ".json";
             WriteText(outputRoot, assetJsonFile, folderData.ToString());
+            WriteText(outputRoot, DocSnapSummaryWriter.SummaryRelative(assetHtmlFile), DocSnapSummaryWriter.RenderFolder(folderData));
 
             DocSnapManifest.ReplaceAssetIndexForFolder(manifest, rootFolderKey, indexEntries);
             DocSnapManifest.UpsertFolder(manifest, new ManifestFolderEntry
@@ -201,11 +203,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             WriteText(outputRoot, assetHtmlFile, AssetPageRenderer.Render(folderData, manifest, assetHtmlFile));
             RefreshIndexAndManifest(outputRoot, manifest);
 
-            ShowSuccessPage(outputRoot,
+            ShowExportComplete(outputRoot,
                 "Exported full project: " + scenePages.Count + " scene(s), " + fileCount + " file(s).",
                 "プロジェクト全体をエクスポートしました:シーン" + scenePages.Count + "件、ファイル" + fileCount + "件。",
                 "کل پروژه اکسپورت شد: " + scenePages.Count + " سین، " + fileCount + " فایل.");
-            RevealOutput(outputRoot);
         }
 
         // ==========================================
@@ -244,8 +245,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
                 string sceneName = Path.GetFileNameWithoutExtension(scenePath);
                 string htmlFile = DocSnapConstants.ScenesSubFolder + "/" + sceneName + ".html";
-                string jsonFile = DocSnapConstants.DataSubFolder + "/scene_" + sceneName + ".json";
+                string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneName + ".json";
                 WriteText(outputRoot, jsonFile, sceneData.ToString());
+                WriteText(outputRoot, DocSnapSummaryWriter.SummaryRelative(htmlFile), DocSnapSummaryWriter.RenderScene(sceneData));
 
                 DocSnapManifest.UpsertScene(manifest, new ManifestSceneEntry
                 {
@@ -274,8 +276,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 EditorUtility.ClearProgressBar();
             }
             string assetHtmlFile = DocSnapConstants.AssetsSubFolder + "/" + rootFolderKey + ".html";
-            string assetJsonFile = DocSnapConstants.DataSubFolder + "/assets_" + rootFolderKey + ".json";
+            string assetJsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.FolderJsonPrefix + rootFolderKey + ".json";
             WriteText(outputRoot, assetJsonFile, folderData.ToString());
+            WriteText(outputRoot, DocSnapSummaryWriter.SummaryRelative(assetHtmlFile), DocSnapSummaryWriter.RenderFolder(folderData));
 
             DocSnapManifest.ReplaceAssetIndexForFolder(manifest, rootFolderKey, indexEntries);
             DocSnapManifest.UpsertFolder(manifest, new ManifestFolderEntry
@@ -296,11 +299,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             WriteText(outputRoot, assetHtmlFile, AssetPageRenderer.Render(folderData, manifest, assetHtmlFile));
             RefreshIndexAndManifest(outputRoot, manifest);
 
-            ShowSuccessPage(outputRoot,
+            ShowExportComplete(outputRoot,
                 "Exported full project with files: " + scenePages.Count + " scene(s), " + fileCount + " file(s) (assets copied to \"" + DocSnapConstants.FilesSubFolder + "/\").",
                 "ファイル付きでプロジェクト全体をエクスポートしました:シーン" + scenePages.Count + "件、ファイル" + fileCount + "件(アセットは\u201cfiles/\u201dにコピー済み)。",
-                "کل پروژه به‌همراه فایل‌ها اکسپورت شد: " + scenePages.Count + " سین، " + fileCount + " فایل (فایل‌ها توی «files/» کپی شدن).");
-            RevealOutput(outputRoot);
+                "کل پروژه به‌همراه فایل‌ها اکسپورت شد: " + scenePages.Count + " سین، " + fileCount + " فایل (فایل‌ها توی «" + DocSnapConstants.FilesSubFolder + "/» کپی شدن).");
         }
 
         // ==========================================
@@ -333,6 +335,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
        private static void RefreshIndexAndManifest(string outputRoot, ManifestState manifest)
         {
             WriteText(outputRoot, DocSnapConstants.IndexFileName, IndexPageRenderer.Render(manifest));
+            WriteText(outputRoot, DocSnapConstants.ProjectSummaryFileName, DocSnapSummaryWriter.RenderProjectIndex(manifest));
             DocSnapManifest.WritePublicJson(manifest, Path.Combine(outputRoot, DocSnapConstants.DataSubFolder, DocSnapConstants.ManifestFileName));
             PruneStaleOutput(outputRoot, manifest);
         }
@@ -355,20 +358,28 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
         // ==========================================
         // PruneStaleOutput
-        // Deletes scene/asset pages whose source no
-        // longer appears in the manifest. Without this
-        // a renamed or deleted Scene left its old page
-        // behind forever, and the sidebar linked to a
-        // document that no longer described anything
-        // in the project.
+        // Deletes scene/asset pages - and their .md
+        // summaries - whose source no longer appears in
+        // the manifest. Without this a renamed or deleted
+        // Scene left its old page behind forever, and the
+        // sidebar linked to a document that no longer
+        // described anything in the project.
         // ==========================================
         private static void PruneStaleOutput(string outputRoot, ManifestState manifest)
         {
             try
             {
                 var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (ManifestSceneEntry scene in manifest.scenes) { live.Add(scene.htmlFile); }
-                foreach (ManifestFolderEntry folder in manifest.assetFolders) { live.Add(folder.htmlFile); }
+                foreach (ManifestSceneEntry scene in manifest.scenes)
+                {
+                    live.Add(scene.htmlFile);
+                    live.Add(DocSnapSummaryWriter.SummaryRelative(scene.htmlFile));
+                }
+                foreach (ManifestFolderEntry folder in manifest.assetFolders)
+                {
+                    live.Add(folder.htmlFile);
+                    live.Add(DocSnapSummaryWriter.SummaryRelative(folder.htmlFile));
+                }
 
                 PruneFolder(outputRoot, DocSnapConstants.ScenesSubFolder, live);
                 PruneFolder(outputRoot, DocSnapConstants.AssetsSubFolder, live);
@@ -379,15 +390,18 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             }
         }
 
-        private static void PruneFolder(string outputRoot, string subFolder, HashSet<string> liveHtmlFiles)
+        private static void PruneFolder(string outputRoot, string subFolder, HashSet<string> liveFiles)
         {
             string absolute = Path.Combine(outputRoot, subFolder);
             if (!Directory.Exists(absolute)) { return; }
 
-            foreach (string file in Directory.GetFiles(absolute, "*.html", SearchOption.TopDirectoryOnly))
+            foreach (string pattern in new[] { "*.html", "*" + DocSnapConstants.SummaryFileExtension })
             {
-                string relative = subFolder + "/" + Path.GetFileName(file);
-                if (!liveHtmlFiles.Contains(relative)) { File.Delete(file); }
+                foreach (string file in Directory.GetFiles(absolute, pattern, SearchOption.TopDirectoryOnly))
+                {
+                    string relative = subFolder + "/" + Path.GetFileName(file);
+                    if (!liveFiles.Contains(relative)) { File.Delete(file); }
+                }
             }
         }
 
@@ -408,7 +422,18 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             File.WriteAllText(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder, DocSnapConstants.StyleFileName), DocSnapSiteAssets.StyleCss);
             File.WriteAllText(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder, DocSnapConstants.ScriptFileName), DocSnapSiteAssets.AppJs);
 
+            // Remove the standalone "success" page older versions
+            // opened in a browser after every export - the export
+            // now confirms with an in-Editor popup instead.
+            TryDelete(Path.Combine(outputRoot, "export_complete.html"));
+
             return outputRoot;
+        }
+
+        private static void TryDelete(string absolutePath)
+        {
+            try { if (File.Exists(absolutePath)) { File.Delete(absolutePath); } }
+            catch { /* best-effort cleanup only */ }
         }
 
         private static void WriteText(string outputRoot, string relativeFile, string content)
@@ -419,38 +444,31 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         }
 
         // ==========================================
-        // ShowSuccessPage
-        // Writes a small, on-brand confirmation page
-        // into the output folder and opens it in the
-        // system browser - a friendlier, trilingual
-        // (EN/JA/FA) alternative to a plain native OK
-        // dialog for a *successful* export, reusing the
-        // site's own assets_ui/style.css so it always
-        // matches the exported site's look. Failures
-        // still use EditorUtility.DisplayDialog, since a
-        // native, unmissable system dialog is the right
-        // tone for something going wrong.
+        // ShowExportComplete
+        // A single in-Editor confirmation popup for a
+        // successful export - no browser tab, no external
+        // "success" web page. The message is trilingual
+        // (EN/JA/FA) so it stays friendly, and the primary
+        // button reveals the output folder for anyone who
+        // wants to open index.html straight away. Failures
+        // still use their own EditorUtility.DisplayDialog,
+        // so a real problem still looks like one.
         // ==========================================
-        private static void ShowSuccessPage(string outputRoot, string messageEn, string messageJa, string messageFa)
+        private static void ShowExportComplete(string outputRoot, string messageEn, string messageJa, string messageFa)
         {
-            var sb = new StringBuilder(1024);
-            sb.Append("<!doctype html>\n<html lang=\"en\" dir=\"ltr\">\n<head>\n<meta charset=\"utf-8\">\n");
-            sb.Append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
-            sb.Append("<title>").Append(DocSnapConstants.ToolName).Append(" - Export Complete</title>\n");
-            sb.Append("<link rel=\"stylesheet\" href=\"assets_ui/style.css\">\n</head>\n<body style=\"background:var(--cream);\">\n");
-            sb.Append("<div style=\"max-width:560px;margin:60px auto;padding:0 20px;\">\n");
-            sb.Append("<div class=\"ds-card\" style=\"text-align:center;border-top:5px solid var(--mint-strong);\">\n");
-            sb.Append("<div style=\"font-size:52px;line-height:1;margin-bottom:6px;\">\u2705</div>\n");
-            sb.Append("<h1 style=\"font-size:22px;margin-bottom:18px;\">Export Complete! \u2728</h1>\n");
-            sb.Append("<p style=\"font-size:14px;margin:10px 0;\">").Append(HtmlPageBuilder.Escape(messageEn)).Append("</p>\n");
-            sb.Append("<p style=\"font-size:14px;margin:10px 0;\">").Append(HtmlPageBuilder.Escape(messageJa)).Append("</p>\n");
-            sb.Append("<p style=\"font-size:14px;margin:10px 0;\" dir=\"rtl\">").Append(HtmlPageBuilder.Escape(messageFa)).Append("</p>\n");
-            sb.Append("<div class=\"ds-badge mint\" style=\"margin-top:14px;\">\uD83C\uDF70 ").Append(DocSnapConstants.ToolName).Append(" v").Append(DocSnapConstants.Version).Append("</div>\n");
-            sb.Append("</div>\n</div>\n</body>\n</html>\n");
+            string message =
+                messageEn + "\n\n" +
+                messageJa + "\n\n" +
+                messageFa + "\n\n" +
+                "index.html \u2192 full site   \u00B7   summary.md \u2192 simple / AI-friendly";
 
-            string resultPath = Path.Combine(outputRoot, "export_complete.html");
-            File.WriteAllText(resultPath, sb.ToString());
-            Application.OpenURL(new Uri(resultPath).AbsoluteUri);
+            bool reveal = EditorUtility.DisplayDialog(
+                DocSnapConstants.ToolName + "  \u2705",
+                message,
+                "Open Output Folder",
+                "Close");
+
+            if (reveal) { RevealOutput(outputRoot); }
         }
 
         // ==========================================

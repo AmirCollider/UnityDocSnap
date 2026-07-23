@@ -12,7 +12,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // Identity
         // ==========================================
         public const string ToolName = "Unity DocSnap";
-        public const string Version = "0.3.0";
+        public const string Version = "0.4.0";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
 
@@ -32,19 +32,50 @@ namespace AmirCollider.UnityDocSnap.Editor
 
         // ==========================================
         // Output layout (must match README.md exactly)
+        //
+        // Folder names are chosen to read clearly at a
+        // glance and to never collide with each other or
+        // with Unity's own "Assets" folder:
+        //   scenes/       one browsable page + one plain
+        //                 summary per Scene
+        //   folders/      one page + summary per exported
+        //                 Assets sub-folder
+        //   data/         the full, structured JSON (the
+        //                 "advanced" machine-readable form)
+        //   theme/        the site's own CSS/JS + thumbs
+        //                 (renamed from "assets_ui", which
+        //                 was easily confused with the
+        //                 asset pages and with Unity Assets)
+        //   source-files/ optional verbatim asset byte
+        //                 copies (renamed from "files")
         // ==========================================
         public const string DefaultOutputFolderName = "UnityDocSnap_Output";
         public const string ScenesSubFolder = "scenes";
-        public const string AssetsSubFolder = "assets";
+        public const string AssetsSubFolder = "folders";
         public const string DataSubFolder = "data";
-        public const string SiteAssetsSubFolder = "assets_ui";
-        public const string FilesSubFolder = "files";
+        public const string SiteAssetsSubFolder = "theme";
+        public const string FilesSubFolder = "source-files";
         public const string ThumbsSubFolder = "thumbs";
         public const string IndexFileName = "index.html";
         public const string StyleFileName = "style.css";
         public const string ScriptFileName = "app.js";
         public const string ManifestFileName = "manifest.json";
         public const string EntireProjectFolderKey = "Assets";
+
+        // ==========================================
+        // Plain-text summary output (the "simple",
+        // AI-friendly form). Each Scene / folder gets a
+        // short Markdown file next to its HTML page, and
+        // one project-level index ties them together.
+        // Filename prefixes below keep the data JSON
+        // self-describing: "scene-<Name>.json" and
+        // "folder-<Key>.json" instead of the old
+        // "scene_"/"assets_" prefixes.
+        // ==========================================
+        public const string SummaryFileExtension = ".md";
+        public const string ProjectSummaryFileName = "summary.md";
+        public const string SceneJsonPrefix = "scene-";
+        public const string FolderJsonPrefix = "folder-";
 
         // ==========================================
         // Internal, regeneratable roundtrip state
@@ -67,7 +98,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // HTML page no browser can lay out. Capping
         // per node keeps every page interactive; the
         // full, uncapped data always remains in
-        // data/assets_*.json.
+        // data/folder-*.json.
         // ==========================================
         public const int MaxAssetsRenderedPerFolderNode = 300;
         public const int AssetPreviewTimeoutMs = 400;

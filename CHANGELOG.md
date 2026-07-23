@@ -2,6 +2,17 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.4.0] - 2026-07-23
+
+### Added
+- **Simple, AI-friendly Markdown summaries** as a second output alongside the full site. Every export now also writes a short `.md` next to each HTML page (`scenes/<Scene>.md`, `folders/<Key>.md`) plus a project-level `summary.md` index. A Scene summary is a compact hierarchy (one annotated line per GameObject) followed by the serialized configuration of your custom scripts only; an asset-folder summary is a one-line-per-file inventory. Container values (arrays, structs, `[SerializeReference]`) are summarised rather than expanded, so a small Scene lands in a few hundred lines instead of the tens of thousands the exhaustive JSON needs — small enough to paste straight into an AI assistant.
+- **Simple / Advanced view toggle** in the generated site (sidebar, next to the language switcher). *Simple* hides the heavy every-field detail — built-in-component field tables, GUIDs, and the collapsed Import Settings / Fields / Shader Properties / Prefab Contents sections — for a fast skim; *Advanced* shows the complete export. The choice is remembered across pages in `localStorage`, exactly like the UI language, and the site opens in Simple by default.
+
+### Changed
+- **A successful export now confirms with a single in-Editor popup** (with an *Open Output Folder* button) instead of writing an `export_complete.html` "success" page and opening it in the system browser. Failed exports still use their own native dialog. Any leftover `export_complete.html` from an earlier version is cleaned up on the next export.
+- **Cleaner, self-describing output layout.** The folders that were easy to confuse with each other (and with Unity's own `Assets`) are renamed: `assets_ui/` → `theme/` (the site's CSS/JS + thumbnails), `assets/` → `folders/` (the asset-folder pages), and `files/` → `source-files/` (the optional verbatim byte copies). The structured data files are renamed to be self-explanatory: `data/scene_<Name>.json` → `data/scene-<Name>.json` and `data/assets_<Key>.json` → `data/folder-<Key>.json`. Stale `.md` summaries are pruned alongside their pages when a Scene or folder is renamed or removed.
+- `package.json` rebuilt with full Unity Package Manager metadata (repository, bugs, license, `type`, `unityRelease`, a fuller keyword set and a proper multi-line description), and `preview-sample.html` rewritten to match the current design and show the new Simple / Advanced toggle.
+
 ## [0.3.0] - 2026-07-22
 
 ### Fixed

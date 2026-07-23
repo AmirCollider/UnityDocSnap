@@ -91,16 +91,24 @@ By default, output lands in `<ProjectRoot>/UnityDocSnap_Output/`. Use `Unity Doc
 
 ### 📁 Output Structure
 
+Every export writes **two forms of the same information** side by side: the **full** offline site (browse it, or read the raw JSON) and a **simple** set of short Markdown summaries you can paste straight into an AI assistant.
+
 ```
 UnityDocSnap_Output/
-├── index.html         ← start here
+├── index.html         ← the full offline site (start here)
+├── summary.md         ← plain-text project index (simple / AI-friendly)
 ├── scenes/
-│   └── MainMenu.html
-├── assets/
-│   └── Images_Backgrounds.html
-├── data/               ← structured JSON, same info, for AI tools
-└── assets_ui/          ← css/js for the site itself
+│   ├── MainMenu.html      ← full page
+│   └── MainMenu.md        ← short summary
+├── folders/
+│   ├── Images_Backgrounds.html
+│   └── Images_Backgrounds.md
+├── data/              ← full structured JSON (the advanced, every-field form)
+├── theme/             ← css/js + thumbnails for the site itself
+└── source-files/      ← optional verbatim asset copies (With Files export only)
 ```
+
+The site itself has a **Simple / Advanced** toggle in the sidebar: *Simple* shows a clean skim (hierarchy, custom-script configuration, key asset facts), *Advanced* shows every serialized field. It opens in Simple by default and remembers your choice.
 
 ### 🧠 Built for Humans *and* AI
 
@@ -197,16 +205,24 @@ Unity DocSnap
 
 ### 📁 出力構造
 
+エクスポートするたびに、**同じ情報が2つの形**で並んで書き出されます。**フル版**のオフラインサイト(ブラウザで見る、または生のJSONを読む)と、AIアシスタントにそのまま貼り付けられる**シンプル版**の短いMarkdown要約です。
+
 ```
 UnityDocSnap_Output/
-├── index.html         ← まずここから
+├── index.html         ← フル版のオフラインサイト(まずここから)
+├── summary.md         ← プレーンテキストのプロジェクト索引(シンプル / AI向け)
 ├── scenes/
-│   └── MainMenu.html
-├── assets/
-│   └── Images_Backgrounds.html
-├── data/               ← AIツール向けの構造化JSON(同じ情報を機械可読な形で)
-└── assets_ui/          ← サイト自体のcss/js
+│   ├── MainMenu.html      ← フルページ
+│   └── MainMenu.md        ← 短い要約
+├── folders/
+│   ├── Images_Backgrounds.html
+│   └── Images_Backgrounds.md
+├── data/              ← 完全な構造化JSON(全フィールドを含む詳細版)
+├── theme/             ← サイト自体のcss/js + サムネイル
+└── source-files/      ← アセット実体のコピー(任意 / With Files エクスポート時のみ)
 ```
+
+サイトにはサイドバーに **Simple / Advanced** の切り替えがあります。*Simple* はすっきりした概要(ヒエラルキー、カスタムスクリプトの設定、アセットの要点)を、*Advanced* はすべてのシリアライズ済みフィールドを表示します。初期状態は Simple で、選択は記憶されます。
 
 ### 🧠 人にもAIにもやさしい理由
 
@@ -305,16 +321,24 @@ Unity DocSnap
 
 ### 📁 ساختار خروجی
 
+هر اکسپورت **دو شکل از یک اطلاعات** رو کنار هم می‌نویسه: نسخه‌ی **کامل** یعنی سایت آفلاین (توی مرورگر ببینش یا JSON خامش رو بخون) و نسخه‌ی **ساده** یعنی چندتا فایل Markdown کوتاه که می‌تونی مستقیم بچسبونی توی یه دستیار هوش مصنوعی.
+
 ```
 UnityDocSnap_Output/
-├── index.html         ← از اینجا شروع کن
+├── index.html         ← سایت آفلاین کامل (از اینجا شروع کن)
+├── summary.md         ← فهرست متنی پروژه (ساده / مناسب هوش مصنوعی)
 ├── scenes/
-│   └── MainMenu.html
-├── assets/
-│   └── Images_Backgrounds.html
-├── data/               ← JSON ساختاریافته برای ابزارهای هوش مصنوعی
-└── assets_ui/          ← css/js خود سایت
+│   ├── MainMenu.html      ← صفحه‌ی کامل
+│   └── MainMenu.md        ← خلاصه‌ی کوتاه
+├── folders/
+│   ├── Images_Backgrounds.html
+│   └── Images_Backgrounds.md
+├── data/              ← JSON کامل و ساختاریافته (نسخه‌ی پیشرفته، همه‌ی فیلدها)
+├── theme/             ← css/js و تصاویر بندانگشتی خود سایت
+└── source-files/      ← کپی خام فایل‌ها (اختیاری / فقط در اکسپورت With Files)
 ```
+
+خود سایت توی سایدبار یه کلید **Simple / Advanced** داره: حالت *Simple* یه نمای تمیز و سریع نشون می‌ده (Hierarchy، تنظیمات اسکریپت‌های خودت، نکات کلیدی فایل‌ها) و حالت *Advanced* همه‌ی فیلدهای سریالایز‌شده رو. به‌صورت پیش‌فرض روی Simple باز میشه و انتخابت رو یادش می‌مونه.
 
 ### 🧠 چرا هم برای آدم‌ها هم برای هوش مصنوعی؟
 

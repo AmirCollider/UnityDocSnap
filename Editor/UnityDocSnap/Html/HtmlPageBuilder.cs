@@ -49,7 +49,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // Emits one element carrying all three
         // language variants as data attributes, with
         // English pre-rendered as the visible default
-        // (see assets_ui/app.js for the switch logic).
+        // (see theme/app.js for the switch logic).
         // ==========================================
         public static string I18n(string tag, string cssClass, string en, string ja, string fa)
         {
@@ -67,11 +67,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         public static string RenderPage(ManifestState manifest, string currentHtmlFile, string titleEn, string headerHtml, string bodyHtml)
         {
             string prefix = currentHtmlFile.IndexOf('/') >= 0 ? "../" : "";
+            string themeDir = DocSnapConstants.SiteAssetsSubFolder + "/";
             var sb = new StringBuilder(4096);
             sb.Append("<!doctype html>\n<html lang=\"en\" dir=\"ltr\">\n<head>\n<meta charset=\"utf-8\">\n");
             sb.Append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
             sb.Append("<title>").Append(Escape(titleEn)).Append(" - Unity DocSnap</title>\n");
-            sb.Append("<link rel=\"stylesheet\" href=\"").Append(prefix).Append("assets_ui/style.css\">\n</head>\n<body>\n");
+            sb.Append("<link rel=\"stylesheet\" href=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.StyleFileName).Append("\">\n</head>\n");
+            // Default to the calmer Simple view; app.js restores whichever
+            // view the reader last chose. Advanced-only detail is present
+            // in the markup either way, just hidden by CSS in Simple mode.
+            sb.Append("<body class=\"ds-mode-simple\">\n");
             sb.Append("<div class=\"ds-shell\">\n");
             sb.Append(RenderSidebar(manifest, prefix, currentHtmlFile));
             sb.Append("<main class=\"ds-main\">\n");
@@ -80,7 +85,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append(RenderFooter());
             sb.Append("</main>\n</div>\n");
             sb.Append("<button class=\"ds-back-top\" aria-label=\"Back to top\">\u2B06</button>\n");
-            sb.Append("<script src=\"").Append(prefix).Append("assets_ui/app.js\"></script>\n</body>\n</html>\n");
+            sb.Append("<script src=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.ScriptFileName).Append("\"></script>\n</body>\n</html>\n");
             return sb.ToString();
         }
 
@@ -104,6 +109,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append("<button class=\"ds-lang-btn is-active\" data-lang=\"en\">EN</button>");
             sb.Append("<button class=\"ds-lang-btn\" data-lang=\"ja\">日本語</button>");
             sb.Append("<button class=\"ds-lang-btn\" data-lang=\"fa\">فارسی</button>");
+            sb.Append("</div>\n");
+
+            // Detail-level switch. Simple hides the heavy, every-field
+            // detail (engine-component fields, GUIDs, import settings)
+            // for a quick read; Advanced shows everything. app.js flips
+            // the body class and remembers the choice.
+            sb.Append("<div class=\"ds-modebar\" role=\"group\" aria-label=\"Detail level\">");
+            sb.Append("<button class=\"ds-mode-btn is-active\" data-mode=\"simple\">")
+              .Append(I18n("span", null, "🌤 Simple", "🌤 シンプル", "🌤 ساده")).Append("</button>");
+            sb.Append("<button class=\"ds-mode-btn\" data-mode=\"advanced\">")
+              .Append(I18n("span", null, "🔬 Advanced", "🔬 詳細", "🔬 پیشرفته")).Append("</button>");
             sb.Append("</div>\n");
 
             bool onIndex = currentHtmlFile == DocSnapConstants.IndexFileName;

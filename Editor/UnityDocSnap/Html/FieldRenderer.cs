@@ -239,7 +239,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 bool enabled = comp.Get("enabled").AsBool(true);
                 sb.Append("<span class=\"ds-component-toggle ").Append(enabled ? "on" : "off").Append("\">").Append(enabled ? "ON" : "OFF").Append("</span>");
             }
-            sb.Append("</div><div style=\"padding:8px 16px 14px;\">");
+            sb.Append("</div>");
+            // A built-in component's serialized fields are the bulk of the
+            // page and rarely what a quick read is after, so they are the
+            // advanced-only part; a custom script's fields stay visible in
+            // both views, since that is the configuration worth reading.
+            string bodyClass = isUserScript ? "" : " ds-adv";
+            sb.Append("<div class=\"ds-component-fields").Append(bodyClass).Append("\" style=\"padding:8px 16px 14px;\">");
             sb.Append(RenderFieldTable(comp.Get("fields"), resolver));
             sb.Append("</div></div>\n");
             return sb.ToString();
@@ -673,7 +679,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                     // Hard cap per folder node. Without it a single
                     // folder holding thousands of assets produces a
                     // page no browser can lay out; the complete,
-                    // uncapped list stays in data/assets_*.json.
+                    // uncapped list stays in data/folder-*.json.
                     if (directFiles.Items.Count >= DocSnapConstants.MaxAssetsRenderedPerFolderNode)
                     {
                         skipped++;
@@ -687,9 +693,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 {
                     sb.Append("<p class=\"ds-array-more\">+ ").Append(skipped).Append(" ")
                       .Append(HtmlPageBuilder.I18n("span", null,
-                          "more file(s) in this folder - see data/assets_*.json for the complete list",
-                          "件のファイルは省略されました - 完全な一覧は data/assets_*.json を参照",
-                          "فایل دیگر در این پوشه - لیست کامل در data/assets_*.json"))
+                          "more file(s) in this folder - see data/folder-*.json for the complete list",
+                          "件のファイルは省略されました - 完全な一覧は data/folder-*.json を参照",
+                          "فایل دیگر در این پوشه - لیست کامل در data/folder-*.json"))
                       .Append("</p>");
                 }
             }
@@ -789,7 +795,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             {
                 sb.Append(KvLine("Size", "ファイルサイズ", "حجم فایل", FormatBytes(file.Get("fileSizeBytes").AsNumber())));
             }
-            if (!string.IsNullOrEmpty(guid)) { sb.Append(KvLine("GUID", "GUID", "GUID", guid)); }
+            if (!string.IsNullOrEmpty(guid)) { sb.Append(KvLine("GUID", "GUID", "GUID", guid, "ds-adv")); }
 
            if (file.Has("audioInfo"))
             {
@@ -851,7 +857,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // ==========================================
         private static string OpenDetail(string en, string ja, string fa)
         {
-            return "<details class=\"ds-detail\"><summary>" + HtmlPageBuilder.I18n("span", null, en, ja, fa) + "</summary><div class=\"ds-detail-body\">";
+            // Import Settings / Fields / Shader Properties / Prefab
+            // Contents are the deep, every-value detail - advanced-only,
+            // hidden in the Simple view (and always collapsed anyway).
+            return "<details class=\"ds-detail ds-adv\"><summary>" + HtmlPageBuilder.I18n("span", null, en, ja, fa) + "</summary><div class=\"ds-detail-body\">";
         }
 
         private static string CloseDetail()
@@ -1019,9 +1028,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // ==========================================
         // Small formatting helpers
         // ==========================================
-        private static string KvLine(string kEn, string kJa, string kFa, string v)
+        private static string KvLine(string kEn, string kJa, string kFa, string v, string extraClass = null)
         {
-            return "<div class=\"ds-kv-line\"><span class=\"k\">" + HtmlPageBuilder.I18n("span", null, kEn, kJa, kFa) + "</span><span class=\"v\">" + HtmlPageBuilder.Escape(v) + "</span></div>";
+            string cls = string.IsNullOrEmpty(extraClass) ? "ds-kv-line" : "ds-kv-line " + extraClass;
+            return "<div class=\"" + cls + "\"><span class=\"k\">" + HtmlPageBuilder.I18n("span", null, kEn, kJa, kFa) + "</span><span class=\"v\">" + HtmlPageBuilder.Escape(v) + "</span></div>";
         }
         
         private static string FormatBytes(double bytes)
