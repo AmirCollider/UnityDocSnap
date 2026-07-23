@@ -7,6 +7,7 @@
 // Order of object keys is preserved, which
 // keeps every export byte-for-byte readable.
 // ==========================================
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -89,6 +90,194 @@ namespace AmirCollider.UnityDocSnap.Editor.Json
         public static JsonValue Null()
         {
             return new JsonValue(JsonKind.Null);
+        }
+
+        // ==========================================
+        // Parse(text) — reads JSON text back into a
+        // JsonValue tree. This is the exact inverse of
+        // ToString()/ToCompactString(): object key order
+        // is preserved, and the < / > escapes the
+        // writer emits for '<' / '>' are decoded straight
+        // back. It exists so an incremental export can reuse
+        // a still-current data/*.json instead of re-walking
+        // the Scene or re-reading every asset from disk, and
+        // it makes JsonValue fully round-trippable (and so
+        // unit-testable) on its own. Throws FormatException
+        // on malformed input; callers that want a soft
+        // failure use TryParse.
+        // ==========================================
+        public static JsonValue Parse(string text)
+        {
+            if (text == null) { throw new FormatException("JSON text is null."); }
+            var parser = new Parser(text);
+            parser.SkipWhitespace();
+            JsonValue result = parser.ReadValue();
+            parser.SkipWhitespace();
+            if (!parser.AtEnd) { throw new FormatException("Unexpected trailing characters at position " + parser.Position + "."); }
+            return result;
+        }
+
+        public static bool TryParse(string text, out JsonValue result)
+        {
+            try { result = Parse(text); return true; }
+            catch { result = null; return false; }
+        }
+
+        // ==========================================
+        // Parser — a small, allocation-light
+        // recursive-descent JSON reader. Deliberately
+        // strict about structure but forgiving about
+        // whitespace, matching what this tool's own
+        // writer produces.
+        // ==========================================
+        private sealed class Parser
+        {
+            private readonly string _s;
+            private int _i;
+
+            public Parser(string s) { _s = s; _i = 0; }
+            public int Position { get { return _i; } }
+            public bool AtEnd { get { return _i >= _s.Length; } }
+
+            public void SkipWhitespace()
+            {
+                while (_i < _s.Length)
+                {
+                    char c = _s[_i];
+                    if (c == ' ' || c == '\t' || c == '\n' || c == '\r') { _i++; }
+                    else { break; }
+                }
+            }
+
+            public JsonValue ReadValue()
+            {
+                if (_i >= _s.Length) { throw new FormatException("Unexpected end of JSON."); }
+                char c = _s[_i];
+                switch (c)
+                {
+                    case '{': return ReadObject();
+                    case '[': return ReadArray();
+                    case '"': return Str(ReadString());
+                    case 't': Expect("true"); return Bool(true);
+                    case 'f': Expect("false"); return Bool(false);
+                    case 'n': Expect("null"); return Null();
+                    default: return ReadNumber();
+                }
+            }
+
+            private JsonValue ReadObject()
+            {
+                var obj = Obj();
+                _i++; // consume '{'
+                SkipWhitespace();
+                if (_i < _s.Length && _s[_i] == '}') { _i++; return obj; }
+                while (true)
+                {
+                    SkipWhitespace();
+                    if (_i >= _s.Length || _s[_i] != '"') { throw new FormatException("Expected object key at position " + _i + "."); }
+                    string key = ReadString();
+                    SkipWhitespace();
+                    if (_i >= _s.Length || _s[_i] != ':') { throw new FormatException("Expected ':' at position " + _i + "."); }
+                    _i++; // consume ':'
+                    SkipWhitespace();
+                    obj.Set(key, ReadValue());
+                    SkipWhitespace();
+                    if (_i >= _s.Length) { throw new FormatException("Unterminated object."); }
+                    char sep = _s[_i];
+                    if (sep == ',') { _i++; continue; }
+                    if (sep == '}') { _i++; break; }
+                    throw new FormatException("Expected ',' or '}' at position " + _i + ".");
+                }
+                return obj;
+            }
+
+            private JsonValue ReadArray()
+            {
+                var arr = Arr();
+                _i++; // consume '['
+                SkipWhitespace();
+                if (_i < _s.Length && _s[_i] == ']') { _i++; return arr; }
+                while (true)
+                {
+                    SkipWhitespace();
+                    arr.Add(ReadValue());
+                    SkipWhitespace();
+                    if (_i >= _s.Length) { throw new FormatException("Unterminated array."); }
+                    char sep = _s[_i];
+                    if (sep == ',') { _i++; continue; }
+                    if (sep == ']') { _i++; break; }
+                    throw new FormatException("Expected ',' or ']' at position " + _i + ".");
+                }
+                return arr;
+            }
+
+            private string ReadString()
+            {
+                _i++; // consume opening quote
+                var sb = new StringBuilder();
+                while (_i < _s.Length)
+                {
+                    char c = _s[_i++];
+                    if (c == '"') { return sb.ToString(); }
+                    if (c == '\\')
+                    {
+                        if (_i >= _s.Length) { break; }
+                        char e = _s[_i++];
+                        switch (e)
+                        {
+                            case '"': sb.Append('"'); break;
+                            case '\\': sb.Append('\\'); break;
+                            case '/': sb.Append('/'); break;
+                            case 'b': sb.Append('\b'); break;
+                            case 'f': sb.Append('\f'); break;
+                            case 'n': sb.Append('\n'); break;
+                            case 'r': sb.Append('\r'); break;
+                            case 't': sb.Append('\t'); break;
+                            case 'u':
+                                if (_i + 4 > _s.Length) { throw new FormatException("Truncated \\u escape."); }
+                                string hex = _s.Substring(_i, 4);
+                                _i += 4;
+                                sb.Append((char)int.Parse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture));
+                                break;
+                            default: throw new FormatException("Invalid escape '\\" + e + "' at position " + (_i - 1) + ".");
+                        }
+                    }
+                    else
+                    {
+                        sb.Append(c);
+                    }
+                }
+                throw new FormatException("Unterminated string.");
+            }
+
+            private JsonValue ReadNumber()
+            {
+                int start = _i;
+                if (_i < _s.Length && (_s[_i] == '-' || _s[_i] == '+')) { _i++; }
+                while (_i < _s.Length)
+                {
+                    char c = _s[_i];
+                    if ((c >= '0' && c <= '9') || c == '.' || c == 'e' || c == 'E' || c == '+' || c == '-') { _i++; }
+                    else { break; }
+                }
+                if (_i == start) { throw new FormatException("Invalid JSON value at position " + start + "."); }
+                string token = _s.Substring(start, _i - start);
+                double value;
+                if (!double.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+                {
+                    throw new FormatException("Invalid number '" + token + "'.");
+                }
+                return Num(value);
+            }
+
+            private void Expect(string literal)
+            {
+                if (_i + literal.Length > _s.Length || _s.Substring(_i, literal.Length) != literal)
+                {
+                    throw new FormatException("Expected '" + literal + "' at position " + _i + ".");
+                }
+                _i += literal.Length;
+            }
         }
 
         // ==========================================

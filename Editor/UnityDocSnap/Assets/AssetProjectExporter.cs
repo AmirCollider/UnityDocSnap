@@ -349,6 +349,30 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
                     int count;
                     node.Set("prefabRoot", SceneHierarchyExporter.BuildStandaloneGameObjectTree(prefabRoot, out count));
                     node.Set("prefabGameObjectCount", count);
+
+                    // Whether this Prefab asset is itself a Variant, and if so,
+                    // which base Prefab it derives from. Best-effort: the Prefab
+                    // APIs never fail the export.
+                    try
+                    {
+                        PrefabAssetType prefabType = PrefabUtility.GetPrefabAssetType(prefabRoot);
+                        node.Set("prefabAssetType", prefabType.ToString());
+                        node.Set("prefabIsVariant", prefabType == PrefabAssetType.Variant);
+                        if (prefabType == PrefabAssetType.Variant)
+                        {
+                            GameObject basePrefab = PrefabUtility.GetCorrespondingObjectFromSource(prefabRoot);
+                            string basePath = basePrefab != null ? AssetDatabase.GetAssetPath(basePrefab) : null;
+                            if (!string.IsNullOrEmpty(basePath))
+                            {
+                                node.Set("prefabBasePath", basePath);
+                                node.Set("prefabBaseName", Path.GetFileNameWithoutExtension(basePath));
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // best-effort Prefab-variant detection only
+                    }
                 }
                 handledByExtra = true;
             }

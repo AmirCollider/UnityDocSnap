@@ -146,6 +146,8 @@ namespace AmirCollider.UnityDocSnap.Editor.SceneExport
             node.Set("layerIndex", go.layer);
             node.Set("layerName", LayerMask.LayerToName(go.layer));
 
+            AddPrefabInfo(go, node);
+
             node.Set("transform", TransformNode(go.transform));
             node.Set("components", BuildComponentsArray(go));
 
@@ -158,6 +160,60 @@ namespace AmirCollider.UnityDocSnap.Editor.SceneExport
             node.Set("children", childrenArr);
 
             return node;
+        }
+
+        // ==========================================
+        // AddPrefabInfo
+        // Records whether a GameObject is a Prefab
+        // instance, which Prefab asset it comes from,
+        // and what kind (Regular / Variant / Model). For
+        // the outermost instance root it also rolls up
+        // how many components / child objects were added
+        // or removed relative to the Prefab. This is the
+        // Prefab-awareness a documentation tool needs:
+        // "this object is an instance of X (a Variant),
+        // with 2 added components". Every Prefab API call
+        // is best-effort - a missing/older API or an
+        // unexpected context never fails an export.
+        // ==========================================
+        private static void AddPrefabInfo(GameObject go, JsonValue node)
+        {
+            try
+            {
+                if (!PrefabUtility.IsPartOfPrefabInstance(go)) { return; }
+
+                var prefab = JsonValue.Obj();
+                prefab.Set("isInstance", true);
+
+                bool isRoot = PrefabUtility.IsOutermostPrefabInstanceRoot(go);
+                prefab.Set("isInstanceRoot", isRoot);
+
+                PrefabAssetType assetType = PrefabUtility.GetPrefabAssetType(go);
+                prefab.Set("assetType", assetType.ToString());
+                prefab.Set("isVariant", assetType == PrefabAssetType.Variant);
+
+                string assetPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(go);
+                if (!string.IsNullOrEmpty(assetPath))
+                {
+                    prefab.Set("assetPath", assetPath);
+                    prefab.Set("assetName", Path.GetFileNameWithoutExtension(assetPath));
+                    string guid = AssetDatabase.AssetPathToGUID(assetPath);
+                    if (!string.IsNullOrEmpty(guid)) { prefab.Set("assetGuid", guid); }
+                }
+
+                if (isRoot)
+                {
+                    try { prefab.Set("addedComponents", PrefabUtility.GetAddedComponents(go).Count); } catch { /* best-effort */ }
+                    try { prefab.Set("removedComponents", PrefabUtility.GetRemovedComponents(go).Count); } catch { /* best-effort */ }
+                    try { prefab.Set("addedGameObjects", PrefabUtility.GetAddedGameObjects(go).Count); } catch { /* best-effort */ }
+                }
+
+                node.Set("prefab", prefab);
+            }
+            catch
+            {
+                // Prefab reflection is a nice-to-have; never let it break an export.
+            }
         }
 
         // ==========================================
@@ -221,6 +277,21 @@ namespace AmirCollider.UnityDocSnap.Editor.SceneExport
                 {
                     node.Set("scriptPath", AssetDatabase.GetAssetPath(script));
                 }
+            }
+
+            // A component that exists on this Prefab instance but not on the
+            // Prefab asset is an "added component" override - worth calling
+            // out, since it is configuration that lives only on the instance.
+            try
+            {
+                if (PrefabUtility.IsPartOfPrefabInstance(c) && PrefabUtility.IsAddedComponentOverride(c))
+                {
+                    node.Set("isAddedComponent", true);
+                }
+            }
+            catch
+            {
+                // best-effort prefab awareness only
             }
 
             node.Set("fields", UniversalReflector.ReadTopLevelFields(c));

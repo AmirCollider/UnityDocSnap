@@ -12,7 +12,9 @@ using AmirCollider.UnityDocSnap.Editor.Assets;
 using AmirCollider.UnityDocSnap.Editor.Html;
 using AmirCollider.UnityDocSnap.Editor.Json;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
+using AmirCollider.UnityDocSnap.Editor.Packages;
 using AmirCollider.UnityDocSnap.Editor.SceneExport;
+using AmirCollider.UnityDocSnap.Editor.Search;
 using AmirCollider.UnityDocSnap.Editor.Summary;
 using UnityEditor;
 using UnityEngine;
@@ -57,8 +59,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 htmlFile = htmlFile,
                 jsonFile = jsonFile,
                 exportedUtc = sceneData.Get("exportedUtc").AsString(""),
-                gameObjectCount = goCount
+                gameObjectCount = goCount,
+                sourceSignature = SceneSignature(scenePath)
             });
+            DocSnapManifest.ReplaceSearchRecordsForScope(manifest, sceneName, DocSnapSearchIndex.BuildSceneRecords(sceneData, sceneName, htmlFile));
             DocSnapManifest.Save(manifest);
 
             WriteText(outputRoot, htmlFile, ScenePageRenderer.Render(sceneData, manifest, htmlFile));
@@ -107,8 +111,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 htmlFile = htmlFile,
                 jsonFile = jsonFile,
                 exportedUtc = folderData.Get("exportedUtc").AsString(""),
-                fileCount = fileCount
+                fileCount = fileCount,
+                sourceSignature = FolderSignature(folderPath)
             });
+            DocSnapManifest.ReplaceSearchRecordsForScope(manifest, folderKey, DocSnapSearchIndex.BuildFolderRecords(folderData, folderKey, htmlFile));
             DocSnapManifest.Save(manifest);
 
             WriteText(outputRoot, htmlFile, AssetPageRenderer.Render(folderData, manifest, htmlFile));
@@ -121,37 +127,103 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         }
 
         // ==========================================
-        // ExportFullProject
-        // Exports every Scene plus the entire Assets
-        // folder in a single consistent pass, so every
-        // page's sidebar and every cross-link is fresh
-        // at the same moment.
+        // ExportFullProject / ExportFullProjectWithFiles
+        // / UpdatePreviousExport
+        // Three thin entry points over one shared pass
+        // (ExportProject). "With Files" also mirrors the
+        // real asset bytes into source-files/; "Update"
+        // reuses any Scene/folder whose source has not
+        // changed since the last export instead of
+        // re-scanning it. Previously the first two were
+        // ~80% identical copy-paste, which is exactly how
+        // one path silently drifts from the other.
         // ==========================================
         public static void ExportFullProject()
         {
+            ExportProject(false, false);
+        }
+
+        public static void ExportFullProjectWithFiles()
+        {
+            ExportProject(true, false);
+        }
+
+        public static void UpdatePreviousExport()
+        {
+            ExportProject(false, true);
+        }
+
+        // ==========================================
+        // ExportProject
+        // The single implementation behind all three
+        // full-project actions.
+        //   copyFiles   - also copy real asset bytes into
+        //                 source-files/ (the "With Files"
+        //                 opt-in; DocSnap is metadata-only
+        //                 otherwise).
+        //   incremental - reuse a Scene's / the Assets
+        //                 folder's existing output when a
+        //                 cheap source fingerprint shows
+        //                 nothing changed, instead of
+        //                 re-opening the Scene or re-reading
+        //                 every asset. The heavy work is
+        //                 skipped; the still-current data
+        //                 JSON is parsed back and every page
+        //                 is re-rendered cheaply so sidebars
+        //                 and cross-links stay consistent.
+        // ==========================================
+        private static void ExportProject(bool copyFiles, bool incremental)
+        {
             string outputRoot = PrepareOutput();
+            string physicalFilesRoot = null;
+            if (copyFiles)
+            {
+                physicalFilesRoot = Path.Combine(outputRoot, DocSnapConstants.FilesSubFolder);
+                Directory.CreateDirectory(physicalFilesRoot);
+            }
+
             ManifestState manifest = DocSnapManifest.Load();
 
+            int reusedScenes = 0;
+            int exportedScenes = 0;
             var scenePages = new List<KeyValuePair<string, JsonValue>>();
+
             foreach (string scenePath in FindAllScenePaths())
             {
-                JsonValue sceneData;
-                int goCount;
-                try
-                {
-                    sceneData = SceneHierarchyExporter.ExportScene(scenePath, out goCount);
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogWarning("[Unity DocSnap] Skipped scene " + scenePath + ": " + ex.Message);
-                    continue;
-                }
-
                 string sceneName = Path.GetFileNameWithoutExtension(scenePath);
                 string htmlFile = DocSnapConstants.ScenesSubFolder + "/" + sceneName + ".html";
                 string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneName + ".json";
-                WriteText(outputRoot, jsonFile, sceneData.ToString());
-                WriteSceneSummaries(outputRoot, sceneName, sceneData);
+                string signature = SceneSignature(scenePath);
+
+                ManifestSceneEntry prior = DocSnapManifest.FindScene(manifest, scenePath);
+                JsonValue sceneData = null;
+
+                if (incremental && CanReuse(outputRoot, prior != null ? prior.sourceSignature : null, signature, jsonFile, htmlFile))
+                {
+                    sceneData = TryLoadJson(outputRoot, jsonFile);
+                }
+
+                if (sceneData == null)
+                {
+                    int goCount;
+                    try
+                    {
+                        sceneData = SceneHierarchyExporter.ExportScene(scenePath, out goCount);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning("[Unity DocSnap] Skipped scene " + scenePath + ": " + ex.Message);
+                        continue;
+                    }
+                    WriteText(outputRoot, jsonFile, sceneData.ToString());
+                    WriteSceneSummaries(outputRoot, sceneName, sceneData);
+                    if (copyFiles) { AssetProjectExporter.CopyPhysicalFile(scenePath, physicalFilesRoot); }
+                    exportedScenes++;
+                }
+                else
+                {
+                    reusedScenes++;
+                }
 
                 DocSnapManifest.UpsertScene(manifest, new ManifestSceneEntry
                 {
@@ -160,29 +232,55 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                     htmlFile = htmlFile,
                     jsonFile = jsonFile,
                     exportedUtc = sceneData.Get("exportedUtc").AsString(""),
-                    gameObjectCount = goCount
+                    gameObjectCount = (int)sceneData.Get("totalGameObjects").AsNumber(),
+                    sourceSignature = signature
                 });
+                DocSnapManifest.ReplaceSearchRecordsForScope(manifest, sceneName, DocSnapSearchIndex.BuildSceneRecords(sceneData, sceneName, htmlFile));
                 scenePages.Add(new KeyValuePair<string, JsonValue>(htmlFile, sceneData));
             }
 
+            // ----- Assets folder pass -----
             string rootFolderKey = AssetProjectExporter.FolderKey("Assets");
-            List<ManifestAssetIndexEntry> indexEntries;
-            int fileCount;
-            JsonValue folderData;
-            try
-            {
-                folderData = AssetProjectExporter.ExportFolder("Assets", rootFolderKey, out indexEntries, out fileCount, false, null, outputRoot, ReportAssetProgress);
-            }
-            finally
-            {
-                EditorUtility.ClearProgressBar();
-            }
             string assetHtmlFile = DocSnapConstants.AssetsSubFolder + "/" + rootFolderKey + ".html";
             string assetJsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.FolderJsonPrefix + rootFolderKey + ".json";
-            WriteText(outputRoot, assetJsonFile, folderData.ToString());
-            WriteFolderSummaries(outputRoot, rootFolderKey, folderData);
+            string folderSignature = FolderSignature("Assets");
 
-            DocSnapManifest.ReplaceAssetIndexForFolder(manifest, rootFolderKey, indexEntries);
+            ManifestFolderEntry priorFolder = DocSnapManifest.FindFolder(manifest, rootFolderKey);
+            JsonValue folderData = null;
+            int fileCount = 0;
+            bool reusedAssets = false;
+
+            // The asset pass is only reused when files were NOT requested:
+            // a with-files export must always copy the real bytes.
+            if (incremental && !copyFiles && CanReuse(outputRoot, priorFolder != null ? priorFolder.sourceSignature : null, folderSignature, assetJsonFile, assetHtmlFile))
+            {
+                folderData = TryLoadJson(outputRoot, assetJsonFile);
+                if (folderData != null)
+                {
+                    fileCount = (int)folderData.Get("fileCount").AsNumber();
+                    reusedAssets = true;
+                }
+            }
+
+            if (folderData == null)
+            {
+                List<ManifestAssetIndexEntry> indexEntries;
+                try
+                {
+                    folderData = AssetProjectExporter.ExportFolder("Assets", rootFolderKey, out indexEntries, out fileCount, copyFiles, physicalFilesRoot, outputRoot, ReportAssetProgress);
+                }
+                finally
+                {
+                    EditorUtility.ClearProgressBar();
+                }
+                WriteText(outputRoot, assetJsonFile, folderData.ToString());
+                WriteFolderSummaries(outputRoot, rootFolderKey, folderData);
+                DocSnapManifest.ReplaceAssetIndexForFolder(manifest, rootFolderKey, indexEntries);
+            }
+            // When reused, the asset->page cross-link index for this folder
+            // is already in the loaded manifest, so it is deliberately left
+            // untouched here.
+
             DocSnapManifest.UpsertFolder(manifest, new ManifestFolderEntry
             {
                 folderPath = "Assets",
@@ -190,8 +288,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 htmlFile = assetHtmlFile,
                 jsonFile = assetJsonFile,
                 exportedUtc = folderData.Get("exportedUtc").AsString(""),
-                fileCount = fileCount
+                fileCount = fileCount,
+                sourceSignature = folderSignature
             });
+            DocSnapManifest.ReplaceSearchRecordsForScope(manifest, rootFolderKey, DocSnapSearchIndex.BuildFolderRecords(folderData, rootFolderKey, assetHtmlFile));
+
+            // Packages are project-global; refreshed on every full pass.
+            DocSnapManifest.SetPackages(manifest, DocSnapPackagesReader.ReadInstalledPackages());
+
             DocSnapManifest.Save(manifest);
 
             // Render every page now that the manifest (and therefore every
@@ -203,106 +307,109 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             WriteText(outputRoot, assetHtmlFile, AssetPageRenderer.Render(folderData, manifest, assetHtmlFile));
             RefreshIndexAndManifest(outputRoot, manifest);
 
+            string reuseNote = incremental
+                ? "  (" + reusedScenes + " scene(s) reused, " + exportedScenes + " re-scanned" + (reusedAssets ? ", assets reused" : ", assets re-scanned") + ")"
+                : "";
+            string filesNoteEn = copyFiles ? " (assets copied to \"" + DocSnapConstants.FilesSubFolder + "/\")" : "";
+            string filesNoteFa = copyFiles ? " (فایل‌ها توی «" + DocSnapConstants.FilesSubFolder + "/» کپی شدن)" : "";
+            string headEn = incremental ? "Updated previous export" : (copyFiles ? "Exported full project with files" : "Exported full project");
+            string headJa = incremental ? "前回のエクスポートを更新しました" : "プロジェクト全体をエクスポートしました";
+            string headFa = incremental ? "خروجی قبلی بروزرسانی شد" : "کل پروژه اکسپورت شد";
+
             ShowExportComplete(outputRoot,
-                "Exported full project: " + scenePages.Count + " scene(s), " + fileCount + " file(s).",
-                "プロジェクト全体をエクスポートしました:シーン" + scenePages.Count + "件、ファイル" + fileCount + "件。",
-                "کل پروژه اکسپورت شد: " + scenePages.Count + " سین، " + fileCount + " فایل.");
+                headEn + ": " + scenePages.Count + " scene(s), " + fileCount + " file(s)" + filesNoteEn + "." + reuseNote,
+                headJa + ":シーン" + scenePages.Count + "件、ファイル" + fileCount + "件" + (copyFiles ? "(アセットは source-files/ にコピー済み)" : "") + "。",
+                headFa + ": " + scenePages.Count + " سین، " + fileCount + " فایل" + filesNoteFa + ".");
         }
 
         // ==========================================
-        // ExportFullProjectWithFiles
-        // Same pass as ExportFullProject, but also
-        // mirrors every referenced asset's actual file
-        // bytes (plus its .meta file, when present)
-        // into the output's files/ folder. The default
-        // exports above stay metadata-only; this is an
-        // explicit, separately-named opt-in for anyone
-        // who also wants a portable copy of the
-        // underlying content next to the site.
+        // SceneSignature / FolderSignature
+        // Cheap "did the source change?" fingerprints for
+        // the incremental update. A Scene's is its .unity
+        // file's size + last-write time. A folder's is the
+        // file count plus the newest last-write time across
+        // every file under it (asset AND .meta, so an
+        // import-setting change is caught too). Both are
+        // pure filesystem stats - no asset loads, no Scene
+        // opens - so computing them is negligible next to
+        // the work they let an update skip.
         // ==========================================
-        public static void ExportFullProjectWithFiles()
+        private static string SceneSignature(string scenePath)
         {
-            string outputRoot = PrepareOutput();
-            string physicalFilesRoot = Path.Combine(outputRoot, DocSnapConstants.FilesSubFolder);
-            Directory.CreateDirectory(physicalFilesRoot);
-
-            ManifestState manifest = DocSnapManifest.Load();
-
-            var scenePages = new List<KeyValuePair<string, JsonValue>>();
-            foreach (string scenePath in FindAllScenePaths())
-            {
-                JsonValue sceneData;
-                int goCount;
-                try
-                {
-                    sceneData = SceneHierarchyExporter.ExportScene(scenePath, out goCount);
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogWarning("[Unity DocSnap] Skipped scene " + scenePath + ": " + ex.Message);
-                    continue;
-                }
-
-                string sceneName = Path.GetFileNameWithoutExtension(scenePath);
-                string htmlFile = DocSnapConstants.ScenesSubFolder + "/" + sceneName + ".html";
-                string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneName + ".json";
-                WriteText(outputRoot, jsonFile, sceneData.ToString());
-                WriteSceneSummaries(outputRoot, sceneName, sceneData);
-
-                DocSnapManifest.UpsertScene(manifest, new ManifestSceneEntry
-                {
-                    sceneName = sceneName,
-                    scenePath = scenePath,
-                    htmlFile = htmlFile,
-                    jsonFile = jsonFile,
-                    exportedUtc = sceneData.Get("exportedUtc").AsString(""),
-                    gameObjectCount = goCount
-                });
-                scenePages.Add(new KeyValuePair<string, JsonValue>(htmlFile, sceneData));
-
-                AssetProjectExporter.CopyPhysicalFile(scenePath, physicalFilesRoot);
-            }
-
-            string rootFolderKey = AssetProjectExporter.FolderKey("Assets");
-            List<ManifestAssetIndexEntry> indexEntries;
-            int fileCount;
-            JsonValue folderData;
             try
             {
-                folderData = AssetProjectExporter.ExportFolder("Assets", rootFolderKey, out indexEntries, out fileCount, true, physicalFilesRoot, outputRoot, ReportAssetProgress);
+                string abs = Path.GetFullPath(Path.Combine(Application.dataPath, "..", scenePath));
+                var fi = new FileInfo(abs);
+                return fi.Exists ? fi.Length + ":" + fi.LastWriteTimeUtc.Ticks : "";
             }
-            finally
+            catch { return ""; }
+        }
+
+        private static string FolderSignature(string folderPath)
+        {
+            try
             {
-                EditorUtility.ClearProgressBar();
+                string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+                string absolute = Path.GetFullPath(Path.Combine(projectRoot, folderPath));
+                if (!Directory.Exists(absolute)) { return ""; }
+
+                long newest = 0;
+                int count = 0;
+                foreach (string file in Directory.GetFiles(absolute, "*", SearchOption.AllDirectories))
+                {
+                    string name = Path.GetFileName(file);
+                    if (name.StartsWith(".", StringComparison.Ordinal)) { continue; }
+                    count++;
+                    long ticks = File.GetLastWriteTimeUtc(file).Ticks;
+                    if (ticks > newest) { newest = ticks; }
+                }
+                return count + ":" + newest;
             }
-            string assetHtmlFile = DocSnapConstants.AssetsSubFolder + "/" + rootFolderKey + ".html";
-            string assetJsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.FolderJsonPrefix + rootFolderKey + ".json";
-            WriteText(outputRoot, assetJsonFile, folderData.ToString());
-            WriteFolderSummaries(outputRoot, rootFolderKey, folderData);
+            catch { return ""; }
+        }
 
-            DocSnapManifest.ReplaceAssetIndexForFolder(manifest, rootFolderKey, indexEntries);
-            DocSnapManifest.UpsertFolder(manifest, new ManifestFolderEntry
-            {
-                folderPath = "Assets",
-                folderKey = rootFolderKey,
-                htmlFile = assetHtmlFile,
-                jsonFile = assetJsonFile,
-                exportedUtc = folderData.Get("exportedUtc").AsString(""),
-                fileCount = fileCount
-            });
-            DocSnapManifest.Save(manifest);
+        // ==========================================
+        // CanReuse / FileExists / TryLoadJson
+        // The incremental-reuse primitives: a prior export
+        // with a matching signature whose data JSON and HTML
+        // are both still on disk can be reused by parsing the
+        // JSON straight back into a JsonValue tree.
+        // ==========================================
+        private static bool CanReuse(string outputRoot, string priorSignature, string currentSignature, string jsonFile, string htmlFile)
+        {
+            return !string.IsNullOrEmpty(priorSignature)
+                && priorSignature == currentSignature
+                && FileExists(outputRoot, jsonFile)
+                && FileExists(outputRoot, htmlFile);
+        }
 
-            foreach (KeyValuePair<string, JsonValue> page in scenePages)
+        private static bool FileExists(string outputRoot, string relativeFile)
+        {
+            return File.Exists(Path.Combine(outputRoot, relativeFile.Replace('/', Path.DirectorySeparatorChar)));
+        }
+
+        private static JsonValue TryLoadJson(string outputRoot, string relativeFile)
+        {
+            try
             {
-                WriteText(outputRoot, page.Key, ScenePageRenderer.Render(page.Value, manifest, page.Key));
+                string full = Path.Combine(outputRoot, relativeFile.Replace('/', Path.DirectorySeparatorChar));
+                if (!File.Exists(full)) { return null; }
+                JsonValue parsed;
+                return JsonValue.TryParse(File.ReadAllText(full), out parsed) ? parsed : null;
             }
-            WriteText(outputRoot, assetHtmlFile, AssetPageRenderer.Render(folderData, manifest, assetHtmlFile));
-            RefreshIndexAndManifest(outputRoot, manifest);
+            catch { return null; }
+        }
 
-            ShowExportComplete(outputRoot,
-                "Exported full project with files: " + scenePages.Count + " scene(s), " + fileCount + " file(s) (assets copied to \"" + DocSnapConstants.FilesSubFolder + "/\").",
-                "ファイル付きでプロジェクト全体をエクスポートしました:シーン" + scenePages.Count + "件、ファイル" + fileCount + "件(アセットは\u201cfiles/\u201dにコピー済み)。",
-                "کل پروژه به‌همراه فایل‌ها اکسپورت شد: " + scenePages.Count + " سین، " + fileCount + " فایل (فایل‌ها توی «" + DocSnapConstants.FilesSubFolder + "/» کپی شدن).");
+        // ==========================================
+        // HasPreviousExport
+        // Whether any prior export state exists, so the
+        // menu can tell the user there is nothing to update
+        // yet and offer a full export instead.
+        // ==========================================
+        public static bool HasPreviousExport()
+        {
+            ManifestState manifest = DocSnapManifest.Load();
+            return manifest.scenes.Count > 0 || manifest.assetFolders.Count > 0;
         }
 
         // ==========================================
@@ -337,6 +444,22 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             WriteText(outputRoot, DocSnapConstants.IndexFileName, IndexPageRenderer.Render(manifest));
             WriteText(outputRoot, DocSnapConstants.ProjectSummaryFileName, DocSnapSummaryWriter.RenderProjectIndex(manifest));
             DocSnapManifest.WritePublicJson(manifest, Path.Combine(outputRoot, DocSnapConstants.DataSubFolder, DocSnapConstants.ManifestFileName));
+
+            // The client-side search index (theme/search-index.js) is rebuilt
+            // from the manifest's stored records on every export, so it always
+            // reflects everything exported so far - not just this run's item.
+            WriteText(outputRoot, DocSnapConstants.SiteAssetsSubFolder + "/" + DocSnapConstants.SearchIndexFileName, DocSnapSearchIndex.WriteSearchIndexJs(manifest));
+
+            // The Packages page + its summary are only written once a
+            // full-project pass has recorded package data; a single Scene /
+            // folder export keeps whatever was recorded last.
+            if (manifest.packages != null && manifest.packages.Count > 0)
+            {
+                WriteText(outputRoot, DocSnapConstants.PackagesFileName, PackagesPageRenderer.Render(manifest));
+                WriteText(outputRoot, DocSnapSummaryWriter.PackagesSummaryMarkdown(), DocSnapSummaryWriter.RenderPackages(manifest));
+                WriteText(outputRoot, DocSnapSummaryWriter.PackagesSummaryJson(), DocSnapSummaryWriter.RenderPackagesJson(manifest));
+            }
+
             PruneStaleOutput(outputRoot, manifest);
         }
 
@@ -381,6 +504,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 var liveSummary = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 liveData.Add(DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.ManifestFileName);
+
+                // The Packages summary (when present) lives in summary/ too;
+                // keep it out of the prune sweep so a Scene/folder-only export
+                // never deletes it.
+                liveSummary.Add(DocSnapSummaryWriter.PackagesSummaryMarkdown());
+                liveSummary.Add(DocSnapSummaryWriter.PackagesSummaryJson());
 
                 foreach (ManifestSceneEntry scene in manifest.scenes)
                 {

@@ -815,18 +815,151 @@ code, kbd, samp, pre {
   .ds-sidebar { width: 100%; flex-basis: auto; position: relative; height: auto; border-inline-end: none; border-bottom: 1px solid var(--line); }
   .ds-main { padding: 22px 16px 50px; }
 }
+
+/* ==========================================
+   Site search (sidebar)
+   ========================================== */
+.ds-search { position: relative; margin-bottom: 18px; }
+.ds-search-input {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--lavender);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  outline: none;
+}
+.ds-search-input:focus { border-color: var(--pink-strong); box-shadow: var(--shadow-soft); }
+.ds-search-input::placeholder { color: var(--ink-faint); }
+
+.ds-search-filters { display: flex; gap: 5px; margin-top: 8px; }
+.ds-search-filter {
+  flex: 1;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 11px;
+  padding: 5px 4px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-soft);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.ds-search-filter.is-active { background: var(--lavender-strong); color: #fff; border-color: var(--lavender-strong); }
+
+.ds-search-results {
+  margin-top: 10px;
+  max-height: 46vh;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  padding: 6px;
+}
+.ds-search-result {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  border-bottom: 1px dashed var(--line);
+}
+.ds-search-result:last-child { border-bottom: none; }
+.ds-search-result:hover, .ds-search-result.is-active { background: var(--pink-pale); text-decoration: none; }
+.ds-search-result .r-top { display: flex; align-items: center; gap: 6px; }
+.ds-search-result .r-name { font-weight: 700; font-size: 13px; overflow-wrap: anywhere; }
+.ds-search-result .r-cat {
+  margin-inline-start: auto;
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--lavender-strong);
+  background: #f1eaFB;
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.ds-search-result .r-sub {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.ds-search-empty { padding: 10px; font-size: 12px; color: var(--ink-faint); font-style: italic; text-align: center; }
+.ds-search-more { padding: 8px 10px 2px; font-size: 11px; color: var(--ink-soft); font-style: italic; text-align: center; }
+mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding: 0 1px; }
+
+/* ==========================================
+   Prefab override markers
+   ========================================== */
+.ds-override-dot { color: var(--pink-strong); font-size: 9px; vertical-align: 1px; }
+.ds-field-grid-row.is-override > .ds-field-name { color: var(--pink-strong); }
+.ds-prefab-tag {
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--lavender-strong);
+  background: #f1eaFB;
+  border: 1px solid var(--lavender);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.ds-prefab-mark { font-size: 11px; opacity: .8; cursor: help; }
+
+/* ==========================================
+   Packages page
+   ========================================== */
+.ds-pkg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 14px;
+  align-items: start;
+  margin-top: 12px;
+}
+.ds-pkg-card {
+  border: 1px solid var(--line);
+  border-inline-start: 5px solid var(--lavender);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  overflow: hidden;
+  min-width: 0;
+}
+.ds-pkg-head {
+  padding: 12px 16px 8px;
+  background: linear-gradient(120deg, var(--pink-pale), var(--cream-deep));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ds-pkg-head h4 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.ds-pkg-body { padding: 10px 16px 14px; }
+.ds-pkg-id { font-size: 11.5px; color: var(--ink-soft); overflow-wrap: anywhere; direction: ltr; unicode-bidi: isolate; }
+.ds-pkg-author { font-size: 11.5px; color: var(--ink-soft); margin-top: 4px; }
+.ds-pkg-desc { font-size: 12.5px; color: var(--ink); margin: 8px 0 4px; }
+.ds-module-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 4px 14px; }
+.ds-module-list li { display: flex; gap: 8px; align-items: baseline; font-size: 12px; }
+.ds-module-name { color: var(--ink); overflow-wrap: anywhere; }
+.ds-module-ver { margin-inline-start: auto; font-size: 10.5px; color: var(--ink-faint); }
 ";
 
         // ==========================================
         // AppJs - theme/app.js contents
         // ==========================================
         public const string AppJs = @"// ==========================================
-// Unity DocSnap — Site Behaviour
-// Language switching + tree helpers.
-// No network calls. The only storage used is
-// localStorage, to remember the chosen UI
-// language (en/ja/fa) across pages of this
-// offline site - never used for project data.
+// Unity DocSnap - Site Behaviour
+// Language + Simple/Advanced switching, tree
+// helpers, and a fast client-side search over
+// the embedded index. No network calls. The only
+// persisted state is the chosen UI language and
+// detail mode, via a storage helper that falls
+// back to in-memory when localStorage is blocked
+// (some browsers deny it under a file:// origin).
 // ==========================================
 
 (function () {
@@ -837,28 +970,37 @@ code, kbd, samp, pre {
   var MODE_STORAGE_KEY = 'unityDocSnapMode';
 
   // ==========================================
-  // readStoredLanguage() / writeStoredLanguage()
-  // Best-effort persistence of the user's chosen
-  // language across pages of this offline site.
-  // Wrapped in try/catch since some browsers
-  // restrict localStorage under a file:// origin.
+  // safeStorage
+  // localStorage wrapped so it can never throw,
+  // with an in-memory fallback for origins (file://
+  // in some browsers, private modes) that deny it.
+  // Persistence across pages still needs a working
+  // localStorage; the fallback simply guarantees the
+  // page keeps working (no uncaught exception, no
+  // broken language toggle) when it is unavailable.
   // ==========================================
-  function readStoredLanguage() {
-    try { return window.localStorage.getItem(LANG_STORAGE_KEY); }
-    catch (e) { return null; }
-  }
-
-  function writeStoredLanguage(lang) {
-    try { window.localStorage.setItem(LANG_STORAGE_KEY, lang); }
-    catch (e) { /* localStorage unavailable - non-fatal */ }
-  }
+  var memoryStore = {};
+  var safeStorage = {
+    get: function (key) {
+      try {
+        var v = window.localStorage.getItem(key);
+        if (v !== null && v !== undefined) { return v; }
+      } catch (e) { /* denied - fall through to memory */ }
+      return Object.prototype.hasOwnProperty.call(memoryStore, key) ? memoryStore[key] : null;
+    },
+    set: function (key, value) {
+      memoryStore[key] = value;
+      try { window.localStorage.setItem(key, value); } catch (e) { /* denied - memory only */ }
+    }
+  };
 
   // ==========================================
   // applyLanguage(lang)
   // Swaps visible text for every element that
-  // carries data-en/data-ja/data-fa, flips
-  // document direction for RTL languages, and
-  // remembers the choice for the next page.
+  // carries data-en/data-ja/data-fa, localises any
+  // input placeholder tagged data-ph-*, flips
+  // document direction for RTL, and remembers the
+  // choice for the next page.
   // ==========================================
   function applyLanguage(lang) {
     var root = document.documentElement;
@@ -872,6 +1014,12 @@ code, kbd, samp, pre {
       if (text !== null) { el.textContent = text; }
     }
 
+    var phNodes = document.querySelectorAll('[data-ph-en]');
+    for (var p = 0; p < phNodes.length; p++) {
+      var ph = phNodes[p].getAttribute('data-ph-' + lang) || phNodes[p].getAttribute('data-ph-en');
+      if (ph !== null) { phNodes[p].setAttribute('placeholder', ph); }
+    }
+
     var buttons = document.querySelectorAll('.ds-lang-btn');
     for (var b = 0; b < buttons.length; b++) {
       var isActive = buttons[b].getAttribute('data-lang') === lang;
@@ -879,26 +1027,16 @@ code, kbd, samp, pre {
       buttons[b].setAttribute('aria-pressed', isActive ? 'true' : 'false');
     }
 
-    writeStoredLanguage(lang);
+    safeStorage.set(LANG_STORAGE_KEY, lang);
   }
 
-  // ==========================================
-  // restoreLanguage()
-  // Applies the language stored from a previous
-  // page, if this page has a matching lang button.
-  // Called once on DOMContentLoaded.
-  // ==========================================
   function restoreLanguage() {
-    var stored = readStoredLanguage();
+    var stored = safeStorage.get(LANG_STORAGE_KEY);
     if (!stored) { return; }
     var match = document.querySelector('.ds-lang-btn[data-lang=' + stored + ']');
     if (match) { applyLanguage(stored); }
   }
 
-  // ==========================================
-  // wireLanguageButtons()
-  // Hooks up the sidebar EN / JA / FA buttons.
-  // ==========================================
   function wireLanguageButtons() {
     var buttons = document.querySelectorAll('.ds-lang-btn');
     for (var i = 0; i < buttons.length; i++) {
@@ -909,13 +1047,8 @@ code, kbd, samp, pre {
   }
 
   // ==========================================
-  // applyMode(mode) / restoreMode() / wireModeButtons()
-  // The Simple / Advanced detail-level switch. Simple
-  // adds body.ds-mode-simple, which the stylesheet uses
-  // to hide every .ds-adv element (engine-component
-  // fields, GUIDs, import settings); Advanced shows the
-  // complete export. The choice is stored the same way
-  // the UI language is, so it carries across pages.
+  // applyMode / restoreMode / wireModeButtons
+  // The Simple / Advanced detail-level switch.
   // ==========================================
   function applyMode(mode) {
     var simple = mode !== 'advanced';
@@ -930,14 +1063,11 @@ code, kbd, samp, pre {
       buttons[i].setAttribute('aria-pressed', isActive ? 'true' : 'false');
     }
 
-    try { window.localStorage.setItem(MODE_STORAGE_KEY, simple ? 'simple' : 'advanced'); }
-    catch (e) { /* localStorage unavailable - non-fatal */ }
+    safeStorage.set(MODE_STORAGE_KEY, simple ? 'simple' : 'advanced');
   }
 
   function restoreMode() {
-    var stored = null;
-    try { stored = window.localStorage.getItem(MODE_STORAGE_KEY); }
-    catch (e) { stored = null; }
+    var stored = safeStorage.get(MODE_STORAGE_KEY);
     if (stored) { applyMode(stored); }
   }
 
@@ -952,9 +1082,7 @@ code, kbd, samp, pre {
 
   // ==========================================
   // wireTreeControls()
-  // Optional ""expand all / collapse all"" for
-  // any .ds-tree block, operating on the native
-  // <details> open attribute.
+  // Expand-all / collapse-all for any .ds-tree.
   // ==========================================
   function wireTreeControls() {
     var expandButtons = document.querySelectorAll('[data-tree-expand]');
@@ -971,8 +1099,6 @@ code, kbd, samp, pre {
 
   // ==========================================
   // wireBackToTop()
-  // Shows the floating back-to-top button once
-  // the page has scrolled a little.
   // ==========================================
   function wireBackToTop() {
     var btn = document.querySelector('.ds-back-top');
@@ -987,6 +1113,130 @@ code, kbd, samp, pre {
     toggle();
   }
 
+  // ==========================================
+  // Search
+  // Filters the embedded index (window.__DOCSNAP_SEARCH__)
+  // entirely in the browser: no network, works under
+  // file://. Substring match on name + context, name
+  // matches ranked first, results capped so even a huge
+  // project stays instant and never freezes the tab.
+  // Record shape: { c: category, n: name, s: sub, u: url,
+  // g: group('scene'|'asset') }. Links are rewritten with
+  // the page-depth prefix so they resolve from any page.
+  // ==========================================
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .split('&').join('&amp;')
+      .split('<').join('&lt;')
+      .split('>').join('&gt;')
+      .split(String.fromCharCode(39)).join('&#39;');
+  }
+
+  function highlight(text, q) {
+    var t = String(text === null || text === undefined ? '' : text);
+    if (!q) { return esc(t); }
+    var idx = t.toLowerCase().indexOf(q);
+    if (idx < 0) { return esc(t); }
+    return esc(t.slice(0, idx)) + '<mark>' + esc(t.slice(idx, idx + q.length)) + '</mark>' + esc(t.slice(idx + q.length));
+  }
+
+  function wireSearch() {
+    var input = document.querySelector('.ds-search-input');
+    var panel = document.querySelector('.ds-search-results');
+    if (!input || !panel) { return; }
+
+    var records = window.__DOCSNAP_SEARCH__ || [];
+    var prefix = window.__DOCSNAP_PREFIX__ || '';
+    var truncatedIndex = window.__DOCSNAP_SEARCH_TRUNCATED__ === true;
+    var filter = 'all';
+    var MAX = 60;
+    var debounceTimer = null;
+
+    var filterButtons = document.querySelectorAll('.ds-search-filter');
+    for (var i = 0; i < filterButtons.length; i++) {
+      filterButtons[i].addEventListener('click', function (evt) {
+        filter = evt.currentTarget.getAttribute('data-search-filter');
+        for (var j = 0; j < filterButtons.length; j++) {
+          filterButtons[j].classList.toggle('is-active', filterButtons[j] === evt.currentTarget);
+        }
+        run(input.value);
+      });
+    }
+
+    input.addEventListener('input', function () {
+      if (debounceTimer) { clearTimeout(debounceTimer); }
+      debounceTimer = setTimeout(function () { run(input.value); }, 110);
+    });
+
+    input.addEventListener('keydown', function (evt) {
+      if (evt.key === 'Escape') { input.value = ''; hide(); input.blur(); }
+      else if (evt.key === 'Enter') {
+        var first = panel.querySelector('.ds-search-result');
+        if (first) { window.location.href = first.getAttribute('href'); }
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!evt.target.closest('.ds-search')) { hide(); }
+    });
+
+    function hide() { panel.hidden = true; panel.innerHTML = ''; }
+
+    function run(raw) {
+      var q = (raw || '').trim().toLowerCase();
+      if (q.length < 1) { hide(); return; }
+
+      var results = [];
+      var matched = 0;
+      for (var i = 0; i < records.length; i++) {
+        var r = records[i];
+        if (filter !== 'all' && r.g !== filter) { continue; }
+        var name = (r.n || '').toLowerCase();
+        var sub = (r.s || '').toLowerCase();
+        var inName = name.indexOf(q) >= 0;
+        var inSub = sub.indexOf(q) >= 0;
+        if (!inName && !inSub) { continue; }
+        matched++;
+        if (results.length < MAX) {
+          var score = inName ? (name.indexOf(q) === 0 ? 0 : 1) : 2;
+          results.push({ r: r, score: score });
+        }
+      }
+      results.sort(function (a, b) { return a.score - b.score; });
+      render(results, q, matched);
+    }
+
+    function noMatchesText() {
+      var lang = document.documentElement.getAttribute('lang') || 'en';
+      if (lang === 'ja') { return 'ヒットなし'; }
+      if (lang === 'fa') { return 'موردی پیدا نشد'; }
+      return 'No matches';
+    }
+
+    function q1(inner) { return String.fromCharCode(39) + inner + String.fromCharCode(39); }
+
+    function render(items, q, matched) {
+      panel.hidden = false;
+      if (items.length === 0) {
+        panel.innerHTML = '<div class=' + q1('ds-search-empty') + '>' + esc(noMatchesText()) + '</div>';
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < items.length; i++) {
+        var r = items[i].r;
+        var href = prefix + (r.u || '');
+        html += '<a class=' + q1('ds-search-result') + ' href=' + q1(esc(href)) + '>'
+          + '<span class=' + q1('r-top') + '><span class=' + q1('r-name') + '>' + highlight(r.n, q) + '</span>'
+          + '<span class=' + q1('r-cat') + '>' + esc(r.c) + '</span></span>'
+          + '<span class=' + q1('r-sub') + '>' + highlight(r.s, q) + '</span></a>';
+      }
+      if (matched > items.length) {
+        html += '<div class=' + q1('ds-search-more') + '>+' + (matched - items.length) + ' more' + (truncatedIndex ? ' (index capped)' : '') + '</div>';
+      }
+      panel.innerHTML = html;
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     restoreLanguage();
     wireLanguageButtons();
@@ -994,6 +1244,7 @@ code, kbd, samp, pre {
     wireModeButtons();
     wireTreeControls();
     wireBackToTop();
+    wireSearch();
   });
 })();
 ";

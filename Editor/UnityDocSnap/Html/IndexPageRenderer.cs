@@ -36,7 +36,18 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append(StatTile(totalGameObjects, "GameObjects", "GameObject数", "GameObject ها"));
             sb.Append(StatTile(manifest.assetFolders.Count, "Asset folders", "アセットフォルダ", "پوشه‌ی فایل‌ها"));
             sb.Append(StatTile(totalFiles, "Files tracked", "追跡ファイル数", "فایل‌های ردیابی‌شده"));
+            if (manifest.packages != null && manifest.packages.Count > 0)
+            {
+                sb.Append(StatTile(manifest.packages.Count, "Packages", "パッケージ", "پکیج‌ها"));
+            }
             sb.Append("</div>\n");
+
+            if (manifest.packages != null && manifest.packages.Count > 0)
+            {
+                sb.Append("<a class=\"ds-folder-row\" style=\"margin-bottom:18px;\" href=\"").Append(DocSnapConstants.PackagesFileName).Append("\">");
+                sb.Append("<span class=\"ds-folder-path\">📦 ").Append(HtmlPageBuilder.I18n("span", null, "Packages used in this project", "このプロジェクトで使用中のパッケージ", "پکیج‌های استفاده‌شده در این پروژه")).Append("</span>");
+                sb.Append("<span class=\"ds-folder-meta\">").Append(manifest.packages.Count).Append("</span></a>\n");
+            }
 
             sb.Append("<div class=\"ds-card\">").Append(HtmlPageBuilder.I18n("h3", null, "Scenes", "シーン", "سین‌ها")).Append("<ul class=\"ds-folder-list\">\n");
             if (manifest.scenes.Count == 0)

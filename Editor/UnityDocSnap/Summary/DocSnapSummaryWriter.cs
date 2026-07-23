@@ -132,11 +132,30 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
             string tag = go.Get("tag").AsString("Untagged");
             if (!string.Equals(tag, "Untagged", StringComparison.Ordinal)) { sb.Append(" `").Append(Code(tag)).Append("`"); }
             if (!go.Get("activeSelf").AsBool(true)) { sb.Append(" _(inactive)_"); }
+            sb.Append(PrefabNote(go));
 
             string comps = ComponentTypeList(go);
             if (!string.IsNullOrEmpty(comps)) { sb.Append(" — ").Append(comps); }
             sb.Append("\n");
             return sb.ToString();
+        }
+
+        // ==========================================
+        // PrefabNote
+        // A short "(Prefab: Name)" / "(Prefab Variant:
+        // Name)" annotation for a GameObject that is a
+        // Prefab instance - the kind of "where did this
+        // come from" fact an AI assistant needs but that
+        // was previously invisible in the summary. Returns
+        // "" for a plain GameObject.
+        // ==========================================
+        private static string PrefabNote(JsonValue go)
+        {
+            if (!go.Has("prefab")) { return ""; }
+            JsonValue p = go.Get("prefab");
+            string kind = p.Get("isVariant").AsBool() ? "Prefab Variant" : "Prefab";
+            string name = p.Get("assetName").AsString("");
+            return string.IsNullOrEmpty(name) ? " _(" + kind + ")_" : " _(" + kind + ": " + Clean(name) + ")_";
         }
 
         // ==========================================
@@ -198,7 +217,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                         break;
                     }
                     string name = field.Has("label") ? field.Get("label").AsString("") : field.Get("name").AsString("");
-                    sb.Append("  - ").Append(Clean(name)).Append(": ").Append(FormatValue(field)).Append("\n");
+                    string overrideMark = field.Get("prefabOverride").AsBool() ? " _(overridden)_" : "";
+                    sb.Append("  - ").Append(Clean(name)).Append(": ").Append(FormatValue(field)).Append(overrideMark).Append("\n");
                     shown++;
                 }
                 if (!HasShowableFields(fields)) { sb.Append("  - _(no serialized fields)_\n"); }
@@ -403,6 +423,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                 string tag = go.Get("tag").AsString("Untagged");
                 if (!string.Equals(tag, "Untagged", StringComparison.Ordinal)) { node.Set("tag", Clean(tag)); }
                 if (!go.Get("activeSelf").AsBool(true)) { node.Set("active", false); }
+
+                if (go.Has("prefab"))
+                {
+                    JsonValue p = go.Get("prefab");
+                    node.Set("prefab", Clean(p.Get("assetName").AsString("")));
+                    if (p.Get("isVariant").AsBool()) { node.Set("prefabVariant", true); }
+                }
 
                 string comps = ComponentTypeList(go);
                 if (!string.IsNullOrEmpty(comps)) { node.Set("components", comps); }
@@ -691,6 +718,99 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
         public static string FolderSummaryJson(string folderKey)
         {
             return DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.FolderJsonPrefix + folderKey + DocSnapConstants.SummaryJsonExtension;
+        }
+
+        public static string PackagesSummaryMarkdown()
+        {
+            return DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.PackagesSummaryName + DocSnapConstants.SummaryMarkdownExtension;
+        }
+
+        public static string PackagesSummaryJson()
+        {
+            return DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.PackagesSummaryName + DocSnapConstants.SummaryJsonExtension;
+        }
+
+        // ==========================================
+        // RenderPackages / RenderPackagesJson
+        // The "Packages used" summary in both forms:
+        // third-party (Asset Store / Git) first, then
+        // Unity's own packages, then built-in modules,
+        // each with its version and - when Unity reports
+        // one - an available update. This is exactly the
+        // "what does this project depend on" context an AI
+        // assistant otherwise has to be told by hand.
+        // ==========================================
+        public static string RenderPackages(ManifestState manifest)
+        {
+            var sb = new StringBuilder(2048);
+            sb.Append("# ").Append(Clean(manifest.projectName)).Append(" — Packages\n\n");
+            sb.Append("- **").Append(manifest.packages.Count).Append(" packages**\n");
+            sb.Append("- **Scanned:** ").Append(Clean(manifest.packagesExportedUtc)).Append("\n\n");
+
+            AppendPackageSection(sb, manifest, "thirdparty", "Installed · Asset Store / Git / third-party");
+            AppendPackageSection(sb, manifest, "unity", "Unity packages");
+            AppendPackageSection(sb, manifest, "builtin", "Built-in Unity modules");
+
+            sb.Append(Footer());
+            return sb.ToString();
+        }
+
+        private static void AppendPackageSection(StringBuilder sb, ManifestState manifest, string category, string title)
+        {
+            var rows = new List<ManifestPackageEntry>();
+            foreach (ManifestPackageEntry p in manifest.packages)
+            {
+                if (p.category == category) { rows.Add(p); }
+            }
+            sb.Append("## ").Append(title).Append("\n\n");
+            if (rows.Count == 0)
+            {
+                sb.Append("_None._\n\n");
+                return;
+            }
+            foreach (ManifestPackageEntry p in rows)
+            {
+                sb.Append("- **").Append(Clean(p.displayName)).Append("** `").Append(Code(p.name)).Append("`");
+                if (!string.IsNullOrEmpty(p.version)) { sb.Append(" · v").Append(Clean(p.version)); }
+                if (!string.IsNullOrEmpty(p.source)) { sb.Append(" · ").Append(Clean(p.source)); }
+                if (p.updateAvailable)
+                {
+                    sb.Append(" · ⬆ update available");
+                    if (!string.IsNullOrEmpty(p.latestVersion)) { sb.Append(" → ").Append(Clean(p.latestVersion)); }
+                }
+                sb.Append("\n");
+            }
+            sb.Append("\n");
+        }
+
+        public static string RenderPackagesJson(ManifestState manifest)
+        {
+            var root = JsonValue.Obj();
+            root.Set("kind", "packages-summary");
+            root.Set("generatedBy", DocSnapConstants.ToolName + " v" + DocSnapConstants.Version);
+            root.Set("project", manifest.projectName);
+            root.Set("scannedUtc", manifest.packagesExportedUtc);
+            root.Set("count", manifest.packages.Count);
+
+            var arr = JsonValue.Arr();
+            foreach (ManifestPackageEntry p in manifest.packages)
+            {
+                var node = JsonValue.Obj()
+                    .Set("name", Clean(p.name))
+                    .Set("displayName", Clean(p.displayName))
+                    .Set("version", Clean(p.version))
+                    .Set("source", Clean(p.source))
+                    .Set("category", Clean(p.category));
+                if (p.updateAvailable)
+                {
+                    node.Set("updateAvailable", true);
+                    if (!string.IsNullOrEmpty(p.latestVersion)) { node.Set("latestVersion", Clean(p.latestVersion)); }
+                }
+                if (!string.IsNullOrEmpty(p.url)) { node.Set("url", Clean(p.url)); }
+                arr.Add(node);
+            }
+            root.Set("packages", arr);
+            return root.ToCompactString() + "\n";
         }
 
         // ==========================================

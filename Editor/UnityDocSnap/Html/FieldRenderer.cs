@@ -160,6 +160,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             {
                 sb.Append(" <span class=\"ds-go-tag\">").Append(HtmlPageBuilder.Escape(tag)).Append("</span>");
             }
+            if (go.Has("prefab"))
+            {
+                bool isVariant = go.Get("prefab").Get("isVariant").AsBool();
+                string prefabName = go.Get("prefab").Get("assetName").AsString("");
+                string tip = (isVariant ? "Prefab Variant" : "Prefab instance") + (string.IsNullOrEmpty(prefabName) ? "" : ": " + prefabName);
+                sb.Append(" <span class=\"ds-prefab-mark\" title=\"").Append(HtmlPageBuilder.Escape(tip)).Append("\">🧩</span>");
+            }
             sb.Append("</summary>\n");
             sb.Append(RenderGoDetailBody(go, resolver));
             if (hasChildren)
@@ -192,6 +199,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 : HtmlPageBuilder.I18n("span", null, "Inactive", "非アクティブ", "غیرفعال")));
             if (isStatic) { sb.Append(HtmlPageBuilder.BadgeRaw("lav", HtmlPageBuilder.I18n("span", null, "Static", "スタティック", "Static"))); }
             sb.Append(HtmlPageBuilder.BadgeRaw(null, HtmlPageBuilder.I18n("span", null, "Layer", "レイヤー", "لایه") + ": " + HtmlPageBuilder.Escape(layer)));
+            sb.Append(RenderPrefabBadges(go, resolver));
             sb.Append("</div>");
 
             JsonValue t = go.Get("transform");
@@ -216,6 +224,54 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         }
 
         // ==========================================
+        // RenderPrefabBadges
+        // The Prefab-awareness row for a GameObject:
+        // whether it is a Prefab instance (and whether
+        // that Prefab is a Variant), a link straight to
+        // the Prefab asset's page when its GUID resolves,
+        // and - on the outermost instance root - how many
+        // components / child objects were added or removed
+        // relative to the Prefab. Returns "" for any
+        // GameObject that is not a Prefab instance.
+        // ==========================================
+        private static string RenderPrefabBadges(JsonValue go, RefLinkResolver resolver)
+        {
+            if (!go.Has("prefab")) { return ""; }
+            JsonValue p = go.Get("prefab");
+
+            var sb = new StringBuilder(256);
+            bool isVariant = p.Get("isVariant").AsBool();
+            string assetName = p.Get("assetName").AsString("");
+            string label = isVariant
+                ? HtmlPageBuilder.I18n("span", null, "Prefab Variant", "Prefabバリアント", "Prefab Variant")
+                : HtmlPageBuilder.I18n("span", null, "Prefab Instance", "Prefabインスタンス", "نمونه‌ی Prefab");
+
+            string inner = "🧩 " + label;
+            if (!string.IsNullOrEmpty(assetName)) { inner += ": " + HtmlPageBuilder.Escape(assetName); }
+
+            string guid = p.Get("assetGuid").AsString("");
+            ManifestAssetIndexEntry entry;
+            if (!string.IsNullOrEmpty(guid) && resolver != null && resolver.GuidLookup != null && resolver.GuidLookup.TryGetValue(guid, out entry))
+            {
+                string href = resolver.LinkPrefix + entry.htmlFile + "#" + entry.anchor;
+                sb.Append("<a class=\"ds-badge lav\" style=\"text-decoration:none;\" href=\"").Append(href).Append("\">").Append(inner).Append("</a>");
+            }
+            else
+            {
+                sb.Append(HtmlPageBuilder.BadgeRaw("lav", inner));
+            }
+
+            int added = (int)p.Get("addedComponents").AsNumber(0);
+            int removed = (int)p.Get("removedComponents").AsNumber(0);
+            int addedGo = (int)p.Get("addedGameObjects").AsNumber(0);
+            if (added > 0) { sb.Append(HtmlPageBuilder.BadgeRaw("warn", "+" + added + " " + HtmlPageBuilder.I18n("span", null, "added comp.", "追加コンポーネント", "کامپوننت اضافه"))); }
+            if (removed > 0) { sb.Append(HtmlPageBuilder.BadgeRaw("warn", "−" + removed + " " + HtmlPageBuilder.I18n("span", null, "removed comp.", "削除コンポーネント", "کامپوننت حذف"))); }
+            if (addedGo > 0) { sb.Append(HtmlPageBuilder.BadgeRaw("warn", "+" + addedGo + " " + HtmlPageBuilder.I18n("span", null, "added obj.", "追加オブジェクト", "آبجکت اضافه"))); }
+
+            return sb.ToString();
+        }
+
+        // ==========================================
         // RenderComponent
         // One Component card: header (name, on/off
         // state) plus its full field table, or a
@@ -234,6 +290,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             var sb = new StringBuilder(512);
             sb.Append("<div class=\"ds-component").Append(isUserScript ? " is-user-script" : "").Append("\">");
             sb.Append("<div class=\"ds-component-head\">").Append(HtmlPageBuilder.Escape(typeName));
+            if (comp.Get("isAddedComponent").AsBool())
+            {
+                sb.Append(" <span class=\"ds-prefab-tag\">＋ ").Append(HtmlPageBuilder.I18n("span", null, "added on instance", "インスタンスに追加", "اضافه‌شده روی نمونه")).Append("</span>");
+            }
             if (comp.Get("isBehaviour").AsBool())
             {
                 bool enabled = comp.Get("enabled").AsBool(true);
@@ -282,8 +342,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             {
                 string name = field.Has("label") ? field.Get("label").AsString("") : field.Get("name").AsString("");
                 string kind = field.Get("kind").AsString("raw");
-                sb.Append("<div class=\"ds-field-grid-row\">");
-                sb.Append("<div class=\"ds-field-name\">").Append(HtmlPageBuilder.Escape(name)).Append("</div>");
+                bool overridden = field.Get("prefabOverride").AsBool();
+                sb.Append("<div class=\"ds-field-grid-row").Append(overridden ? " is-override" : "").Append("\">");
+                sb.Append("<div class=\"ds-field-name\">").Append(HtmlPageBuilder.Escape(name));
+                if (overridden)
+                {
+                    sb.Append(" <span class=\"ds-override-dot\" title=\"Overridden from prefab\" aria-label=\"Overridden from prefab\">●</span>");
+                }
+                sb.Append("</div>");
                 sb.Append("<div class=\"ds-field-type\">").Append(HtmlPageBuilder.Escape(kind)).Append("</div>");
                 sb.Append("<div class=\"ds-field-value\">").Append(RenderValue(field, resolver, 0)).Append("</div>");
                 sb.Append("</div>\n");
@@ -713,6 +779,18 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         }
 
         // ==========================================
+        // FolderAnchor
+        // The exact in-page id used for a folder node in
+        // the rendered directory tree ("folder-<sanitized>").
+        // Exposed so the search index can deep-link straight
+        // to a folder, matching the id RenderFolderNode emits.
+        // ==========================================
+        public static string FolderAnchor(string folderPath)
+        {
+            return "folder-" + SanitizeAnchor(folderPath);
+        }
+
+        // ==========================================
         // SanitizeAnchor
         // Turns a folder path into a safe HTML id
         // fragment (letters/digits kept, everything
@@ -832,6 +910,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 sb.Append(OpenDetail("Fields", "フィールド", "فیلدها"));
                 sb.Append(RenderFieldTable(file.Get("assetFields"), resolver));
                 sb.Append(CloseDetail());
+            }
+            if (file.Has("prefabAssetType"))
+            {
+                bool isVariant = file.Get("prefabIsVariant").AsBool();
+                string prefabKind = isVariant ? "Variant" : file.Get("prefabAssetType").AsString("Regular");
+                sb.Append(KvLine("Prefab", "Prefab", "Prefab", prefabKind));
+                if (isVariant && file.Has("prefabBaseName"))
+                {
+                    sb.Append(KvLine("Based on", "ベース", "برپایه‌ی", file.Get("prefabBaseName").AsString("")));
+                }
             }
             if (file.Has("prefabRoot"))
             {

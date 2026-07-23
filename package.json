@@ -1,6 +1,6 @@
 {
   "name": "com.amircollider.unitydocsnap",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "displayName": "Unity DocSnap",
   "description": "Snap your whole Unity project into a clean, offline documentation set — for humans and AI alike.\n\nUnity DocSnap walks every Scene (full Hierarchy, every Component, every serialized field, every reference) and every Asset folder (import settings, Material shader properties, Prefab contents, script metadata) and bakes it into two forms of output side by side:\n\n• Full — a self-contained, offline HTML site with a Simple / Advanced view toggle, plus the complete structured JSON.\n• Simple — short, plain Markdown summaries you can paste straight into an AI assistant without blowing its context window.\n\nEditor-only: zero runtime cost, zero added build size, zero third-party dependencies.",
   "unity": "2021.3",

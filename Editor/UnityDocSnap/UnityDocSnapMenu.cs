@@ -88,6 +88,46 @@ namespace AmirCollider.UnityDocSnap.Editor
         }
 
         // ==========================================
+        // Update Previous Export
+        // Re-runs a full export but reuses any Scene or
+        // the Assets folder whose source has not changed
+        // since last time - a fast refresh for a large
+        // project instead of re-scanning everything. A
+        // confirmation dialog warns that it overwrites the
+        // previous export in place and recommends a backup
+        // first (the export folder is only ever rewritten,
+        // never versioned).
+        // ==========================================
+        [MenuItem(DocSnapConstants.MenuUpdatePreviousExport, false, 25)]
+        private static void UpdatePreviousExportMenuItem()
+        {
+            if (!DocSnapExportService.HasPreviousExport())
+            {
+                bool runFull = EditorUtility.DisplayDialog(
+                    DocSnapConstants.ToolName,
+                    "There's no previous export to update yet.\n\nRun a full export first?\n\nمنتظر بروزرسانی چیزی نیست — هنوز خروجی قبلی وجود نداره. اول یک خروجی کامل بگیر؟",
+                    "Run Full Export",
+                    "Cancel");
+                if (runFull) { DocSnapExportService.ExportFullProject(); }
+                return;
+            }
+
+            bool proceed = EditorUtility.DisplayDialog(
+                DocSnapConstants.ToolName + "  ↻",
+                "This updates your PREVIOUS export in place.\n" +
+                "Only Scenes / Assets that changed since the last export are re-scanned; unchanged ones are reused, so it's much faster.\n\n" +
+                "⚠ It overwrites the existing output folder. It's recommended to back up your previous export first.\n\n" +
+                "─────\n" +
+                "この操作は前回のエクスポートを上書きします。先にバックアップを推奨します。\n\n" +
+                "─────\n" +
+                "این کار خروجی قبلی رو همونجا بروزرسانی (و بازنویسی) می‌کنه. فقط موارد تغییر‌کرده دوباره اسکن می‌شن. بهتره قبلش بک‌آپ بگیری.",
+                "Update & overwrite",
+                "Cancel");
+
+            if (proceed) { DocSnapExportService.UpdatePreviousExport(); }
+        }
+
+        // ==========================================
         // Open Output Folder
         // ==========================================
         [MenuItem(DocSnapConstants.MenuOpenOutputFolder, false, 34)]

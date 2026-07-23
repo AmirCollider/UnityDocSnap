@@ -76,9 +76,13 @@ Unity DocSnap
 │   ├── Entire Assets Folder
 │   └── Selected Folder…
 ├── Export Full Project      (Scenes + Assets, all cross-linked)
+├── Export Full Project With Files
+├── Update Previous Export    (fast incremental refresh — reuses unchanged Scenes/Assets)
 ├── Open Output Folder
 └── About Unity DocSnap
 ```
+
+The generated site also has a **search box** in the sidebar (All / Scenes / Assets), a **Packages** page listing every package the project depends on, and marks **Prefab instances / variants / overridden fields** throughout.
 
 **Exporting a single Scene**
 `Unity DocSnap → Export Scene → [YourSceneName]` walks that Scene's entire Hierarchy and writes a full snapshot of every GameObject and Component into the output folder.
@@ -96,6 +100,7 @@ Every export writes **two forms of the same information** side by side: the **fu
 ```
 UnityDocSnap_Output/
 ├── index.html         ← the full offline site (start here)
+├── packages.html      ← packages the project depends on (Unity + third-party)
 ├── summary.md         ← project index → points into summary/
 ├── summary/           ← simple, AI-friendly (short — hand these to an AI)
 │   ├── scene-MainMenu.md            ← readable
@@ -107,7 +112,7 @@ UnityDocSnap_Output/
 ├── folders/
 │   └── Images_Backgrounds.html
 ├── data/              ← full, every-field JSON (the advanced form)
-├── theme/             ← css/js + thumbnails for the site itself
+├── theme/             ← css/js + search-index.js + thumbnails for the site itself
 └── source-files/      ← optional verbatim asset copies (With Files export only)
 ```
 
@@ -119,8 +124,8 @@ Every exported page follows the same clean, predictable structure — proper hea
 
 ### 🗺️ Roadmap
 
-- [ ] Optional thumbnail previews for image assets
-- [ ] Search across the whole exported site
+- [x] Optional thumbnail previews for image assets
+- [x] Search across the whole exported site
 - [ ] Diff view between two exports
 - [ ] Dark mode for the generated site 🌙
 
@@ -193,9 +198,13 @@ Unity DocSnap
 │   ├── Entire Assets Folder
 │   └── Selected Folder…
 ├── Export Full Project      (Scene + Assetをまとめて、すべて相互リンク済みで)
+├── Export Full Project With Files
+├── Update Previous Export    (増分更新 — 変更のないScene/Assetは再利用)
 ├── Open Output Folder
 └── About Unity DocSnap
 ```
+
+生成されたサイトには、サイドバーの**検索ボックス**(All / Scenes / Assets)、依存パッケージ一覧の**Packages**ページ、そして**Prefabインスタンス/バリアント/上書きされたフィールド**の表示も追加されました。
 
 **Sceneを1つだけエクスポートする**
 `Unity DocSnap → Export Scene → [Scene名]` を選ぶと、そのSceneのHierarchy全体を歩き、すべてのGameObjectとComponentのスナップショットを出力フォルダに書き出します。
@@ -223,8 +232,9 @@ UnityDocSnap_Output/
 │   └── MainMenu.html                ← フルの対話ページ
 ├── folders/
 │   └── Images_Backgrounds.html
+├── packages.html      ← プロジェクトが依存するパッケージ(Unity + サードパーティ)
 ├── data/              ← 完全な構造化JSON(全フィールドを含む詳細版)
-├── theme/             ← サイト自体のcss/js + サムネイル
+├── theme/             ← サイト自体のcss/js + search-index.js + サムネイル
 └── source-files/      ← アセット実体のコピー(任意 / With Files エクスポート時のみ)
 ```
 
@@ -236,8 +246,8 @@ UnityDocSnap_Output/
 
 ### 🗺️ ロードマップ
 
-- [ ] 画像アセットのサムネイルプレビュー(任意)
-- [ ] エクスポートしたサイト全体の検索機能
+- [x] 画像アセットのサムネイルプレビュー(任意)
+- [x] エクスポートしたサイト全体の検索機能
 - [ ] 2つのエクスポート間の差分表示
 - [ ] 生成されたサイトのダークモード 🌙
 
@@ -312,9 +322,13 @@ Unity DocSnap
 │   ├── Entire Assets Folder
 │   └── Selected Folder…
 ├── Export Full Project      (سین‌ها + فایل‌ها، همه به هم لینک‌شده)
+├── Export Full Project With Files
+├── Update Previous Export    (بروزرسانی افزایشی و سریع — موارد تغییرنکرده دوباره استفاده می‌شن)
 ├── Open Output Folder
 └── About Unity DocSnap
 ```
+
+سایت تولیدشده حالا یه **باکس جستجو** توی سایدبار داره (همه / سین‌ها / فایل‌ها)، یه صفحه‌ی **Packages** که همه‌ی پکیج‌های پروژه رو لیست می‌کنه، و **نمونه‌ها/واریانت‌های Prefab و فیلدهای بازنویسی‌شده** رو همه‌جا مشخص می‌کنه.
 
 **اکسپورت گرفتن از یه سین**
 با زدن `Unity DocSnap → Export Scene → [اسم سین]`، کل Hierarchy همون سین رو قدم می‌زنه و اسنپ‌شات کامل همه‌ی GameObject ها و کامپوننت‌هاشون رو توی پوشه‌ی خروجی می‌نویسه.
@@ -342,8 +356,9 @@ UnityDocSnap_Output/
 │   └── MainMenu.html                ← صفحه‌ی کامل و تعاملی
 ├── folders/
 │   └── Images_Backgrounds.html
+├── packages.html      ← پکیج‌هایی که پروژه بهشون وابسته‌ست (یونیتی + شخص‌ثالث)
 ├── data/              ← JSON کامل و ساختاریافته (نسخه‌ی پیشرفته، همه‌ی فیلدها)
-├── theme/             ← css/js و تصاویر بندانگشتی خود سایت
+├── theme/             ← css/js و search-index.js و تصاویر بندانگشتی خود سایت
 └── source-files/      ← کپی خام فایل‌ها (اختیاری / فقط در اکسپورت With Files)
 ```
 
@@ -355,8 +370,8 @@ UnityDocSnap_Output/
 
 ### 🗺️ نقشه‌ی راه
 
-- [ ] پیش‌نمایش کوچیک (Thumbnail) برای فایل‌های عکس (اختیاری)
-- [ ] جستجو توی کل سایت اکسپورت‌شده
+- [x] پیش‌نمایش کوچیک (Thumbnail) برای فایل‌های عکس (اختیاری)
+- [x] جستجو توی کل سایت اکسپورت‌شده
 - [ ] نمایش تفاوت بین دو تا خروجی مختلف
 - [ ] حالت تاریک (Dark Mode) برای سایت تولیدشده 🌙
 

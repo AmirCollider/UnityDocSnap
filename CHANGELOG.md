@@ -2,6 +2,20 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.5.0] - 2026-07-23
+
+### Added
+- **Client-side search across the whole exported site.** A search box now sits in the sidebar of every page, with **All / Scenes / Assets** filters. It searches every GameObject (by name and component types), every asset (by name, type and path), plus Scenes and folders, and links straight to the matching card. The index is baked into a tiny `theme/search-index.js` (a plain `window.__DOCSNAP_SEARCH__` assignment, **not** a `fetch()`ed JSON) so it works even when the site is opened from a `file://` origin. Matching is capped and debounced, and the whole index is hard-limited (`MaxSearchRecords`) so even a project with thousands of objects stays instant and never freezes the tab.
+- **Prefab awareness.** GameObjects that are Prefab instances are now marked as such throughout: a 🧩 marker in the Hierarchy tree, a **Prefab Instance / Prefab Variant** badge (linked to the Prefab asset's page when it was exported) with roll-ups of added/removed components and added child objects on the instance root, an **added-on-instance** tag on components that exist only on the instance, and — most usefully — a per-field **override dot** on every serialized value that was changed relative to the Prefab (`SerializedProperty.prefabOverride`). Prefab **assets** that are Variants show their kind and the base Prefab they derive from. All of it also lands in the simple summaries (Markdown + JSON).
+- **"Packages used in this project" page** (`packages.html`, linked from the sidebar and dashboard). Two groups: **Installed · Asset Store / Git / third-party** and **Unity packages** (with Unity's built-in engine modules tucked into a collapsed sub-section). Every card shows the package id, version, source, author, description, an **access link**, and — when Unity reports a newer version — an **⬆ update available → x.y.z** badge. Also written as `summary/packages.md` + `.json` for AI.
+- **`Unity DocSnap → Update Previous Export`** — an incremental refresh. A confirmation dialog first warns that it overwrites the previous export in place and recommends backing it up. It then reuses any Scene, and the Assets folder, whose source has not changed since the last export (compared via a cheap file-size/last-write fingerprint) instead of re-opening every Scene and re-reading every asset — a large project refreshes in a fraction of the time, and unchanged pages are still re-rendered so sidebars and cross-links stay consistent.
+- **A real JSON parser (`JsonValue.Parse` / `TryParse`)**, the exact inverse of the writer, which powers the incremental reuse above (a still-current `data/*.json` is parsed back instead of re-scanned) and makes `JsonValue` fully round-trippable.
+- **First unit / EditMode tests.** A new `Tests/Editor` assembly (gated behind `UNITY_INCLUDE_TESTS`, so it never affects a normal build) covers `JsonValue` (writer shape + parser round-trips), `UniversalReflector` (every serialized property type → the right `kind`/value, reflected off a real `ScriptableObject`), and `DocSnapSummaryWriter` (hierarchy, own-scripts-only expansion, folder inventory, valid JSON).
+
+### Changed
+- **`ExportFullProject` and `ExportFullProjectWithFiles` are now one method.** They were ~80% identical; both (and the new `Update Previous Export`) are thin wrappers over a single `ExportProject(bool copyFiles, bool incremental)`, removing the risk of the two paths drifting apart.
+- The Simple / Advanced language+mode storage now goes through a small `safeStorage` helper with an in-memory fallback, so a blocked `localStorage` (some browsers under `file://`, private modes) can never throw or break the page. Input placeholders are localised too.
+
 ## [0.4.2] - 2026-07-23
 
 ### Fixed

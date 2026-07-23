@@ -85,6 +85,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append(RenderFooter());
             sb.Append("</main>\n</div>\n");
             sb.Append("<button class=\"ds-back-top\" aria-label=\"Back to top\">\u2B06</button>\n");
+            // The page's own depth prefix ("" at root, "../" one level down)
+            // so the search script can rewrite its root-relative record links
+            // to work from wherever this page lives. Loaded before app.js.
+            sb.Append("<script>window.__DOCSNAP_PREFIX__=\"").Append(prefix).Append("\";</script>\n");
+            sb.Append("<script src=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.SearchIndexFileName).Append("\"></script>\n");
             sb.Append("<script src=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.ScriptFileName).Append("\"></script>\n</body>\n</html>\n");
             return sb.ToString();
         }
@@ -122,11 +127,35 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
               .Append(I18n("span", null, "🔬 Advanced", "🔬 詳細", "🔬 پیشرفته")).Append("</button>");
             sb.Append("</div>\n");
 
+            // Site-wide search. The <input>'s placeholder is localised by
+            // app.js via the data-ph-* attributes (applyLanguage sets it),
+            // and the results panel is populated from the embedded search
+            // index entirely client-side - no network, works under file://.
+            sb.Append("<div class=\"ds-search\">");
+            sb.Append("<input type=\"search\" class=\"ds-search-input\" autocomplete=\"off\" spellcheck=\"false\" aria-label=\"Search\" ")
+              .Append("data-ph-en=\"Search objects, assets…\" data-ph-ja=\"オブジェクト・アセットを検索…\" data-ph-fa=\"جستجوی آبجکت‌ها، فایل‌ها…\" ")
+              .Append("placeholder=\"Search objects, assets…\">");
+            sb.Append("<div class=\"ds-search-filters\" role=\"group\" aria-label=\"Search filter\">");
+            sb.Append("<button class=\"ds-search-filter is-active\" data-search-filter=\"all\">").Append(I18n("span", null, "All", "すべて", "همه")).Append("</button>");
+            sb.Append("<button class=\"ds-search-filter\" data-search-filter=\"scene\">").Append(I18n("span", null, "Scenes", "シーン", "سین‌ها")).Append("</button>");
+            sb.Append("<button class=\"ds-search-filter\" data-search-filter=\"asset\">").Append(I18n("span", null, "Assets", "アセット", "فایل‌ها")).Append("</button>");
+            sb.Append("</div>");
+            sb.Append("<div class=\"ds-search-results\" hidden></div>");
+            sb.Append("</div>\n");
+
             bool onIndex = currentHtmlFile == DocSnapConstants.IndexFileName;
+            bool onPackages = currentHtmlFile == DocSnapConstants.PackagesFileName;
             sb.Append("<div class=\"ds-nav-section\"><ul class=\"ds-nav-list\">");
             sb.Append("<li><a class=\"ds-nav-link").Append(onIndex ? " is-current" : "").Append("\" href=\"").Append(prefix).Append(DocSnapConstants.IndexFileName).Append("\">");
             sb.Append(I18n("span", null, "\uD83C\uDFE0 Dashboard", "\uD83C\uDFE0 ダッシュボード", "\uD83C\uDFE0 داشبورد"));
-            sb.Append("</a></li></ul></div>\n");
+            sb.Append("</a></li>");
+            if (manifest.packages != null && manifest.packages.Count > 0)
+            {
+                sb.Append("<li><a class=\"ds-nav-link").Append(onPackages ? " is-current" : "").Append("\" href=\"").Append(prefix).Append(DocSnapConstants.PackagesFileName).Append("\">");
+                sb.Append(I18n("span", null, "📦 Packages", "📦 パッケージ", "📦 پکیج‌ها"));
+                sb.Append("<span class=\"ds-nav-count\">").Append(manifest.packages.Count).Append("</span></a></li>");
+            }
+            sb.Append("</ul></div>\n");
 
             sb.Append("<div class=\"ds-nav-section\"><p class=\"ds-nav-title\">");
             sb.Append(I18n("span", null, "Scenes", "シーン", "سین‌ها"));

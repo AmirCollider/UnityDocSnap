@@ -30,6 +30,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
         public string jsonFile;
         public string exportedUtc;
         public int gameObjectCount;
+
+        // A cheap fingerprint of the Scene's source file (see
+        // DocSnapExportService.SceneSignature). An incremental
+        // "Update Previous Export" reuses this Scene's existing
+        // output when the fingerprint is unchanged, instead of
+        // re-opening and re-walking the whole Scene.
+        public string sourceSignature;
     }
 
     [Serializable]
@@ -41,6 +48,53 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
         public string jsonFile;
         public string exportedUtc;
         public int fileCount;
+
+        // Fingerprint of every file under the folder (count + newest
+        // write time). Lets an incremental update skip the expensive
+        // per-asset pass when nothing in the folder changed.
+        public string sourceSignature;
+    }
+
+    // ==========================================
+    // ManifestPackageEntry
+    // One row of the "Packages used" page: a UPM
+    // package the project depends on, tagged as
+    // Unity's own or third-party (Asset Store / Git),
+    // with an access link and whether Unity reports a
+    // newer version available.
+    // ==========================================
+    [Serializable]
+    internal sealed class ManifestPackageEntry
+    {
+        public string name;
+        public string displayName;
+        public string version;
+        public string latestVersion;
+        public bool updateAvailable;
+        public string source;
+        public string category; // "unity" | "thirdparty"
+        public string author;
+        public string description;
+        public string url;
+    }
+
+    // ==========================================
+    // ManifestSearchEntry
+    // One lightweight, searchable record baked into
+    // the site's embedded search index. Kept tiny on
+    // purpose (name + one line of context + a link)
+    // so even a huge project's index stays small and
+    // fast to filter in the browser.
+    // ==========================================
+    [Serializable]
+    internal sealed class ManifestSearchEntry
+    {
+        public string scope;    // sceneName / folderKey the record belongs to (for re-export replacement)
+        public string group;    // "scene" | "asset"
+        public string category; // GameObject / Component / Asset / Folder / Scene
+        public string name;
+        public string sub;      // secondary text (component list / path)
+        public string url;      // htmlFile#anchor, relative to the output root
     }
 
     [Serializable]
@@ -62,6 +116,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
         public List<ManifestSceneEntry> scenes = new List<ManifestSceneEntry>();
         public List<ManifestFolderEntry> assetFolders = new List<ManifestFolderEntry>();
         public List<ManifestAssetIndexEntry> assetIndex = new List<ManifestAssetIndexEntry>();
+        public List<ManifestPackageEntry> packages = new List<ManifestPackageEntry>();
+        public List<ManifestSearchEntry> searchRecords = new List<ManifestSearchEntry>();
+        public string packagesExportedUtc = "";
     }
 
     internal static class DocSnapManifest
@@ -98,6 +155,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
                 state.scenes = state.scenes ?? new List<ManifestSceneEntry>();
                 state.assetFolders = state.assetFolders ?? new List<ManifestFolderEntry>();
                 state.assetIndex = state.assetIndex ?? new List<ManifestAssetIndexEntry>();
+                state.packages = state.packages ?? new List<ManifestPackageEntry>();
+                state.searchRecords = state.searchRecords ?? new List<ManifestSearchEntry>();
                 return state;
             }
             catch (Exception ex)
@@ -165,6 +224,45 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
         {
             state.assetIndex.RemoveAll(a => a.folderKey == folderKey);
             state.assetIndex.AddRange(freshEntries);
+        }
+
+        // ==========================================
+        // ReplaceSearchRecordsForScope — swaps in the
+        // freshly built search records for one Scene or
+        // folder, dropping that scope's previous records
+        // first so a re-export never leaves stale entries
+        // pointing at objects that no longer exist.
+        // ==========================================
+        public static void ReplaceSearchRecordsForScope(ManifestState state, string scope, List<ManifestSearchEntry> freshEntries)
+        {
+            state.searchRecords.RemoveAll(r => r.scope == scope);
+            if (freshEntries != null) { state.searchRecords.AddRange(freshEntries); }
+        }
+
+        // ==========================================
+        // FindScene / FindFolder — locate a prior entry
+        // by its source path/key, used by the incremental
+        // update to decide whether an item can be reused.
+        // ==========================================
+        public static ManifestSceneEntry FindScene(ManifestState state, string scenePath)
+        {
+            return state.scenes.Find(s => s.scenePath == scenePath);
+        }
+
+        public static ManifestFolderEntry FindFolder(ManifestState state, string folderKey)
+        {
+            return state.assetFolders.Find(f => f.folderKey == folderKey);
+        }
+
+        // ==========================================
+        // SetPackages — replaces the recorded package
+        // list wholesale (packages are project-global,
+        // not per Scene/folder) and stamps the time.
+        // ==========================================
+        public static void SetPackages(ManifestState state, List<ManifestPackageEntry> packages)
+        {
+            state.packages = packages ?? new List<ManifestPackageEntry>();
+            state.packagesExportedUtc = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
         }
 
         // ==========================================

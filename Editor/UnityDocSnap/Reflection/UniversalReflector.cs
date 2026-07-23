@@ -65,6 +65,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
                 node.Set("label", prop.displayName);
             }
 
+            // Prefab override marker. SerializedProperty.prefabOverride is
+            // true when this exact value was changed on a Prefab instance
+            // relative to its Prefab asset - the single most useful thing a
+            // documentation tool can surface about a Prefab instance ("this
+            // was tweaked here"). It is always false for a plain object, so
+            // it is only recorded when true to keep the export lean. Reading
+            // it is cheap and cannot throw.
+            if (prop.prefabOverride) { node.Set("prefabOverride", true); }
+
             if (depth > DocSnapConstants.MaxGenericRecursionDepth)
             {
                 node.Set("kind", "unsupported");

@@ -12,7 +12,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // Identity
         // ==========================================
         public const string ToolName = "Unity DocSnap";
-        public const string Version = "0.4.2";
+        public const string Version = "0.5.0";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
 
@@ -25,6 +25,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         public const string MenuExportAssetInfoSelected = MenuRoot + "Export Asset Info/Selected Folder...";
         public const string MenuExportFullProject = MenuRoot + "Export Full Project";
         public const string MenuExportFullProjectWithFiles = MenuRoot + "Export Full Project With Files";
+        public const string MenuUpdatePreviousExport = MenuRoot + "Update Previous Export";
         public const string MenuOpenOutputFolder = MenuRoot + "Open Output Folder";
         public const string MenuAbout = MenuRoot + "About Unity DocSnap";
 
@@ -61,6 +62,26 @@ namespace AmirCollider.UnityDocSnap.Editor
         public const string ScriptFileName = "app.js";
         public const string ManifestFileName = "manifest.json";
         public const string EntireProjectFolderKey = "Assets";
+
+        // ==========================================
+        // Packages page + client-side search index.
+        // packages.html lists every UPM package the
+        // project depends on (Unity's own vs third
+        // party / Git). search-index.js is a tiny JS
+        // file that assigns a flat, lightweight record
+        // list to a global so the site's search box
+        // works even under the file:// origin, where a
+        // fetch() of an external .json is blocked.
+        // ==========================================
+        public const string PackagesFileName = "packages.html";
+        public const string SearchIndexFileName = "search-index.js";
+        public const string PackagesSummaryName = "packages";
+
+        // A hard ceiling on how many records the search
+        // index ever contains, so an enormous project can
+        // never produce a search file big enough to hang
+        // the browser tab that loads it.
+        public const int MaxSearchRecords = 20000;
 
         // ==========================================
         // Simple, AI-friendly summary output.
