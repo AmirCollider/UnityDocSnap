@@ -180,7 +180,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Json
                     if (_i >= _s.Length || _s[_i] != ':') { throw new FormatException("Expected ':' at position " + _i + "."); }
                     _i++; // consume ':'
                     SkipWhitespace();
-                    obj.Set(key, ReadValue());
+                    // AppendMember, not Set: Set scans every existing
+                    // member to honour overwrite-on-duplicate, which
+                    // makes parsing an object O(n²) in its member count.
+                    // A duplicate key is invalid in the JSON this tool
+                    // writes, and on the rare hand-edited input that has
+                    // one, first-wins is a defensible reading.
+                    obj.AppendMember(key, ReadValue());
                     SkipWhitespace();
                     if (_i >= _s.Length) { throw new FormatException("Unterminated object."); }
                     char sep = _s[_i];
@@ -300,6 +306,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Json
             return this;
         }
 
+        // ==========================================
+        // AppendMember — unconditional append, used only
+        // by the parser (see the note at its call site).
+        // ==========================================
+        private JsonValue AppendMember(string key, JsonValue value)
+        {
+            _members.Add(new KeyValuePair<string, JsonValue>(key, value ?? Null()));
+            return this;
+        }
+
         public JsonValue Set(string key, string value) { return Set(key, Str(value)); }
         public JsonValue Set(string key, double value) { return Set(key, Num(value)); }
         public JsonValue Set(string key, int value) { return Set(key, Num(value)); }
@@ -339,14 +355,32 @@ namespace AmirCollider.UnityDocSnap.Editor.Json
             return Null();
         }
 
+        // Shared, never-mutated empty lists. Reading .Items on a
+        // non-array (which every renderer does constantly, since
+        // Get() on a missing key returns Null) used to allocate a
+        // fresh List every single time.
+        private static readonly List<JsonValue> EmptyItems = new List<JsonValue>();
+        private static readonly List<KeyValuePair<string, JsonValue>> EmptyMembers = new List<KeyValuePair<string, JsonValue>>();
+
         public IReadOnlyList<JsonValue> Items
         {
-            get { return _items ?? (IReadOnlyList<JsonValue>)new List<JsonValue>(); }
+            get { return _items ?? (IReadOnlyList<JsonValue>)EmptyItems; }
         }
 
         public IReadOnlyList<KeyValuePair<string, JsonValue>> Members
         {
-            get { return _members ?? (IReadOnlyList<KeyValuePair<string, JsonValue>>)new List<KeyValuePair<string, JsonValue>>(); }
+            get { return _members ?? (IReadOnlyList<KeyValuePair<string, JsonValue>>)EmptyMembers; }
+        }
+
+        // ==========================================
+        // IsScalar — anything that is not a container.
+        // Public so a tree walker can decide whether a
+        // node is worth descending into without having
+        // to test both container kinds itself.
+        // ==========================================
+        public bool IsScalar
+        {
+            get { return Kind != JsonKind.Object && Kind != JsonKind.Array; }
         }
 
         public string AsString(string fallback = "")
@@ -396,21 +430,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Json
             return sb.ToString();
         }
 
-        private bool IsScalar()
-        {
-            return Kind != JsonKind.Object && Kind != JsonKind.Array;
-        }
-
         private bool IsInlineable()
         {
             if (Kind == JsonKind.Object)
             {
-                foreach (var m in _members) { if (!m.Value.IsScalar()) { return false; } }
+                foreach (var m in _members) { if (!m.Value.IsScalar) { return false; } }
                 return true;
             }
             if (Kind == JsonKind.Array)
             {
-                foreach (var it in _items) { if (!it.IsScalar()) { return false; } }
+                foreach (var it in _items) { if (!it.IsScalar) { return false; } }
                 return true;
             }
             return true;
@@ -521,12 +550,23 @@ namespace AmirCollider.UnityDocSnap.Editor.Json
         // ==========================================
         // WriteNumber — avoids scientific notation
         // and trims trailing zeroes for readability.
+        //
+        // NaN and ±Infinity have no JSON representation.
+        // They are written as null rather than 0: a Unity
+        // float field genuinely can hold Infinity (an
+        // uninitialised distance, a divide-by-zero left in
+        // a serialized value), and reporting that as the
+        // number zero is a documentation tool inventing a
+        // value the project does not contain. null reads
+        // back through AsNumber(fallback) exactly like the
+        // old 0 for every renderer, but no longer lies to
+        // anyone reading the JSON directly.
         // ==========================================
         private static void WriteNumber(StringBuilder sb, double value)
         {
             if (double.IsNaN(value) || double.IsInfinity(value))
             {
-                sb.Append('0');
+                sb.Append("null");
                 return;
             }
             if (value == System.Math.Floor(value) && System.Math.Abs(value) < 1e15)

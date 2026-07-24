@@ -10,6 +10,7 @@
 // ==========================================
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using AmirCollider.UnityDocSnap.Editor.Export;
@@ -43,6 +44,81 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 }
             }
             return sb.ToString();
+        }
+
+        // ==========================================
+        // JsString
+        // A value being embedded inside an inline <script>
+        // as a quoted JavaScript string.
+        //
+        // These used to go through Escape(), which is HTML
+        // escaping and is simply the wrong tool inside a
+        // <script>: a browser does not decode entities
+        // there, so the value the script saw differed from
+        // the same value read back out of the matching HTML
+        // attribute - and the two are compared against each
+        // other to decide whether a reader's stored
+        // language/theme belongs to this export. It happened
+        // to be harmless only because the one value passed
+        // through it is hexadecimal. This escapes for the
+        // context it is actually in, and closes the
+        // </script> break-out that HTML escaping was
+        // accidentally covering.
+        // ==========================================
+        public static string JsString(string value)
+        {
+            if (string.IsNullOrEmpty(value)) { return "\"\""; }
+            var sb = new StringBuilder(value.Length + 8);
+            sb.Append('"');
+            foreach (char c in value)
+            {
+                switch (c)
+                {
+                    case '"': sb.Append("\\\""); break;
+                    case '\\': sb.Append("\\\\"); break;
+                    case '\n': sb.Append("\\n"); break;
+                    case '\r': sb.Append("\\r"); break;
+                    case '\t': sb.Append("\\t"); break;
+                    // Not a JS requirement - an HTML one. The parser
+                    // ends an inline script at the first literal
+                    // "</script", wherever it appears, including
+                    // inside a string literal.
+                    case '<': sb.Append("\\u003c"); break;
+                    case '>': sb.Append("\\u003e"); break;
+                    case '&': sb.Append("\\u0026"); break;
+                    default:
+                        if (c < 0x20) { sb.Append("\\u").Append(((int)c).ToString("x4", CultureInfo.InvariantCulture)); }
+                        else { sb.Append(c); }
+                        break;
+                }
+            }
+            sb.Append('"');
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // Href
+        // The one way a link to another page in this site
+        // is built: percent-encode the path, then escape it
+        // for the attribute it lands in.
+        //
+        // Half the site did this (via FieldRenderer.
+        // EncodeUrlPath) and half concatenated the raw
+        // manifest value straight into href="…". Those raw
+        // ones broke on any Scene or folder whose name
+        // contained '&' or a space - and a name containing
+        // a double quote, which macOS and Linux both allow
+        // in a file name, escaped the attribute entirely.
+        // ==========================================
+        public static string Href(string relativePath)
+        {
+            return FieldRenderer.EncodeUrlPath(relativePath);
+        }
+
+        public static string Href(string relativePath, string anchor)
+        {
+            if (string.IsNullOrEmpty(anchor)) { return Href(relativePath); }
+            return Href(relativePath) + "#" + Escape(anchor);
         }
 
         // ==========================================
@@ -131,10 +207,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // stored reader choice the first time it sees a new run's stamp,
             // so a fresh export always opens with its own defaults). Loaded
             // before app.js.
-            sb.Append("<script>window.__DOCSNAP_PREFIX__=\"").Append(prefix).Append("\";")
-              .Append("window.__DOCSNAP_LANG__=\"").Append(defLang).Append("\";")
-              .Append("window.__DOCSNAP_THEME__=\"").Append(defTheme).Append("\";")
-              .Append("window.__DOCSNAP_EXPORT__=\"").Append(Escape(stamp)).Append("\";</script>\n");
+            sb.Append("<script>window.__DOCSNAP_PREFIX__=").Append(JsString(prefix)).Append(";")
+              .Append("window.__DOCSNAP_LANG__=").Append(JsString(defLang)).Append(";")
+              .Append("window.__DOCSNAP_THEME__=").Append(JsString(defTheme)).Append(";")
+              .Append("window.__DOCSNAP_EXPORT__=").Append(JsString(stamp)).Append(";</script>\n");
             // defer: the (potentially large) search index never blocks
             // HTML parsing; execution order is still guaranteed, so the
             // index global is always assigned before app.js runs.
@@ -242,7 +318,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             {
                 bool isCurrent = entry.htmlFile == currentHtmlFile;
                 sb.Append("<li><a class=\"ds-nav-link").Append(isCurrent ? " is-current" : "").Append("\" href=\"")
-                  .Append(prefix).Append(entry.htmlFile).Append("\">")
+                  .Append(Href(prefix + entry.htmlFile)).Append("\">")
                   .Append(Escape(entry.sceneName))
                   .Append("<span class=\"ds-nav-count\">").Append(entry.gameObjectCount).Append("</span></a></li>\n");
             }
@@ -259,7 +335,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             {
                 bool isCurrent = entry.htmlFile == currentHtmlFile;
                 sb.Append("<li><a class=\"ds-nav-link").Append(isCurrent ? " is-current" : "").Append("\" href=\"")
-                  .Append(prefix).Append(entry.htmlFile).Append("\">")
+                  .Append(Href(prefix + entry.htmlFile)).Append("\">")
                   .Append(Escape(entry.folderPath))
                   .Append("<span class=\"ds-nav-count\">").Append(entry.fileCount).Append("</span></a></li>\n");
             }

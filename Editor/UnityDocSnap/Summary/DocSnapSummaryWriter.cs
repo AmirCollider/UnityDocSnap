@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using AmirCollider.UnityDocSnap.Editor.Export;
 using AmirCollider.UnityDocSnap.Editor.Json;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
 
@@ -662,9 +663,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
             {
                 foreach (ManifestSceneEntry s in manifest.scenes)
                 {
+                    // Keyed on sceneKey, not sceneName. They are the
+                    // same string until two Scenes share a name, at
+                    // which point linking by name pointed both entries
+                    // at one file - the same collision that used to
+                    // make one Scene's export overwrite the other's.
                     sb.Append("- **").Append(Clean(s.sceneName)).Append("** — ").Append(s.gameObjectCount)
-                      .Append(" GameObjects · [json](").Append(SceneSummaryJson(s.sceneName)).Append(")")
-                      .Append(" · [md](").Append(SceneSummaryMarkdown(s.sceneName)).Append(")\n");
+                      .Append(" GameObjects · [json](").Append(SceneSummaryJson(s.sceneKey)).Append(")")
+                      .Append(" · [md](").Append(SceneSummaryMarkdown(s.sceneKey)).Append(")\n");
                 }
                 sb.Append("\n");
             }
@@ -689,7 +695,79 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
             sb.Append("- ").Append(manifest.scenes.Count).Append(" scenes · ").Append(totalGameObjects).Append(" GameObjects\n");
             sb.Append("- ").Append(manifest.assetFolders.Count).Append(" asset folders · ").Append(totalFiles).Append(" files\n\n");
 
+            sb.Append(RenderHealthSection(manifest));
+            sb.Append(RenderExcludeSection(manifest));
+
             sb.Append(Footer());
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // RenderHealthSection
+        // The same findings the dashboard leads with, in the
+        // file that gets handed to an assistant. An AI asked
+        // "why doesn't this scene work?" should not have to
+        // infer from raw field data that three components are
+        // missing their script - it should be told.
+        // ==========================================
+        private static string RenderHealthSection(ManifestState manifest)
+        {
+            HealthTotals totals = DocSnapHealthReport.Totals(manifest);
+            var sb = new StringBuilder(512);
+            sb.Append("## Health\n\n");
+
+            if (totals.IsClean)
+            {
+                sb.Append("No missing scripts, no broken object references, no duplicate Scene names.\n\n");
+                return sb.ToString();
+            }
+
+            if (totals.missingScripts > 0) { sb.Append("- **").Append(totals.missingScripts).Append(" missing script(s)** — a component whose script asset is gone.\n"); }
+            if (totals.missingReferences > 0) { sb.Append("- **").Append(totals.missingReferences).Append(" broken reference(s)** — a field pointing at an object that no longer exists.\n"); }
+            if (totals.unresolvedAssets > 0) { sb.Append("- ").Append(totals.unresolvedAssets).Append(" asset(s) Unity could not resolve a type for (usually a failed import).\n"); }
+            if (totals.duplicateSceneNames.Count > 0)
+            {
+                sb.Append("- Scene name(s) used more than once: ")
+                  .Append(Clean(string.Join(", ", totals.duplicateSceneNames.ToArray()))).Append('\n');
+            }
+            sb.Append('\n');
+
+            List<ManifestHealthEntry> worst = DocSnapHealthReport.Worst(manifest, 12);
+            if (worst.Count > 0)
+            {
+                sb.Append("Where:\n\n");
+                foreach (ManifestHealthEntry e in worst)
+                {
+                    sb.Append("- **").Append(Clean(e.label)).Append("** — ");
+                    var parts = new List<string>();
+                    if (e.missingScripts > 0) { parts.Add(e.missingScripts + " missing script(s)"); }
+                    if (e.missingReferences > 0) { parts.Add(e.missingReferences + " broken reference(s)"); }
+                    if (e.unresolvedAssets > 0) { parts.Add(e.unresolvedAssets + " unresolved asset(s)"); }
+                    sb.Append(string.Join(", ", parts.ToArray())).Append('\n');
+                }
+                sb.Append('\n');
+            }
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // RenderExcludeSection
+        // States what was deliberately left out, so a
+        // reader comparing these counts against the Unity
+        // Project window is not left guessing.
+        // ==========================================
+        private static string RenderExcludeSection(ManifestState manifest)
+        {
+            if (manifest.excludePatterns == null || manifest.excludePatterns.Count == 0) { return ""; }
+
+            var sb = new StringBuilder(256);
+            sb.Append("## Excluded from this export\n\n");
+            sb.Append("These paths were skipped on purpose, so the counts above are smaller than the project:\n\n");
+            foreach (string pattern in manifest.excludePatterns)
+            {
+                sb.Append("- `").Append(Clean(pattern)).Append("`\n");
+            }
+            sb.Append('\n');
             return sb.ToString();
         }
 

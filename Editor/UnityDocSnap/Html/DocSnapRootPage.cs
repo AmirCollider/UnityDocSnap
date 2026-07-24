@@ -26,12 +26,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // ==========================================
         public static string RenderRedirect(string newestVersion)
         {
-            string target = HtmlPageBuilder.Escape(newestVersion) + "/" + DocSnapConstants.IndexFileName;
+            // A custom version name is free text a user typed, so it
+            // can contain a space or an '&' and must be percent-
+            // encoded before it becomes a URL - Escape() alone made
+            // the attribute safe but left the link broken.
+            string target = HtmlPageBuilder.Href(newestVersion + "/" + DocSnapConstants.IndexFileName);
             var sb = new StringBuilder(512);
             sb.Append("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n");
             sb.Append("<meta http-equiv=\"refresh\" content=\"0; url=").Append(target).Append("\">\n");
             sb.Append("<title>Unity DocSnap</title>\n</head>\n<body>\n");
-            sb.Append("<p>Opening the latest export… <a href=\"").Append(target).Append("\">").Append(target).Append("</a></p>\n");
+            sb.Append("<p>Opening the latest export… <a href=\"").Append(target).Append("\">")
+              .Append(HtmlPageBuilder.Escape(newestVersion + "/" + DocSnapConstants.IndexFileName)).Append("</a></p>\n");
             sb.Append("<p><a href=\"").Append(DocSnapConstants.RootVersionsFileName).Append("\">All versions</a></p>\n");
             sb.Append("</body>\n</html>\n");
             return sb.ToString();
@@ -64,7 +69,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 sb.Append("<ul class=\"list\">\n");
                 foreach (VersionSnapshot v in ordered)
                 {
-                    string href = HtmlPageBuilder.Escape(v.version) + "/" + DocSnapConstants.IndexFileName;
+                    string href = HtmlPageBuilder.Href(v.version + "/" + DocSnapConstants.IndexFileName);
                     sb.Append("<li><a class=\"row\" href=\"").Append(href).Append("\">");
                     sb.Append("<span class=\"tag\">").Append(HtmlPageBuilder.Escape(v.version)).Append("</span>");
                     if (v.version == newestVersion) { sb.Append("<span class=\"latest\">latest</span>"); }

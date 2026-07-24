@@ -25,6 +25,18 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
     internal sealed class ManifestSceneEntry
     {
         public string sceneName;
+
+        // The base name every output file for this Scene is
+        // written under (see DocSnapNaming.SceneKey). Split
+        // from sceneName because they are no longer always the
+        // same string: two Scenes both called "Main" in
+        // different folders used to produce the same
+        // scenes/Main.html and silently overwrite each other,
+        // so a name that collides now gets a short stable hash
+        // suffix while sceneName stays the friendly label shown
+        // in the sidebar.
+        public string sceneKey;
+
         public string scenePath;
         public string htmlFile;
         public string jsonFile;
@@ -97,6 +109,29 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
         public string url;      // htmlFile#anchor, relative to the output root
     }
 
+    // ==========================================
+    // ManifestHealthEntry
+    // What one exported Scene / folder reported about
+    // its own condition: missing scripts, references
+    // whose target is gone, assets Unity could not
+    // resolve a type for. Stored per scope so a
+    // single-Scene re-export refreshes only its own row
+    // and leaves every other scope's findings intact -
+    // the same rule the search records follow.
+    // ==========================================
+    [Serializable]
+    internal sealed class ManifestHealthEntry
+    {
+        public string scope;      // sceneKey / folderKey
+        public string group;      // "scene" | "asset"
+        public string label;      // friendly name for the dashboard
+        public string htmlFile;   // page to link the finding to
+        public int itemCount;     // GameObjects / files in this scope
+        public int missingScripts;
+        public int missingReferences;
+        public int unresolvedAssets;
+    }
+
     [Serializable]
     internal sealed class ManifestAssetIndexEntry
     {
@@ -118,7 +153,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
         public List<ManifestAssetIndexEntry> assetIndex = new List<ManifestAssetIndexEntry>();
         public List<ManifestPackageEntry> packages = new List<ManifestPackageEntry>();
         public List<ManifestSearchEntry> searchRecords = new List<ManifestSearchEntry>();
+        public List<ManifestHealthEntry> health = new List<ManifestHealthEntry>();
         public string packagesExportedUtc = "";
+
+        // The exclude patterns the last export ran with, so the
+        // dashboard and export-info can state plainly what was
+        // deliberately left out. An omission nobody is told
+        // about is worse than no omission.
+        public List<string> excludePatterns = new List<string>();
     }
 
     internal static class DocSnapManifest
@@ -157,6 +199,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
                 state.assetIndex = state.assetIndex ?? new List<ManifestAssetIndexEntry>();
                 state.packages = state.packages ?? new List<ManifestPackageEntry>();
                 state.searchRecords = state.searchRecords ?? new List<ManifestSearchEntry>();
+                state.health = state.health ?? new List<ManifestHealthEntry>();
+                state.excludePatterns = state.excludePatterns ?? new List<string>();
+                BackfillSceneKeys(state);
                 return state;
             }
             catch (Exception ex)
@@ -179,6 +224,43 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
             string path = InternalStateAbsolutePath();
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             File.WriteAllText(path, JsonUtility.ToJson(state, true));
+        }
+
+        // ==========================================
+        // BackfillSceneKeys
+        // State written by a DocSnap older than 0.7.0 has no
+        // sceneKey. Its output files were named after the
+        // Scene name, so that is exactly what the key was -
+        // filling it in keeps every previously exported page,
+        // summary and cross-link resolving instead of the
+        // upgrade orphaning them.
+        // ==========================================
+        private static void BackfillSceneKeys(ManifestState state)
+        {
+            foreach (ManifestSceneEntry scene in state.scenes)
+            {
+                if (string.IsNullOrEmpty(scene.sceneKey)) { scene.sceneKey = scene.sceneName; }
+            }
+        }
+
+        // ==========================================
+        // ReplaceHealthForScope — swaps in one scope's
+        // fresh findings, mirroring the search records so
+        // the two never disagree about what still exists.
+        // ==========================================
+        public static void ReplaceHealthForScope(ManifestState state, string scope, ManifestHealthEntry entry)
+        {
+            state.health.RemoveAll(h => h.scope == scope);
+            if (entry != null) { state.health.Add(entry); }
+        }
+
+        // ==========================================
+        // SetExcludePatterns — records what this export
+        // deliberately skipped.
+        // ==========================================
+        public static void SetExcludePatterns(ManifestState state, List<string> patterns)
+        {
+            state.excludePatterns = patterns ?? new List<string>();
         }
 
         // ==========================================
@@ -332,6 +414,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
             {
                 scenesArr.Add(JsonValue.Obj()
                     .Set("sceneName", s.sceneName)
+                    .Set("sceneKey", s.sceneKey)
                     .Set("scenePath", s.scenePath)
                     .Set("htmlFile", s.htmlFile)
                     .Set("jsonFile", s.jsonFile)
@@ -352,6 +435,32 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
                     .Set("fileCount", f.fileCount));
             }
             root.Set("assetFolders", foldersArr);
+
+            // What this export left out, stated rather than
+            // implied - a reader (or an AI) comparing the file
+            // count here against the Project window needs to
+            // know an exclude rule is why they differ.
+            var excludesArr = JsonValue.Arr();
+            foreach (string pattern in state.excludePatterns) { excludesArr.Add(JsonValue.Str(pattern)); }
+            root.Set("excludedPatterns", excludesArr);
+
+            // The findings the dashboard leads with, so anything
+            // consuming the JSON gets them without re-deriving
+            // them from the full per-Scene data.
+            var healthArr = JsonValue.Arr();
+            foreach (ManifestHealthEntry h in state.health)
+            {
+                if (h.missingScripts == 0 && h.missingReferences == 0 && h.unresolvedAssets == 0) { continue; }
+                healthArr.Add(JsonValue.Obj()
+                    .Set("scope", h.scope)
+                    .Set("group", h.group)
+                    .Set("label", h.label)
+                    .Set("htmlFile", h.htmlFile)
+                    .Set("missingScripts", h.missingScripts)
+                    .Set("missingReferences", h.missingReferences)
+                    .Set("unresolvedAssets", h.unresolvedAssets));
+            }
+            root.Set("health", healthArr);
 
             Directory.CreateDirectory(Path.GetDirectoryName(filePath));
             File.WriteAllText(filePath, root.ToString());

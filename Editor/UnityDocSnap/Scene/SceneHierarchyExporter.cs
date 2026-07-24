@@ -57,17 +57,11 @@ namespace AmirCollider.UnityDocSnap.Editor.SceneExport
             }
 
             bool weOpenedIt = false;
-            bool previousLogEnabled = Debug.unityLogger.logEnabled;
             if (!scene.IsValid())
             {
-                Debug.unityLogger.logEnabled = false;
-                try
+                using (DocSnapLogGuard.Mute())
                 {
                     scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
-                }
-                finally
-                {
-                    Debug.unityLogger.logEnabled = previousLogEnabled;
                 }
                 weOpenedIt = true;
             }
@@ -81,31 +75,45 @@ namespace AmirCollider.UnityDocSnap.Editor.SceneExport
                 root.Set("unityVersion", Application.unityVersion);
 
                 var rootObjectsArr = JsonValue.Arr();
-                int counter = 0;
+                var stats = new WalkStats();
                 foreach (GameObject go in scene.GetRootGameObjects())
                 {
-                    rootObjectsArr.Add(BuildGameObjectNode(go, ref counter));
+                    rootObjectsArr.Add(BuildGameObjectNode(go, stats, 0));
                 }
                 root.Set("rootObjects", rootObjectsArr);
-                root.Set("totalGameObjects", counter);
-                gameObjectCount = counter;
+                root.Set("totalGameObjects", stats.Count);
+                root.Set("depthTruncated", stats.HitDepthLimit);
+                if (stats.HitDepthLimit)
+                {
+                    Debug.LogWarning("[Unity DocSnap] Scene \"" + scenePath + "\" has a hierarchy deeper than "
+                        + DocSnapConstants.MaxHierarchyDepth + " levels; the deepest branches were not walked.");
+                }
+                gameObjectCount = stats.Count;
                 return root;
             }
             finally
             {
                 if (weOpenedIt)
                 {
-                    Debug.unityLogger.logEnabled = false;
-                    try
+                    using (DocSnapLogGuard.Mute())
                     {
                         EditorSceneManager.CloseScene(scene, true);
                     }
-                    finally
-                    {
-                        Debug.unityLogger.logEnabled = previousLogEnabled;
-                    }
                 }
             }
+        }
+
+        // ==========================================
+        // WalkStats
+        // Carried through the hierarchy walk instead of a
+        // `ref int` so the walk can report more than one
+        // fact about itself - currently the object count
+        // and whether it had to stop early.
+        // ==========================================
+        private sealed class WalkStats
+        {
+            public int Count;
+            public bool HitDepthLimit;
         }
 
         // ==========================================
@@ -117,9 +125,9 @@ namespace AmirCollider.UnityDocSnap.Editor.SceneExport
         // ==========================================
         public static JsonValue BuildStandaloneGameObjectTree(GameObject root, out int gameObjectCount)
         {
-            int counter = 0;
-            JsonValue node = BuildGameObjectNode(root, ref counter);
-            gameObjectCount = counter;
+            var stats = new WalkStats();
+            JsonValue node = BuildGameObjectNode(root, stats, 0);
+            gameObjectCount = stats.Count;
             return node;
         }
 
@@ -128,10 +136,22 @@ namespace AmirCollider.UnityDocSnap.Editor.SceneExport
         // Recursively captures one GameObject: its
         // flags, Transform, every Component (via the
         // universal reflector), and its children.
+        //
+        // The depth parameter is the fix for the one
+        // uncapped recursion left in the tool. Arrays,
+        // nested structs and the search index all had
+        // ceilings; this walk did not, so a hierarchy
+        // deep enough (a generated bone chain, a
+        // procedurally nested tree) overflowed the stack -
+        // and StackOverflowException is not catchable in
+        // .NET, so every try/catch wrapped around an
+        // export was powerless and Unity simply vanished.
+        // Hitting the ceiling now marks the node and
+        // finishes the export.
         // ==========================================
-        private static JsonValue BuildGameObjectNode(GameObject go, ref int counter)
+        private static JsonValue BuildGameObjectNode(GameObject go, WalkStats stats, int depth)
         {
-            counter++;
+            stats.Count++;
 
             var node = JsonValue.Obj();
             node.Set("name", go.name);
@@ -153,9 +173,18 @@ namespace AmirCollider.UnityDocSnap.Editor.SceneExport
 
             var childrenArr = JsonValue.Arr();
             Transform t = go.transform;
-            for (int i = 0; i < t.childCount; i++)
+            if (depth >= DocSnapConstants.MaxHierarchyDepth)
             {
-                childrenArr.Add(BuildGameObjectNode(t.GetChild(i).gameObject, ref counter));
+                stats.HitDepthLimit = true;
+                node.Set("childrenTruncated", true);
+                node.Set("childCount", t.childCount);
+            }
+            else
+            {
+                for (int i = 0; i < t.childCount; i++)
+                {
+                    childrenArr.Add(BuildGameObjectNode(t.GetChild(i).gameObject, stats, depth + 1));
+                }
             }
             node.Set("children", childrenArr);
 

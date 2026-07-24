@@ -40,12 +40,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Search
         // GameObject (name + its component types + a
         // deep link to that object's card).
         // ==========================================
-        public static List<ManifestSearchEntry> BuildSceneRecords(JsonValue sceneData, string sceneName, string htmlFile)
+        public static List<ManifestSearchEntry> BuildSceneRecords(JsonValue sceneData, string scope, string sceneName, string htmlFile)
         {
             var records = new List<ManifestSearchEntry>();
             records.Add(new ManifestSearchEntry
             {
-                scope = sceneName,
+                scope = scope,
                 group = "scene",
                 category = "Scene",
                 name = sceneName,
@@ -53,20 +53,20 @@ namespace AmirCollider.UnityDocSnap.Editor.Search
                 url = htmlFile
             });
 
-            WalkGameObjects(sceneData.Get("rootObjects"), go =>
+            foreach (JsonValue go in WalkGameObjects(sceneData.Get("rootObjects")))
             {
-                if (records.Count >= MaxRecordsPerScope) { return; }
+                if (records.Count >= MaxRecordsPerScope) { break; }
                 int id = (int)go.Get("instanceId").AsNumber();
                 records.Add(new ManifestSearchEntry
                 {
-                    scope = sceneName,
+                    scope = scope,
                     group = "scene",
                     category = "GameObject",
                     name = go.Get("name").AsString("GameObject"),
                     sub = Trim(BuildSub(sceneName, ComponentTypes(go), go)),
                     url = htmlFile + "#go-" + id
                 });
-            });
+            }
             return records;
         }
 
@@ -140,35 +140,67 @@ namespace AmirCollider.UnityDocSnap.Editor.Search
         // ==========================================
         // Helpers
         // ==========================================
+        // ==========================================
+        // AddFolderNodeRecords
+        // Iterative for the same reason as WalkGameObjects
+        // below, and it now STOPS at the cap instead of
+        // continuing to walk (and discard) the rest of a
+        // huge tree after the last record it could keep.
+        // ==========================================
         private static void AddFolderNodeRecords(JsonValue folder, string folderKey, string htmlFile, List<ManifestSearchEntry> records)
         {
             if (folder == null || folder.IsNull) { return; }
-            if (records.Count >= MaxRecordsPerScope) { return; }
 
-            string folderPath = folder.Get("folderPath").AsString("");
-            int total = (int)folder.Get("totalFileCount").AsNumber();
-            records.Add(new ManifestSearchEntry
-            {
-                scope = folderKey,
-                group = "asset",
-                category = "Folder",
-                name = folder.Get("folderName").AsString(""),
-                sub = Trim(folderPath + " · " + total + " files"),
-                url = htmlFile + "#" + FieldRenderer.FolderAnchor(folderPath)
-            });
+            var pending = new Stack<JsonValue>();
+            pending.Push(folder);
 
-            foreach (JsonValue child in folder.Get("subfolders").Items)
+            while (pending.Count > 0)
             {
-                AddFolderNodeRecords(child, folderKey, htmlFile, records);
+                if (records.Count >= MaxRecordsPerScope) { return; }
+                JsonValue node = pending.Pop();
+
+                string folderPath = node.Get("folderPath").AsString("");
+                int total = (int)node.Get("totalFileCount").AsNumber();
+                records.Add(new ManifestSearchEntry
+                {
+                    scope = folderKey,
+                    group = "asset",
+                    category = "Folder",
+                    name = node.Get("folderName").AsString(""),
+                    sub = Trim(folderPath + " · " + total + " files"),
+                    url = htmlFile + "#" + FieldRenderer.FolderAnchor(folderPath)
+                });
+
+                IReadOnlyList<JsonValue> children = node.Get("subfolders").Items;
+                for (int i = children.Count - 1; i >= 0; i--) { pending.Push(children[i]); }
             }
         }
 
-        private static void WalkGameObjects(JsonValue objects, Action<JsonValue> visit)
+        // ==========================================
+        // WalkGameObjects
+        // Every GameObject in the tree, depth-first, in
+        // hierarchy order.
+        //
+        // Iterative rather than recursive: this walked the
+        // same unbounded structure the Scene exporter did,
+        // so a deep hierarchy could overflow the stack here
+        // too - and doing it lazily also lets the caller
+        // stop at the record cap instead of visiting an
+        // entire enormous Scene only to throw the tail away.
+        // ==========================================
+        private static IEnumerable<JsonValue> WalkGameObjects(JsonValue objects)
         {
-            foreach (JsonValue go in objects.Items)
+            var pending = new Stack<JsonValue>();
+            IReadOnlyList<JsonValue> roots = objects.Items;
+            for (int i = roots.Count - 1; i >= 0; i--) { pending.Push(roots[i]); }
+
+            while (pending.Count > 0)
             {
-                visit(go);
-                WalkGameObjects(go.Get("children"), visit);
+                JsonValue go = pending.Pop();
+                yield return go;
+
+                IReadOnlyList<JsonValue> children = go.Get("children").Items;
+                for (int i = children.Count - 1; i >= 0; i--) { pending.Push(children[i]); }
             }
         }
 

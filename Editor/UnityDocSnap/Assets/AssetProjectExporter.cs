@@ -53,7 +53,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         // other caller leaves this false, so DocSnap's
         // default behavior stays metadata-only).
         // ==========================================
-        public static JsonValue ExportFolder(string folderPath, string folderKey, out List<ManifestAssetIndexEntry> indexEntries, out int fileCount, bool copyPhysicalFiles = false, string physicalFilesOutputRoot = null, string siteOutputRoot = null, Action<int, int, string> onProgress = null)
+        public static JsonValue ExportFolder(string folderPath, string folderKey, out List<ManifestAssetIndexEntry> indexEntries, out int fileCount, bool copyPhysicalFiles = false, string physicalFilesOutputRoot = null, string siteOutputRoot = null, Func<int, int, string, bool> onProgress = null, DocSnapExcludeFilter filter = null)
         {
             indexEntries = new List<ManifestAssetIndexEntry>();
 
@@ -62,7 +62,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
             root.Set("folderKey", folderKey);
             root.Set("exportedUtc", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"));
 
-            List<string> filePaths = CollectFilePaths(folderPath);
+            List<string> filePaths = CollectFilePaths(folderPath, filter);
             var filesArr = JsonValue.Arr();
             string htmlFile = DocSnapConstants.AssetsSubFolder + "/" + folderKey + ".html";
 
@@ -79,10 +79,28 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
             foreach (string path in filePaths)
             {
                 processed++;
-                if (onProgress != null) { onProgress(processed, filePaths.Count, path); }
+                // onProgress returns false when the user pressed
+                // Cancel. A full-project pass used to be entirely
+                // un-interruptible: on a large project the only way
+                // out was to kill the Editor and lose everything
+                // unsaved.
+                if (onProgress != null && !onProgress(processed, filePaths.Count, path))
+                {
+                    throw new OperationCanceledException("Asset export cancelled by the user.");
+                }
 
                 JsonValue entry = BuildAssetEntry(path, thumbsFolderAbsolute);
                 filesArr.Add(entry);
+
+                // Reading an asset's metadata requires loading it, and
+                // a full export loads every asset in the project. With
+                // nothing releasing them the entire project stayed
+                // resident at once, which is how a big project ran the
+                // Editor out of memory partway through an export.
+                if (processed % DocSnapConstants.AssetUnloadInterval == 0)
+                {
+                    EditorUtility.UnloadUnusedAssetsImmediate();
+                }
 
                 string guid = AssetDatabase.AssetPathToGUID(path);
                 if (!string.IsNullOrEmpty(guid))
@@ -127,16 +145,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         // ==========================================
         public static string FolderKey(string folderPath)
         {
-            string normalized = folderPath.Replace('\\', '/').TrimEnd('/');
-            if (normalized.Equals("Assets", StringComparison.OrdinalIgnoreCase))
-            {
-                return DocSnapConstants.EntireProjectFolderKey;
-            }
-            if (normalized.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
-            {
-                normalized = normalized.Substring("Assets/".Length);
-            }
-            return normalized.Replace('/', '_');
+            return DocSnapNaming.FolderKey(folderPath);
         }
 
         // ==========================================
@@ -145,7 +154,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         // under the given path, sorted for stable,
         // diff-friendly output between exports.
         // ==========================================
-        private static List<string> CollectFilePaths(string folderPath)
+        private static List<string> CollectFilePaths(string folderPath, DocSnapExcludeFilter filter)
         {
             var results = new List<string>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -156,21 +165,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
             // some Unity versions, silently producing an empty
             // Assets page. The GUID check below still guarantees
             // only genuinely imported assets are listed.
-            string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-            string absoluteFolder = Path.GetFullPath(Path.Combine(projectRoot, folderPath));
-            if (!Directory.Exists(absoluteFolder)) { return results; }
-
-            foreach (string absolute in Directory.GetFiles(absoluteFolder, "*", SearchOption.AllDirectories))
+            //
+            // DocSnapFileScan rather than
+            // Directory.GetFiles(AllDirectories): that call gave up
+            // on the whole tree the moment a single sub-folder could
+            // not be read, followed symlinked asset folders into
+            // infinite loops, and counted "Foo~" / hidden folders
+            // that Unity itself never imports.
+            foreach (string relative in DocSnapFileScan.EnumerateProjectRelativeFiles(folderPath, filter))
             {
-                string fileName = Path.GetFileName(absolute);
-                if (fileName.StartsWith(".", StringComparison.Ordinal)) { continue; }
-                if (string.Equals(Path.GetExtension(absolute), ".meta", StringComparison.OrdinalIgnoreCase)) { continue; }
-
-                string relative = Path.GetFullPath(absolute)
-                    .Substring(projectRoot.Length)
-                    .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                    .Replace('\\', '/');
-
                 if (seen.Contains(relative)) { continue; }
                 if (AssetDatabase.IsValidFolder(relative)) { continue; }
                 if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(relative))) { continue; }
@@ -318,7 +321,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
             ReadFileSystemInfo(absolutePath, node);
 
             AssetImporter importer = AssetImporter.GetAtPath(path);
-            ReadPreview(path, absolutePath, importer, mainType, node, guid, thumbsFolderAbsolute);
+
+            // Loaded once and passed down. ReadPreview,
+            // WriteIconFallback and the extras block below each used
+            // to call LoadMainAssetAtPath independently, so every
+            // asset in the project was resolved up to three times
+            // per export for no benefit.
+            var loader = new MainAssetLoader(path);
+            ReadPreview(path, absolutePath, importer, node, guid, thumbsFolderAbsolute, loader);
 
             if (AudioExtensions.Contains(extension))
             {
@@ -384,7 +394,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
 
             if (!handledByExtra && mainType != null && mainType != typeof(Texture2D) && mainType != typeof(Sprite))
             {
-                UnityEngine.Object mainAsset = AssetDatabase.LoadMainAssetAtPath(path);
+                UnityEngine.Object mainAsset = loader.Get();
                 if (mainAsset != null)
                 {
                     node.Set("assetFields", UniversalReflector.ReadTopLevelFields(mainAsset));
@@ -392,6 +402,35 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
             }
 
             return node;
+        }
+
+        // ==========================================
+        // MainAssetLoader
+        // A one-shot cache around
+        // AssetDatabase.LoadMainAssetAtPath for a single
+        // asset entry. Loading is the expensive part of an
+        // asset pass; doing it once per file instead of
+        // once per code path that happens to need it is
+        // the single cheapest speed-up available here.
+        // ==========================================
+        private sealed class MainAssetLoader
+        {
+            private readonly string _path;
+            private UnityEngine.Object _asset;
+            private bool _loaded;
+
+            public MainAssetLoader(string path) { _path = path; }
+
+            public UnityEngine.Object Get()
+            {
+                if (!_loaded)
+                {
+                    _loaded = true;
+                    try { _asset = AssetDatabase.LoadMainAssetAtPath(_path); }
+                    catch { _asset = null; }
+                }
+                return _asset;
+            }
         }
 
         // ==========================================
@@ -426,7 +465,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         // images included - so no asset card is ever left
         // with the bare placeholder glyph.
         // ==========================================
-        private static void ReadPreview(string path, string absolutePath, AssetImporter importer, Type mainType, JsonValue node, string guid, string thumbsFolderAbsolute)
+        private static void ReadPreview(string path, string absolutePath, AssetImporter importer, JsonValue node, string guid, string thumbsFolderAbsolute, MainAssetLoader loader)
         {
             bool writeFiles = !string.IsNullOrEmpty(thumbsFolderAbsolute) && !string.IsNullOrEmpty(guid);
             string extension = Path.GetExtension(path).ToLowerInvariant();
@@ -468,12 +507,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
                 if (DocSnapSettings.GenerateThumbnails && writeFiles && !node.Has("thumbnailFile"))
                 {
                     string relative = ThumbnailGenerator.TryWritePreviewPng(
-                        AssetDatabase.LoadMainAssetAtPath(path), thumbsFolderAbsolute, guid,
+                        loader.Get(), thumbsFolderAbsolute, guid,
                         DocSnapConstants.DefaultThumbnailMaxDimension, DocSnapConstants.AssetPreviewTimeoutMs);
                     if (relative != null) { node.Set("thumbnailFile", relative); }
                 }
 
-                WriteIconFallback(path, node, guid, thumbsFolderAbsolute, writeFiles);
+                WriteIconFallback(node, guid, thumbsFolderAbsolute, writeFiles, loader);
 
                 if (width > 0 && height > 0)
                 {
@@ -486,7 +525,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
             // Non-texture assets: Materials, Prefabs, Models and Fonts
             // all have real rendered previews. Only when that fails do
             // we fall back to the generic type icon.
-            UnityEngine.Object mainAsset = AssetDatabase.LoadMainAssetAtPath(path);
+            UnityEngine.Object mainAsset = loader.Get();
             if (mainAsset == null) { return; }
 
             if (DocSnapSettings.GenerateThumbnails && writeFiles)
@@ -497,7 +536,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
                 if (relative != null) { node.Set("thumbnailFile", relative); }
             }
 
-            WriteIconFallback(path, node, guid, thumbsFolderAbsolute, writeFiles);
+            WriteIconFallback(node, guid, thumbsFolderAbsolute, writeFiles, loader);
         }
 
         // ==========================================
@@ -508,11 +547,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
         // as a small badge instead of stretching a
         // 16x16 sprite across a 4:3 preview box.
         // ==========================================
-        private static void WriteIconFallback(string path, JsonValue node, string guid, string thumbsFolderAbsolute, bool writeFiles)
+        private static void WriteIconFallback(JsonValue node, string guid, string thumbsFolderAbsolute, bool writeFiles, MainAssetLoader loader)
         {
             if (node.Has("thumbnailFile") || node.Has("thumbnailBase64")) { return; }
 
-            UnityEngine.Object mainAsset = AssetDatabase.LoadMainAssetAtPath(path);
+            UnityEngine.Object mainAsset = loader.Get();
             if (mainAsset == null) { return; }
 
             if (writeFiles)
@@ -598,7 +637,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
                     node.Set("isScriptableObject", baseTypes.Contains("ScriptableObject"));
                     node.Set("isEditorScript", text.Contains("UnityEditor"));
                 }
-                node.Set("lineCount", text.Split('\n').Length);
+                // Counted in place rather than text.Split('\n').Length,
+                // which allocated one string per line of every script
+                // in the project just to read the array's length.
+                int lines = 1;
+                for (int i = 0; i < text.Length; i++)
+                {
+                    if (text[i] == '\n') { lines++; }
+                }
+                node.Set("lineCount", lines);
             }
             catch
             {

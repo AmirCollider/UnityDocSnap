@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using AmirCollider.UnityDocSnap.Editor.Assets;
 using AmirCollider.UnityDocSnap.Editor.Html;
 using AmirCollider.UnityDocSnap.Editor.Json;
@@ -45,17 +46,26 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 EditorUtility.DisplayDialog(DocSnapConstants.ToolName, "Could not export scene:\n" + scenePath + "\n\n" + ex.Message, "OK");
                 return;
             }
+            finally
+            {
+                DocSnapLogGuard.ForceRestore();
+            }
 
             string sceneName = Path.GetFileNameWithoutExtension(scenePath);
-            string htmlFile = DocSnapConstants.ScenesSubFolder + "/" + sceneName + ".html";
-            string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneName + ".json";
+            // The key, not the raw name: two Scenes called Main.unity
+            // in different folders used to write the same
+            // scenes/Main.html and silently overwrite each other.
+            string sceneKey = DocSnapNaming.SceneKey(scenePath, FindAllScenePaths());
+            string htmlFile = DocSnapConstants.ScenesSubFolder + "/" + sceneKey + ".html";
+            string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneKey + ".json";
 
             WriteText(outputRoot, jsonFile, sceneData.ToString());
-            WriteSceneSummaries(outputRoot, sceneName, sceneData);
+            WriteSceneSummaries(outputRoot, sceneKey, sceneData);
 
             DocSnapManifest.UpsertScene(manifest, new ManifestSceneEntry
             {
                 sceneName = sceneName,
+                sceneKey = sceneKey,
                 scenePath = scenePath,
                 htmlFile = htmlFile,
                 jsonFile = jsonFile,
@@ -63,19 +73,53 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 gameObjectCount = goCount,
                 sourceSignature = SceneSignature(scenePath)
             });
-            DocSnapManifest.ReplaceSearchRecordsForScope(manifest, sceneName, DocSnapSearchIndex.BuildSceneRecords(sceneData, sceneName, htmlFile));
+            DocSnapManifest.ReplaceSearchRecordsForScope(manifest, sceneKey, DocSnapSearchIndex.BuildSceneRecords(sceneData, sceneKey, sceneName, htmlFile));
+            DocSnapManifest.ReplaceHealthForScope(manifest, sceneKey, DocSnapHealthReport.BuildSceneEntry(sceneData, sceneKey, sceneName, htmlFile));
             DocSnapManifest.Save(manifest);
 
             WriteText(outputRoot, htmlFile, ScenePageRenderer.Render(sceneData, manifest, htmlFile));
 
             string baseRoot = DocSnapSettings.ResolveOutputRootAbsolute();
             VersionsState registry = DocSnapVersioning.LoadRegistry();
-            FinalizeVersion(baseRoot, outputRoot, version, manifest, DocSnapExportOptions.Default(), registry, null);
+            FinalizeVersion(baseRoot, outputRoot, version, manifest, SingleItemOptions(registry, version), registry, null);
 
             ShowExportComplete(outputRoot,
                 "Exported scene \"" + sceneName + "\" (" + goCount + " GameObjects).",
                 "シーン「" + sceneName + "」をエクスポートしました(GameObject " + goCount + "個)。",
                 "سین «" + sceneName + "» اکسپورت شد (" + goCount + " گیم‌آبجکت).");
+        }
+
+        // ==========================================
+        // SingleItemOptions
+        // The options a single-Scene / single-folder export
+        // finalises the version with.
+        //
+        // It used to hand FinalizeVersion a plain
+        // DocSnapExportOptions.Default(), which meant the
+        // version's recorded snapshot was rebuilt as if this
+        // little export were the whole thing: a V1.0.0 made
+        // with "include file copies" and a .unitypackage
+        // backup would, after one Scene re-export, report
+        // "Included file bytes: no / Project backup: no" in
+        // export-info.txt and lose its 📦 badge on
+        // versions.html - while source-files/ and the
+        // .unitypackage sat untouched right there in the
+        // folder. The Changes link vanished from the
+        // dashboard the same way. Carrying the existing
+        // snapshot's facts forward keeps the record honest.
+        // ==========================================
+        private static DocSnapExportOptions SingleItemOptions(VersionsState registry, string version)
+        {
+            var options = DocSnapExportOptions.Default();
+            VersionSnapshot prior = DocSnapVersioning.FindSnapshot(registry, version);
+            if (prior == null) { return options; }
+
+            options.defaultLanguage = prior.defaultLanguage;
+            options.defaultTheme = prior.defaultTheme;
+            options.includeFiles = prior.withFiles;
+            options.recordChanges = !string.IsNullOrEmpty(prior.changesBaseVersion);
+            options.changesBaseVersion = prior.changesBaseVersion;
+            return options;
         }
 
         // ==========================================
@@ -88,6 +132,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string version;
             string outputRoot = ResolveSingleItemSiteRoot(out version);
             ManifestState manifest = DocSnapManifest.Load();
+            DocSnapExcludeFilter filter = DocSnapExcludeFilter.FromSettings();
 
             string folderKey = AssetProjectExporter.FolderKey(folderPath);
             List<ManifestAssetIndexEntry> indexEntries;
@@ -95,11 +140,31 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             JsonValue folderData;
             try
             {
-                folderData = AssetProjectExporter.ExportFolder(folderPath, folderKey, out indexEntries, out fileCount, false, null, outputRoot, ReportAssetProgress);
+                ThumbnailGenerator.BeginExport(DocSnapConstants.AssetPreviewTotalBudgetMs);
+                folderData = AssetProjectExporter.ExportFolder(folderPath, folderKey, out indexEntries, out fileCount, false, null, outputRoot, ReportAssetProgress, filter);
+            }
+            catch (OperationCanceledException)
+            {
+                // Cancelling used to be impossible; now that it is
+                // offered it has to end in a plain message rather
+                // than an exception in the console.
+                ShowCancelled();
+                return;
+            }
+            catch (Exception ex)
+            {
+                // ExportScene showed a dialog on failure and this path
+                // did not, so the same class of problem was a friendly
+                // message in one place and a raw stack trace in the
+                // other.
+                EditorUtility.DisplayDialog(DocSnapConstants.ToolName, "Could not export folder:\n" + folderPath + "\n\n" + ex.Message, "OK");
+                return;
             }
             finally
             {
+                ThumbnailGenerator.EndExport();
                 EditorUtility.ClearProgressBar();
+                DocSnapLogGuard.ForceRestore();
             }
 
             string htmlFile = DocSnapConstants.AssetsSubFolder + "/" + folderKey + ".html";
@@ -117,16 +182,18 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 jsonFile = jsonFile,
                 exportedUtc = folderData.Get("exportedUtc").AsString(""),
                 fileCount = fileCount,
-                sourceSignature = FolderSignature(folderPath)
+                sourceSignature = FolderSignature(folderPath, filter)
             });
             DocSnapManifest.ReplaceSearchRecordsForScope(manifest, folderKey, DocSnapSearchIndex.BuildFolderRecords(folderData, folderKey, htmlFile));
+            DocSnapManifest.ReplaceHealthForScope(manifest, folderKey, DocSnapHealthReport.BuildFolderEntry(folderData, folderKey, folderPath, htmlFile));
+            DocSnapManifest.SetExcludePatterns(manifest, filter.Patterns);
             DocSnapManifest.Save(manifest);
 
             WriteText(outputRoot, htmlFile, AssetPageRenderer.Render(folderData, manifest, htmlFile));
 
             string baseRoot = DocSnapSettings.ResolveOutputRootAbsolute();
             VersionsState registry = DocSnapVersioning.LoadRegistry();
-            FinalizeVersion(baseRoot, outputRoot, version, manifest, DocSnapExportOptions.Default(), registry, null);
+            FinalizeVersion(baseRoot, outputRoot, version, manifest, SingleItemOptions(registry, version), registry, null);
 
             ShowExportComplete(outputRoot,
                 "Exported folder \"" + folderPath + "\" (" + fileCount + " files).",
@@ -206,6 +273,27 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         private static void ExportProject(DocSnapExportOptions options)
         {
+            try
+            {
+                ThumbnailGenerator.BeginExport(DocSnapConstants.AssetPreviewTotalBudgetMs);
+                ExportProjectCore(options);
+            }
+            catch (OperationCanceledException)
+            {
+                ShowCancelled();
+            }
+            finally
+            {
+                ThumbnailGenerator.EndExport();
+                EditorUtility.ClearProgressBar();
+                // Whatever happened, the user's console must not be
+                // left muted by a guard that never got to unwind.
+                DocSnapLogGuard.ForceRestore();
+            }
+        }
+
+        private static void ExportProjectCore(DocSnapExportOptions options)
+        {
             string baseRoot = DocSnapSettings.ResolveOutputRootAbsolute();
             VersionsState registry = DocSnapVersioning.LoadRegistry();
 
@@ -254,16 +342,36 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             }
 
             ManifestState manifest = DocSnapManifest.Load();
+            DocSnapExcludeFilter filter = DocSnapExcludeFilter.FromSettings();
 
             int reusedScenes = 0;
             int exportedScenes = 0;
             var scenePages = new List<KeyValuePair<string, JsonValue>>();
 
-            foreach (string scenePath in FindAllScenePaths())
+            List<string> scenePaths = ResolveScenePaths(options, filter);
+
+            // Disambiguated against EVERY Scene in the project, not
+            // just the ones this run covers. The key has to be a
+            // property of the project rather than of one export's
+            // settings: keyed off the filtered list, the same Scene
+            // would be "Main.html" in a Build-Settings-only export and
+            // "Main-a1b2c3.html" in a full one, and each export would
+            // orphan the other's page.
+            List<string> allScenePaths = FindAllScenePaths();
+            int sceneIndex = 0;
+
+            foreach (string scenePath in scenePaths)
             {
+                sceneIndex++;
+                // The Scene pass used to give no feedback at all -
+                // opening and walking every Scene in a large project
+                // looked exactly like a hung Editor.
+                ReportSceneProgress(sceneIndex, scenePaths.Count, scenePath);
+
                 string sceneName = Path.GetFileNameWithoutExtension(scenePath);
-                string htmlFile = DocSnapConstants.ScenesSubFolder + "/" + sceneName + ".html";
-                string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneName + ".json";
+                string sceneKey = DocSnapNaming.SceneKey(scenePath, allScenePaths);
+                string htmlFile = DocSnapConstants.ScenesSubFolder + "/" + sceneKey + ".html";
+                string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneKey + ".json";
                 string signature = SceneSignature(scenePath);
 
                 ManifestSceneEntry prior = DocSnapManifest.FindScene(manifest, scenePath);
@@ -287,7 +395,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                         continue;
                     }
                     WriteText(outputRoot, jsonFile, sceneData.ToString());
-                    WriteSceneSummaries(outputRoot, sceneName, sceneData);
+                    WriteSceneSummaries(outputRoot, sceneKey, sceneData);
                     if (copyFiles) { AssetProjectExporter.CopyPhysicalFile(scenePath, physicalFilesRoot); }
                     exportedScenes++;
                 }
@@ -299,6 +407,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 DocSnapManifest.UpsertScene(manifest, new ManifestSceneEntry
                 {
                     sceneName = sceneName,
+                    sceneKey = sceneKey,
                     scenePath = scenePath,
                     htmlFile = htmlFile,
                     jsonFile = jsonFile,
@@ -306,15 +415,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                     gameObjectCount = (int)sceneData.Get("totalGameObjects").AsNumber(),
                     sourceSignature = signature
                 });
-                DocSnapManifest.ReplaceSearchRecordsForScope(manifest, sceneName, DocSnapSearchIndex.BuildSceneRecords(sceneData, sceneName, htmlFile));
+                DocSnapManifest.ReplaceSearchRecordsForScope(manifest, sceneKey, DocSnapSearchIndex.BuildSceneRecords(sceneData, sceneKey, sceneName, htmlFile));
+                DocSnapManifest.ReplaceHealthForScope(manifest, sceneKey, DocSnapHealthReport.BuildSceneEntry(sceneData, sceneKey, sceneName, htmlFile));
                 scenePages.Add(new KeyValuePair<string, JsonValue>(htmlFile, sceneData));
             }
+            EditorUtility.ClearProgressBar();
 
             // ----- Assets folder pass -----
             string rootFolderKey = AssetProjectExporter.FolderKey("Assets");
             string assetHtmlFile = DocSnapConstants.AssetsSubFolder + "/" + rootFolderKey + ".html";
             string assetJsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.FolderJsonPrefix + rootFolderKey + ".json";
-            string folderSignature = FolderSignature("Assets");
+            string folderSignature = FolderSignature("Assets", filter);
 
             ManifestFolderEntry priorFolder = DocSnapManifest.FindFolder(manifest, rootFolderKey);
             JsonValue folderData = null;
@@ -338,7 +449,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 List<ManifestAssetIndexEntry> indexEntries;
                 try
                 {
-                    folderData = AssetProjectExporter.ExportFolder("Assets", rootFolderKey, out indexEntries, out fileCount, copyFiles, physicalFilesRoot, outputRoot, ReportAssetProgress);
+                    folderData = AssetProjectExporter.ExportFolder("Assets", rootFolderKey, out indexEntries, out fileCount, copyFiles, physicalFilesRoot, outputRoot, ReportAssetProgress, filter);
                 }
                 finally
                 {
@@ -363,6 +474,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 sourceSignature = folderSignature
             });
             DocSnapManifest.ReplaceSearchRecordsForScope(manifest, rootFolderKey, DocSnapSearchIndex.BuildFolderRecords(folderData, rootFolderKey, assetHtmlFile));
+            DocSnapManifest.ReplaceHealthForScope(manifest, rootFolderKey, DocSnapHealthReport.BuildFolderEntry(folderData, rootFolderKey, "Assets", assetHtmlFile));
+            DocSnapManifest.SetExcludePatterns(manifest, filter.Patterns);
+
+            // Scenes that are no longer in the project (deleted, or
+            // now filtered out by an exclude rule / a scenes-in-build
+            // -settings-only export) must not linger in the manifest:
+            // they would keep a dead sidebar link, a stale search
+            // record and a phantom health finding alive forever,
+            // because the manifest is the tool's memory across runs.
+            PruneMissingScenes(manifest, scenePaths);
 
             // Packages are project-global; refreshed on every full pass.
             DocSnapManifest.SetPackages(manifest, DocSnapPackagesReader.ReadInstalledPackages());
@@ -422,27 +543,108 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             catch { return ""; }
         }
 
-        private static string FolderSignature(string folderPath)
+        private static string FolderSignature(string folderPath, DocSnapExcludeFilter filter)
         {
             try
             {
-                string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-                string absolute = Path.GetFullPath(Path.Combine(projectRoot, folderPath));
-                if (!Directory.Exists(absolute)) { return ""; }
+                var files = DocSnapFileScan.EnumerateProjectRelativeFiles(folderPath, filter);
+                if (files.Count == 0 && !Directory.Exists(Path.Combine(DocSnapFileScan.ProjectRootAbsolute(), folderPath))) { return ""; }
 
+                string projectRoot = DocSnapFileScan.ProjectRootAbsolute();
                 long newest = 0;
-                int count = 0;
-                foreach (string file in Directory.GetFiles(absolute, "*", SearchOption.AllDirectories))
+                foreach (string relative in files)
                 {
-                    string name = Path.GetFileName(file);
-                    if (name.StartsWith(".", StringComparison.Ordinal)) { continue; }
-                    count++;
-                    long ticks = File.GetLastWriteTimeUtc(file).Ticks;
+                    long ticks = File.GetLastWriteTimeUtc(Path.Combine(projectRoot, relative)).Ticks;
                     if (ticks > newest) { newest = ticks; }
                 }
-                return count + ":" + newest;
+
+                // The path list is part of the fingerprint, and it has
+                // to be: file count plus newest-write-time alone could
+                // not see a RENAME. Renaming a file changes neither the
+                // count nor any modification time, so "Update Previous
+                // Export" happily reused the whole asset pass and served
+                // documentation that still described the old name -
+                // silently, with no way for the user to tell.
+                //
+                // The files are already sorted, so hashing the joined
+                // list is stable across runs and machines.
+                string pathsHash = DocSnapNaming.StableHashHex(string.Join("\n", files.ToArray()));
+                return files.Count + ":" + newest + ":" + pathsHash;
             }
             catch { return ""; }
+        }
+
+        // ==========================================
+        // ResolveScenePaths
+        // Which Scenes this export covers: every Scene under
+        // Assets/, or - when the user asked for it - only the
+        // ones actually listed in Build Settings. Exclude
+        // rules apply either way.
+        //
+        // "Only Scenes in Build Settings" exists because a
+        // mature project accumulates test Scenes, sandbox
+        // Scenes and imported-package Scenes that nobody wants
+        // in the documentation, and opening each of them is
+        // the single most expensive part of a full export.
+        // ==========================================
+        private static List<string> ResolveScenePaths(DocSnapExportOptions options, DocSnapExcludeFilter filter)
+        {
+            List<string> paths = options != null && options.scenesInBuildOnly
+                ? FindBuildSettingsScenePaths()
+                : FindAllScenePaths();
+
+            if (filter == null || filter.IsEmpty) { return paths; }
+
+            var kept = new List<string>(paths.Count);
+            foreach (string path in paths)
+            {
+                if (!filter.IsExcluded(path)) { kept.Add(path); }
+            }
+            return kept;
+        }
+
+        // ==========================================
+        // FindBuildSettingsScenePaths
+        // The enabled entries of File > Build Settings, in the
+        // order the game itself loads them, restricted to
+        // Assets/ for the same read-only-package reason
+        // FindAllScenePaths documents.
+        // ==========================================
+        public static List<string> FindBuildSettingsScenePaths()
+        {
+            var paths = new List<string>();
+            foreach (EditorBuildSettingsScene scene in EditorBuildSettings.scenes)
+            {
+                if (scene == null || !scene.enabled) { continue; }
+                if (string.IsNullOrEmpty(scene.path)) { continue; }
+                if (!scene.path.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase)) { continue; }
+                if (!paths.Contains(scene.path)) { paths.Add(scene.path); }
+            }
+            return paths;
+        }
+
+        // ==========================================
+        // PruneMissingScenes
+        // Drops manifest state for Scenes this pass did not
+        // cover, together with their search records and health
+        // findings, so the three never disagree about what
+        // exists.
+        // ==========================================
+        private static void PruneMissingScenes(ManifestState manifest, List<string> livePaths)
+        {
+            var live = new HashSet<string>(livePaths, StringComparer.OrdinalIgnoreCase);
+            var dropped = new List<ManifestSceneEntry>();
+            foreach (ManifestSceneEntry scene in manifest.scenes)
+            {
+                if (!live.Contains(scene.scenePath)) { dropped.Add(scene); }
+            }
+
+            foreach (ManifestSceneEntry scene in dropped)
+            {
+                manifest.scenes.Remove(scene);
+                DocSnapManifest.ReplaceSearchRecordsForScope(manifest, scene.sceneKey, null);
+                DocSnapManifest.ReplaceHealthForScope(manifest, scene.sceneKey, null);
+            }
         }
 
         // ==========================================
@@ -539,7 +741,74 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 WriteText(outputRoot, DocSnapSummaryWriter.PackagesSummaryJson(), DocSnapSummaryWriter.RenderPackagesJson(manifest));
             }
 
+            if (DocSnapSettings.WriteAiBundle) { WriteAiBundle(outputRoot, manifest); }
+
             PruneStaleOutput(outputRoot, manifest);
+        }
+
+        // ==========================================
+        // WriteAiBundle
+        // summary/ai-bundle.md — every summary this export
+        // produced, concatenated into one document.
+        //
+        // The tool's whole "Simple" half exists so a project
+        // can be handed to an AI assistant, and then handed
+        // over a folder of a dozen separate files, which is
+        // the one thing a chat window is worst at accepting.
+        // This is the single paste. It is assembled from the
+        // files already on disk (so it can never disagree
+        // with them) and hard-capped, because a bundle too
+        // large to fit in a context window is not a bundle,
+        // it is a truncation nobody was warned about.
+        // ==========================================
+        private static void WriteAiBundle(string outputRoot, ManifestState manifest)
+        {
+            try
+            {
+                var sb = new StringBuilder(64 * 1024);
+                sb.Append("# ").Append(manifest.projectName).Append(" — Unity DocSnap bundle\n\n");
+                sb.Append("Everything below is one Unity project, summarised. ");
+                sb.Append("Sections are separated by `---`. Generated by ")
+                  .Append(DocSnapConstants.ToolName).Append(" v").Append(DocSnapConstants.Version).Append(".\n\n");
+
+                var parts = new List<string>();
+                parts.Add(DocSnapConstants.ProjectSummaryFileName);
+                foreach (ManifestSceneEntry scene in manifest.scenes)
+                {
+                    parts.Add(DocSnapSummaryWriter.SceneSummaryMarkdown(scene.sceneKey));
+                }
+                foreach (ManifestFolderEntry folder in manifest.assetFolders)
+                {
+                    parts.Add(DocSnapSummaryWriter.FolderSummaryMarkdown(folder.folderKey));
+                }
+                if (manifest.packages != null && manifest.packages.Count > 0)
+                {
+                    parts.Add(DocSnapSummaryWriter.PackagesSummaryMarkdown());
+                }
+
+                bool truncated = false;
+                foreach (string relative in parts)
+                {
+                    string full = Path.Combine(outputRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+                    if (!File.Exists(full)) { continue; }
+                    if (sb.Length >= DocSnapConstants.MaxAiBundleCharacters) { truncated = true; break; }
+
+                    sb.Append("\n---\n\n");
+                    sb.Append(File.ReadAllText(full).TrimEnd()).Append('\n');
+                }
+
+                if (truncated)
+                {
+                    sb.Append("\n---\n\n_This bundle reached its size cap; the remaining summaries are in `")
+                      .Append(DocSnapConstants.SummarySubFolder).Append("/` as individual files._\n");
+                }
+
+                WriteText(outputRoot, DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.AiBundleFileName, sb.ToString());
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[Unity DocSnap] Could not write the AI bundle: " + ex.Message);
+            }
         }
 
         // ==========================================
@@ -549,13 +818,55 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // file in the project and previously gave zero
         // feedback, so Unity simply looked frozen.
         // ==========================================
-        private static void ReportAssetProgress(int processed, int total, string currentPath)
+        private static bool ReportAssetProgress(int processed, int total, string currentPath)
         {
-            if (total <= 0) { return; }
-            EditorUtility.DisplayProgressBar(
+            if (total <= 0) { return true; }
+
+            // Cancelable, not just informative. A full export on a
+            // large project could previously only be escaped by
+            // force-quitting the Editor and losing everything
+            // unsaved - the tool asked for an unbounded amount of
+            // someone's time and gave them no way to say no.
+            // Returning false unwinds the pass cleanly.
+            bool cancelled = EditorUtility.DisplayCancelableProgressBar(
                 DocSnapConstants.ToolName,
                 "Exporting assets  " + processed + " / " + total + "\n" + currentPath,
                 (float)processed / total);
+            return !cancelled;
+        }
+
+        // ==========================================
+        // ReportSceneProgress
+        // Feedback for the Scene pass, which had none:
+        // opening and walking every Scene in a project is
+        // the slowest half of a full export and it used to
+        // happen behind a completely frozen Editor.
+        // ==========================================
+        private static void ReportSceneProgress(int index, int total, string scenePath)
+        {
+            if (total <= 0) { return; }
+            bool cancelled = EditorUtility.DisplayCancelableProgressBar(
+                DocSnapConstants.ToolName,
+                "Exporting scenes  " + index + " / " + total + "\n" + scenePath,
+                (float)index / total);
+            if (cancelled) { throw new OperationCanceledException("Scene export cancelled by the user."); }
+        }
+
+        // ==========================================
+        // ShowCancelled
+        // A cancelled export is a normal outcome, not a
+        // failure - it says so plainly and leaves whatever
+        // was already written on disk alone.
+        // ==========================================
+        private static void ShowCancelled()
+        {
+            EditorUtility.ClearProgressBar();
+            EditorUtility.DisplayDialog(
+                DocSnapConstants.ToolName,
+                "Export cancelled. Anything already written is still in the output folder.\n\n"
+                + "エクスポートをキャンセルしました。すでに書き出された内容は出力フォルダに残っています。\n\n"
+                + "خروجی‌گیری لغو شد. هرچه تا اینجا نوشته شده، توی پوشه‌ی خروجی باقی می‌مونه.",
+                "OK");
         }
 
         // ==========================================
@@ -589,13 +900,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 // never deletes it.
                 liveSummary.Add(DocSnapSummaryWriter.PackagesSummaryMarkdown());
                 liveSummary.Add(DocSnapSummaryWriter.PackagesSummaryJson());
+                liveSummary.Add(DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.AiBundleFileName);
 
                 foreach (ManifestSceneEntry scene in manifest.scenes)
                 {
                     liveScenes.Add(scene.htmlFile);
                     liveData.Add(scene.jsonFile);
-                    liveSummary.Add(DocSnapSummaryWriter.SceneSummaryMarkdown(scene.sceneName));
-                    liveSummary.Add(DocSnapSummaryWriter.SceneSummaryJson(scene.sceneName));
+                    // sceneKey, not sceneName: they diverge as soon as
+                    // two Scenes share a name, and pruning on the wrong
+                    // one would delete a summary that is still current.
+                    liveSummary.Add(DocSnapSummaryWriter.SceneSummaryMarkdown(scene.sceneKey));
+                    liveSummary.Add(DocSnapSummaryWriter.SceneSummaryJson(scene.sceneKey));
                 }
                 foreach (ManifestFolderEntry folder in manifest.assetFolders)
                 {
@@ -627,6 +942,20 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         private static void PruneDir(string outputRoot, string subFolder, HashSet<string> liveFiles)
         {
+            // This is the only code in Unity DocSnap that deletes
+            // files, so it refuses to run anywhere it cannot prove it
+            // owns. A version folder always contains the site
+            // stylesheet DocSnap itself just wrote; if that is absent,
+            // outputRoot is not a DocSnap version folder and something
+            // upstream is wrong - deleting its contents would be a
+            // catastrophe, not a cleanup.
+            if (!IsDocSnapVersionFolder(outputRoot))
+            {
+                Debug.LogWarning("[Unity DocSnap] Refusing to prune \"" + outputRoot
+                    + "\": it does not look like a Unity DocSnap version folder.");
+                return;
+            }
+
             string absolute = Path.Combine(outputRoot, subFolder);
             if (!Directory.Exists(absolute)) { return; }
 
@@ -635,6 +964,19 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 string relative = subFolder + "/" + Path.GetFileName(file);
                 if (!liveFiles.Contains(relative)) { File.Delete(file); }
             }
+        }
+
+        // ==========================================
+        // IsDocSnapVersionFolder
+        // The ownership proof PruneDir relies on: the
+        // version-pinned theme/style.css that PrepareOutput
+        // writes into every version folder before anything
+        // else happens.
+        // ==========================================
+        private static bool IsDocSnapVersionFolder(string outputRoot)
+        {
+            if (string.IsNullOrEmpty(outputRoot)) { return false; }
+            return File.Exists(Path.Combine(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder), DocSnapConstants.StyleFileName));
         }
 
         // ==========================================
@@ -659,7 +1001,18 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 DocSnapVersioning.SaveRegistry(registry);
             }
 
-            DocSnapRenderContext.Apply(DocSnapExportOptions.Default(), version);
+            // The render context is taken from the version being
+            // written into, not from fresh defaults. Applying
+            // Default() here meant a single-Scene export re-rendered
+            // the dashboard of a Japanese, dark-themed version in
+            // English and light - and dropped the Changes link out of
+            // the sidebar while changes.html was still sitting in the
+            // folder.
+            DocSnapRenderContext.Apply(SingleItemOptions(registry, version), version);
+            VersionSnapshot prior = DocSnapVersioning.FindSnapshot(registry, version);
+            DocSnapRenderContext.HasChangesPage = prior != null && !string.IsNullOrEmpty(prior.changesBaseVersion);
+            DocSnapRenderContext.ChangesBaseVersion = DocSnapRenderContext.HasChangesPage ? prior.changesBaseVersion : "";
+
             string siteRoot = DocSnapVersioning.VersionFolderAbsolute(baseRoot, version);
             PrepareOutput(siteRoot);
             return siteRoot;
@@ -680,6 +1033,19 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             DocSnapExportOptions options, VersionsState registry, VersionSnapshot changesBase)
         {
             VersionSnapshot snap = DocSnapExportInfo.BuildSnapshot(version, manifest, options);
+
+            // Facts about the version folder that this run did not
+            // re-establish are carried across from what is already
+            // recorded, instead of being reset to false. A backup
+            // and a source-files/ mirror written by an earlier export
+            // are still physically there; a later single-Scene export
+            // has no business declaring they are not.
+            VersionSnapshot previous = DocSnapVersioning.FindSnapshot(registry, version);
+            if (previous != null)
+            {
+                if (!options.makeBackup) { snap.hasBackup = previous.hasBackup; }
+                if (!options.includeFiles) { snap.withFiles = previous.withFiles; }
+            }
 
             if (options.recordChanges && changesBase != null)
             {
@@ -774,10 +1140,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // Scene / folder in both forms - readable Markdown
         // and structured JSON - into the summary/ folder.
         // ==========================================
-        private static void WriteSceneSummaries(string outputRoot, string sceneName, JsonValue sceneData)
+        private static void WriteSceneSummaries(string outputRoot, string sceneKey, JsonValue sceneData)
         {
-            WriteText(outputRoot, DocSnapSummaryWriter.SceneSummaryMarkdown(sceneName), DocSnapSummaryWriter.RenderScene(sceneData));
-            WriteText(outputRoot, DocSnapSummaryWriter.SceneSummaryJson(sceneName), DocSnapSummaryWriter.RenderSceneJson(sceneData));
+            WriteText(outputRoot, DocSnapSummaryWriter.SceneSummaryMarkdown(sceneKey), DocSnapSummaryWriter.RenderScene(sceneData));
+            WriteText(outputRoot, DocSnapSummaryWriter.SceneSummaryJson(sceneKey), DocSnapSummaryWriter.RenderSceneJson(sceneData));
         }
 
         private static void WriteFolderSummaries(string outputRoot, string folderKey, JsonValue folderData)

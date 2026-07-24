@@ -12,7 +12,15 @@ namespace AmirCollider.UnityDocSnap.Editor
         // Identity
         // ==========================================
         public const string ToolName = "Unity DocSnap";
-        public const string Version = "0.6.2";
+
+        // Must match "version" in package.json. It drifted once
+        // (the constant said 0.6.2 while the package said 0.6.4,
+        // so every generated manifest.json, export-info.json,
+        // summary footer, dashboard badge and About window
+        // reported a version the package had not been on for two
+        // releases). PackageVersionTests now fails the build if
+        // the two ever disagree again.
+        public const string Version = "0.7.0";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
 
@@ -156,6 +164,15 @@ namespace AmirCollider.UnityDocSnap.Editor
         public const string SceneJsonPrefix = "scene-";
         public const string FolderJsonPrefix = "folder-";
 
+        // The one-file hand-off: every summary in the export
+        // concatenated into a single Markdown document, so a
+        // whole project can be dropped into an AI assistant as
+        // one paste instead of a dozen. Capped (see
+        // MaxAiBundleCharacters) so it stays inside a normal
+        // context window rather than being silently unusable.
+        public const string AiBundleFileName = "ai-bundle.md";
+        public const int MaxAiBundleCharacters = 600000;
+
         // ==========================================
         // Internal, regeneratable roundtrip state
         // (kept out of the clean output folder)
@@ -169,6 +186,38 @@ namespace AmirCollider.UnityDocSnap.Editor
         public const int MaxNestedArrayElementsRendered = 10;
         public const int MaxGenericRecursionDepth = 14;
         public const int DefaultThumbnailMaxDimension = 256;
+
+        // How many sibling fields one nested struct / managed
+        // reference may contribute before the walk stops. This
+        // limit already existed as a bare "guard > 1000" inside
+        // UniversalReflector; naming it makes it visible, and the
+        // reflector now marks the node as truncated instead of
+        // silently returning a partial object.
+        public const int MaxGenericFieldsPerObject = 1000;
+
+        // How deep a GameObject hierarchy is walked. Every other
+        // recursion in the tool was capped; this one was not, and
+        // a deep enough chain (a procedural rig, a generated tree)
+        // threw StackOverflowException - which .NET cannot catch,
+        // so it took the entire Unity Editor down rather than
+        // failing one export.
+        public const int MaxHierarchyDepth = 256;
+
+        // Total wall-clock budget, per export, for waiting on
+        // Unity's asynchronous asset-preview renderer. Previously
+        // each asset was allowed to block the main thread for up
+        // to AssetPreviewTimeoutMs on its own, so a project with
+        // thousands of non-image assets could spend well over half
+        // an hour asleep with a frozen Editor. Once the budget is
+        // spent the export keeps going and simply falls back to
+        // type icons.
+        public const int AssetPreviewTotalBudgetMs = 20000;
+
+        // How many assets are processed between calls to Unity's
+        // unused-asset unloader. A full export loads every asset
+        // in the project to read its metadata; without this the
+        // whole project stayed resident in memory at once.
+        public const int AssetUnloadInterval = 250;
 
         // ==========================================
         // Page-weight limits

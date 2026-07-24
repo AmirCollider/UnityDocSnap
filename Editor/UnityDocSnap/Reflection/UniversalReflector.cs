@@ -40,12 +40,23 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
                 return results;
             }
 
-            SerializedProperty iterator = serializedObject.GetIterator();
-            bool enterChildren = true;
-            while (iterator.NextVisible(enterChildren))
+            // SerializedObject and SerializedProperty both own native
+            // memory that is only released when they are disposed. A
+            // full-project export builds one SerializedObject per
+            // Component, per importer and per ScriptableObject - tens
+            // of thousands on a real project - and none of them used
+            // to be disposed, so the whole export's worth of native
+            // allocations stayed live until the GC eventually got
+            // around to the finalizers.
+            using (serializedObject)
+            using (SerializedProperty iterator = serializedObject.GetIterator())
             {
-                enterChildren = false;
-                results.Add(ReadField(iterator, 0));
+                bool enterChildren = true;
+                while (iterator.NextVisible(enterChildren))
+                {
+                    enterChildren = false;
+                    results.Add(ReadField(iterator, 0));
+                }
             }
             return results;
         }
@@ -107,9 +118,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
                         node.Set("value", prop.stringValue ?? "");
                         break;
                     case SerializedPropertyType.Color:
-                        node.Set("kind", "color");
-                        node.Set("value", ColorToHex(prop.colorValue));
-                        node.Set("alpha", prop.colorValue.a);
+                        ReadColor(prop.colorValue, node);
                         break;
                     case SerializedPropertyType.ObjectReference:
                         ReadObjectReference(prop, node);
@@ -256,20 +265,50 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
             node.Set("kind", "generic");
             node.Set("typeName", string.IsNullOrEmpty(prop.type) ? "Generic" : prop.type);
 
-            var fieldsArr = JsonValue.Arr();
-            SerializedProperty endProperty = prop.GetEndProperty();
-            SerializedProperty current = prop.Copy();
-            bool enterChildren = true;
-            int guard = 0;
-            while (current.NextVisible(enterChildren) && !SerializedProperty.EqualContents(current, endProperty))
-            {
-                enterChildren = false;
-                fieldsArr.Add(ReadField(current, depth + 1, arrayDepth));
-                guard++;
-                if (guard > 1000) { break; }
-            }
-            node.Set("fields", fieldsArr);
+            node.Set("fields", ReadChildFields(prop, node, depth, arrayDepth));
             return node;
+        }
+
+        // ==========================================
+        // ReadChildFields
+        // The shared sibling-walk-until-end-marker used by
+        // both ReadGeneric and ReadManagedReference.
+        //
+        // The field ceiling used to be a bare `guard > 1000`
+        // that simply stopped, leaving a partial object with
+        // nothing to say it was partial - while ReadArray, a
+        // few lines away, correctly marked its own cap with
+        // "truncated". A consumer (especially an AI reading
+        // the JSON) had no way to know it was looking at an
+        // incomplete object. Now both containers report it
+        // the same way.
+        // ==========================================
+        private static JsonValue ReadChildFields(SerializedProperty prop, JsonValue node, int depth, int arrayDepth)
+        {
+            var fieldsArr = JsonValue.Arr();
+            using (SerializedProperty endProperty = prop.GetEndProperty())
+            using (SerializedProperty current = prop.Copy())
+            {
+                bool enterChildren = true;
+                int count = 0;
+                bool truncated = false;
+
+                while (current.NextVisible(enterChildren) && !SerializedProperty.EqualContents(current, endProperty))
+                {
+                    enterChildren = false;
+                    if (count >= DocSnapConstants.MaxGenericFieldsPerObject)
+                    {
+                        truncated = true;
+                        break;
+                    }
+                    fieldsArr.Add(ReadField(current, depth + 1, arrayDepth));
+                    count++;
+                }
+
+                node.Set("fieldCount", count);
+                node.Set("truncated", truncated);
+            }
+            return fieldsArr;
         }
 
         // ==========================================
@@ -289,19 +328,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
             node.Set("typeName", isNull ? "(null)" : SimplifyManagedTypeName(fullTypeName));
             if (isNull) { return; }
 
-            var fieldsArr = JsonValue.Arr();
-            SerializedProperty endProperty = prop.GetEndProperty();
-            SerializedProperty current = prop.Copy();
-            bool enterChildren = true;
-            int guard = 0;
-            while (current.NextVisible(enterChildren) && !SerializedProperty.EqualContents(current, endProperty))
-            {
-                enterChildren = false;
-                fieldsArr.Add(ReadField(current, depth + 1, arrayDepth));
-                guard++;
-                if (guard > 1000) { break; }
-            }
-            node.Set("fields", fieldsArr);
+            node.Set("fields", ReadChildFields(prop, node, depth, arrayDepth));
         }
 
         // ==========================================
@@ -408,20 +435,25 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
             node.Set("kind", string.IsNullOrEmpty(typeName) ? "raw" : "raw:" + typeName);
 
 #if UNITY_2022_2_OR_NEWER
-            bool previousLogEnabled = Debug.unityLogger.logEnabled;
-            Debug.unityLogger.logEnabled = false;
-            try
+            // DocSnapLogGuard rather than poking
+            // Debug.unityLogger.logEnabled directly: this call can
+            // happen while SceneHierarchyExporter already has the
+            // console muted for its additive Scene open, and the
+            // old code restored logging to "on" at the end of the
+            // inner block - un-muting the outer one early and
+            // letting exactly the warning it was suppressing
+            // through.
+            using (DocSnapLogGuard.Mute())
             {
-                object boxed = prop.boxedValue;
-                node.Set("value", boxed != null ? boxed.ToString() : "(null)");
-            }
-            catch (Exception ex)
-            {
-                node.Set("value", "(unsupported property type: " + prop.propertyType + " - " + ex.Message + ")");
-            }
-            finally
-            {
-                Debug.unityLogger.logEnabled = previousLogEnabled;
+                try
+                {
+                    object boxed = prop.boxedValue;
+                    node.Set("value", boxed != null ? boxed.ToString() : "(null)");
+                }
+                catch (Exception ex)
+                {
+                    node.Set("value", "(unsupported property type: " + prop.propertyType + " - " + ex.Message + ")");
+                }
             }
 #else
             try { node.Set("value", prop.stringValue); return; } catch { /* not string-like */ }
@@ -508,9 +540,45 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
             return JsonValue.Obj().Set("position", Vec3Int(b.position)).Set("size", Vec3Int(b.size));
         }
 
+        // ==========================================
+        // ReadColor
+        // A Color was recorded as a hex string plus its
+        // alpha. ColorUtility.ToHtmlStringRGB clamps to
+        // 0-1, so every HDR colour in the project - an
+        // emissive material tint, a bloom-driving light
+        // colour, anything authored above 1.0 - was
+        // documented as its dimmed LDR twin, with the
+        // intensity that made it interesting silently
+        // discarded. The hex stays (the site paints
+        // swatches with it), and the exact channel values
+        // now travel alongside it, flagged when they leave
+        // the displayable range.
+        // ==========================================
+        private static void ReadColor(Color c, JsonValue node)
+        {
+            node.Set("kind", "color");
+            node.Set("value", ColorToHex(c));
+            node.Set("alpha", c.a);
+            node.Set("rgba", JsonValue.Obj().Set("r", c.r).Set("g", c.g).Set("b", c.b).Set("a", c.a));
+
+            if (c.r > 1f || c.g > 1f || c.b > 1f)
+            {
+                node.Set("isHdr", true);
+                // Unity's own HDR colour picker reports intensity as
+                // log2 of the brightest channel, so this matches what
+                // the Inspector shows next to the swatch.
+                float peak = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
+                node.Set("hdrIntensity", Mathf.Log(peak, 2f));
+            }
+        }
+
         private static string ColorToHex(Color c)
         {
-            return "#" + ColorUtility.ToHtmlStringRGB(c);
+            // Clamped on purpose: this value goes straight into a
+            // CSS colour, which has no meaning above 1.0 anyway.
+            // The unclamped truth lives in "rgba" beside it.
+            return "#" + ColorUtility.ToHtmlStringRGB(new Color(
+                Mathf.Clamp01(c.r), Mathf.Clamp01(c.g), Mathf.Clamp01(c.b)));
         }
 
         private static JsonValue CurveSummary(AnimationCurve curve)

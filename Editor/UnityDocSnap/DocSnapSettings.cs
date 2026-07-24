@@ -20,6 +20,8 @@ namespace AmirCollider.UnityDocSnap.Editor
         private const string KeyDefaultLang = "UnityDocSnap.DefaultLanguage";
         private const string KeyDefaultTheme = "UnityDocSnap.DefaultTheme";
         private const string KeyWindowLang = "UnityDocSnap.WindowLanguage";
+        private const string KeyExcludes = "UnityDocSnap.ExcludePatterns";
+        private const string KeyAiBundle = "UnityDocSnap.WriteAiBundle";
 
         // ==========================================
         // OutputRootPath
@@ -112,6 +114,45 @@ namespace AmirCollider.UnityDocSnap.Editor
                 return string.IsNullOrEmpty(raw) ? "en" : raw;
             }
             set { EditorUserSettings.SetConfigValue(KeyWindowLang, string.IsNullOrEmpty(value) ? "en" : value); }
+        }
+
+        // ==========================================
+        // ExcludePatterns
+        // Paths this project never wants documented, one
+        // per line (see DocSnapExcludeFilter for the
+        // syntax). Empty = document everything, which is
+        // the behaviour every earlier version had.
+        //
+        // This is the highest-leverage setting in the tool
+        // for a real project: most of a full export's time
+        // and output size goes into imported Asset Store
+        // content nobody asked to have documented, and one
+        // line here removes it from the file walk, the
+        // folder tree, the search index, the change diff
+        // and the counts at once.
+        // ==========================================
+        public static string ExcludePatterns
+        {
+            get { return EditorUserSettings.GetConfigValue(KeyExcludes) ?? ""; }
+            set { EditorUserSettings.SetConfigValue(KeyExcludes, value ?? ""); }
+        }
+
+        // ==========================================
+        // WriteAiBundle
+        // Whether each export also writes the single
+        // concatenated summary/ai-bundle.md. On by
+        // default - it is the file the README tells
+        // people to hand to an assistant, and building
+        // it costs one pass over files already written.
+        // ==========================================
+        public static bool WriteAiBundle
+        {
+            get
+            {
+                string raw = EditorUserSettings.GetConfigValue(KeyAiBundle);
+                return raw == null ? true : raw == "1";
+            }
+            set { EditorUserSettings.SetConfigValue(KeyAiBundle, value ? "1" : "0"); }
         }
 
         // ==========================================

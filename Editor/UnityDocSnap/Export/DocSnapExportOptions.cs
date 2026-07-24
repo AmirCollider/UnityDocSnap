@@ -46,6 +46,19 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // Copy the real asset bytes into source-files/ too.
         public bool includeFiles;
 
+        // Document only the Scenes listed (and enabled) in
+        // File > Build Settings, instead of every .unity file
+        // under Assets/.
+        //
+        // Opening a Scene is the most expensive single thing an
+        // export does, and a mature project is full of Scenes
+        // nobody wants documented: test beds, sandboxes, and
+        // sample Scenes that arrived with an imported package.
+        // This is the difference between documenting the game
+        // and documenting everything that happens to be in the
+        // folder.
+        public bool scenesInBuildOnly;
+
         // Also export a whole-project .unitypackage backup.
         public bool makeBackup;
 

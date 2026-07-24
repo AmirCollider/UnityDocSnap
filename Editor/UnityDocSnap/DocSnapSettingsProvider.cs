@@ -43,6 +43,28 @@ namespace AmirCollider.UnityDocSnap.Editor
             if (EditorGUI.EndChangeCheck()) { DocSnapSettings.OutputRootPath = outputPath; }
 
             EditorGUILayout.Space(12);
+            EditorGUILayout.LabelField("Scope", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(
+                new GUIContent("Exclude paths", "One path or pattern per line. Prefixes match a whole folder (Assets/Plugins); * and ? are wildcards (*.psd)."),
+                EditorStyles.label);
+            EditorGUI.BeginChangeCheck();
+            string excludes = EditorGUILayout.TextArea(DocSnapSettings.ExcludePatterns, GUILayout.MinHeight(64));
+            if (EditorGUI.EndChangeCheck()) { DocSnapSettings.ExcludePatterns = excludes; }
+
+            DocSnapExcludeFilter filter = DocSnapExcludeFilter.Parse(excludes);
+            EditorGUILayout.LabelField(
+                filter.IsEmpty ? "Nothing excluded — the whole project is documented." : "Active rules: " + string.Join(" · ", filter.Patterns.ToArray()),
+                EditorStyles.miniLabel);
+
+            EditorGUILayout.Space(12);
+            EditorGUILayout.LabelField("Output extras", EditorStyles.boldLabel);
+            EditorGUI.BeginChangeCheck();
+            bool aiBundle = EditorGUILayout.Toggle(
+                new GUIContent("Write summary/ai-bundle.md", "Concatenates every summary this export produces into one Markdown file, so a whole project can be pasted into an AI assistant in a single go instead of a folder at a time."),
+                DocSnapSettings.WriteAiBundle);
+            if (EditorGUI.EndChangeCheck()) { DocSnapSettings.WriteAiBundle = aiBundle; }
+
+            EditorGUILayout.Space(12);
             EditorGUILayout.LabelField("Visuals", EditorStyles.boldLabel);
             EditorGUI.BeginChangeCheck();
             bool thumbs = EditorGUILayout.Toggle(

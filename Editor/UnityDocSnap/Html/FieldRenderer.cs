@@ -66,7 +66,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 ManifestAssetIndexEntry entry;
                 if (!string.IsNullOrEmpty(guid) && GuidLookup != null && GuidLookup.TryGetValue(guid, out entry))
                 {
-                    string href = LinkPrefix + entry.htmlFile + "#" + entry.anchor;
+                    // EncodeUrlPath, like every other link in the site.
+                    // This one was raw, so a Scene or folder whose name
+                    // contained '&', '#' or a space produced a chip that
+                    // either linked nowhere or - with a quote in the name -
+                    // broke out of the href attribute entirely.
+                    string href = FieldRenderer.EncodeUrlPath(LinkPrefix + entry.htmlFile) + "#" + HtmlPageBuilder.Escape(entry.anchor);
                     return "<a class=\"ds-ref-chip\"" + titleAttr + " href=\"" + href + "\">\uD83D\uDD17 " + targetNameHtml
                         + " <span class=\"type\">" + HtmlPageBuilder.Escape(refType) + "</span></a>";
                 }
@@ -78,7 +83,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             string anchor;
             if (LocalAnchors != null && LocalAnchors.TryGetValue(instanceId, out anchor))
             {
-                return "<a class=\"ds-ref-chip\"" + titleAttr + " href=\"#" + anchor + "\">\uD83D\uDD17 " + targetNameHtml
+                return "<a class=\"ds-ref-chip\"" + titleAttr + " href=\"#" + HtmlPageBuilder.Escape(anchor) + "\">\uD83D\uDD17 " + targetNameHtml
                     + " <span class=\"type\">" + HtmlPageBuilder.Escape(refType) + "</span></a>";
             }
             return "<span class=\"ds-ref-chip is-unresolved\"" + titleAttr + ">" + targetNameHtml
@@ -98,23 +103,36 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         public static Dictionary<int, string> BuildLocalAnchors(JsonValue rootObjects)
         {
             var map = new Dictionary<int, string>();
-            foreach (JsonValue go in rootObjects.Items) { CollectAnchors(go, map); }
-            return map;
-        }
 
-        private static void CollectAnchors(JsonValue go, Dictionary<int, string> map)
-        {
-            int goId = (int)go.Get("instanceId").AsNumber();
-            string anchor = "go-" + goId;
-            map[goId] = anchor;
-            foreach (JsonValue comp in go.Get("components").Items)
+            // Iterative: this walks the same unbounded hierarchy the
+            // Scene exporter does, and a StackOverflowException here
+            // would take the Editor down while merely rendering a
+            // page. Freshly exported data is depth-capped, but an
+            // incremental update re-renders data/*.json written by an
+            // older version, which is not.
+            var pending = new Stack<JsonValue>();
+            IReadOnlyList<JsonValue> roots = rootObjects.Items;
+            for (int i = roots.Count - 1; i >= 0; i--) { pending.Push(roots[i]); }
+
+            while (pending.Count > 0)
             {
-                if (comp.Has("instanceId"))
+                JsonValue go = pending.Pop();
+                int goId = (int)go.Get("instanceId").AsNumber();
+                string anchor = "go-" + goId;
+                map[goId] = anchor;
+
+                foreach (JsonValue comp in go.Get("components").Items)
                 {
-                    map[(int)comp.Get("instanceId").AsNumber()] = anchor;
+                    if (comp.Has("instanceId"))
+                    {
+                        map[(int)comp.Get("instanceId").AsNumber()] = anchor;
+                    }
                 }
+
+                IReadOnlyList<JsonValue> children = go.Get("children").Items;
+                for (int i = children.Count - 1; i >= 0; i--) { pending.Push(children[i]); }
             }
-            foreach (JsonValue child in go.Get("children").Items) { CollectAnchors(child, map); }
+            return map;
         }
 
         // ==========================================
@@ -131,7 +149,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append("<span><button type=\"button\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"expand\" class=\"ds-badge lav\" style=\"cursor:pointer;border:none;\">").Append(HtmlPageBuilder.I18n("span", null, "Expand all", "すべて展開", "باز کردن همه")).Append("</button> ");
             sb.Append("<button type=\"button\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"collapse\" class=\"ds-badge ghost\" style=\"cursor:pointer;border:1px solid var(--line);\">").Append(HtmlPageBuilder.I18n("span", null, "Collapse all", "すべて折りたたむ", "بستن همه")).Append("</button></span>");
             sb.Append("</div><ul class=\"ds-tree\" id=\"").Append(treeId).Append("\">\n");
-            foreach (JsonValue go in rootObjects.Items) { sb.Append(RenderGoNode(go, resolver, true)); }
+            foreach (JsonValue go in rootObjects.Items) { sb.Append(RenderGoNode(go, resolver, true, 0)); }
             sb.Append("</ul></div>\n");
             return sb.ToString();
         }
@@ -142,7 +160,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // is simultaneously its own Inspector-style
         // detail card, with its children nested inside.
         // ==========================================
-        public static string RenderGoNode(JsonValue go, RefLinkResolver resolver, bool openByDefault)
+        public static string RenderGoNode(JsonValue go, RefLinkResolver resolver, bool openByDefault, int depth = 0)
         {
             int id = (int)go.Get("instanceId").AsNumber();
             string name = go.Get("name").AsString("GameObject");
@@ -168,11 +186,23 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             }
             sb.Append("</summary>\n");
             sb.Append(RenderGoDetailBody(go, resolver));
-            if (hasChildren)
+            if (hasChildren && depth < DocSnapConstants.MaxHierarchyDepth)
             {
                 sb.Append("<ul>\n");
-                foreach (JsonValue child in children.Items) { sb.Append(RenderGoNode(child, resolver, false)); }
+                foreach (JsonValue child in children.Items) { sb.Append(RenderGoNode(child, resolver, false, depth + 1)); }
                 sb.Append("</ul>\n");
+            }
+            else if (hasChildren)
+            {
+                // Reached only when re-rendering data written by a
+                // DocSnap old enough to have exported an uncapped
+                // hierarchy. Say so rather than recursing into it.
+                sb.Append("<p class=\"ds-empty-note\">")
+                  .Append(HtmlPageBuilder.I18n("span", null,
+                      "Deeper children not shown (hierarchy depth limit).",
+                      "これより深い子オブジェクトは表示されません(階層の深さ上限)。",
+                      "فرزندهای عمیق‌تر نمایش داده نشدند (سقف عمق سلسله‌مراتب)."))
+                  .Append("</p>");
             }
             sb.Append("</details></li>\n");
             return sb.ToString();
@@ -252,7 +282,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             ManifestAssetIndexEntry entry;
             if (!string.IsNullOrEmpty(guid) && resolver != null && resolver.GuidLookup != null && resolver.GuidLookup.TryGetValue(guid, out entry))
             {
-                string href = resolver.LinkPrefix + entry.htmlFile + "#" + entry.anchor;
+                string href = EncodeUrlPath(resolver.LinkPrefix + entry.htmlFile) + "#" + HtmlPageBuilder.Escape(entry.anchor);
                 sb.Append("<a class=\"ds-badge lav\" style=\"text-decoration:none;\" href=\"").Append(href).Append("\">").Append(inner).Append("</a>");
             }
             else
@@ -823,16 +853,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // ==========================================
         private static string StableHashHex(string value)
         {
-            unchecked
-            {
-                uint hash = 2166136261;
-                foreach (char c in value)
-                {
-                    hash ^= c;
-                    hash *= 16777619;
-                }
-                return hash.ToString("x8", CultureInfo.InvariantCulture);
-            }
+            // Delegated to DocSnapNaming so the anchor hash and the
+            // output-file-name hash can never drift apart: they are
+            // now literally the same function.
+            return DocSnapNaming.StableHashHex(value);
         }
 
         // ==========================================

@@ -1629,6 +1629,41 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
     }
   }
 
+  // Keyboard access to the one control people reach for
+  // constantly. '/' and Ctrl/Cmd+K focus the search box,
+  // Escape leaves it - the same shortcuts every docs site a
+  // developer already uses has, so nobody has to learn them.
+  // Typing '/' inside a field must still type a slash, so
+  // the handler stands down whenever an editable element
+  // already has focus.
+  function wireSearchHotkeys() {
+    var input = document.querySelector('.ds-search-input');
+    if (!input) { return; }
+
+    document.addEventListener('keydown', function (e) {
+      var target = e.target || {};
+      var tag = (target.tagName || '').toLowerCase();
+      var typing = tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
+
+      if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        input.focus();
+        input.select();
+        return;
+      }
+      if (e.key === '/' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        input.focus();
+        return;
+      }
+      if (e.key === 'Escape' && document.activeElement === input) {
+        input.value = '';
+        input.dispatchEvent(new Event('input'));
+        input.blur();
+      }
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     syncExportDefaults();
     restoreLanguage();
@@ -1640,6 +1675,7 @@ mark { background: var(--peach); color: var(--ink); border-radius: 3px; padding:
     wireTreeControls();
     wireBackToTop();
     wireSearch();
+    wireSearchHotkeys();
     revealHashTarget();
     window.addEventListener('hashchange', revealHashTarget);
   });

@@ -34,9 +34,16 @@ namespace AmirCollider.UnityDocSnap.Editor
 
         // Content options.
         private bool _includeFiles;
+        private bool _scenesInBuildOnly;
         private bool _makeBackup;
         private bool _recordChanges;
         private int _changesBaseIndex;
+
+        // Exclude rules, edited here as well as in Project
+        // Settings so the choice is in front of the person at
+        // the moment it matters - about to spend ten minutes
+        // documenting somebody else's imported plugin folder.
+        private string _excludes = "";
 
         private Vector2 _scroll;
         private VersionsState _registry;
@@ -61,7 +68,37 @@ namespace AmirCollider.UnityDocSnap.Editor
             _uiLang = LangIndex(DocSnapSettings.WindowLanguage);
             _siteLang = LangIndex(DocSnapSettings.DefaultSiteLanguage);
             _siteTheme = DocSnapSettings.DefaultSiteTheme == "dark" ? 1 : 0;
+            _excludes = DocSnapSettings.ExcludePatterns;
             Refresh();
+        }
+
+        // ==========================================
+        // CustomVersionProblem
+        // Why the typed version name would be rejected, or
+        // null when it is fine. Both the live warning and the
+        // pre-export check read this, so they can never
+        // disagree about what is allowed.
+        // ==========================================
+        private string CustomVersionProblem()
+        {
+            string name = _customVersion == null ? "" : _customVersion.Trim();
+            if (name.Length == 0) { return null; }
+
+            if (!DocSnapVersioning.IsValidCustomName(name))
+            {
+                return L("That name can't be used as a folder name, so the export would be auto-numbered instead. Avoid / \\ : * ? \" < > |",
+                         "その名前はフォルダ名に使えないため、自動採番になります。/ \\ : * ? \" < > | は使えません。",
+                         "این اسم به‌عنوان نام پوشه قابل استفاده نیست و خروجی به‌جایش خودکار شماره‌گذاری می‌شود. از / \\ : * ? \" < > | استفاده نکن.");
+            }
+
+            string baseRoot = DocSnapSettings.ResolveOutputRootAbsolute();
+            if (DocSnapVersioning.ExistingVersionNames(baseRoot, _registry).Contains(name))
+            {
+                return L("A version with that name already exists, so the export would be auto-numbered instead.",
+                         "その名前のバージョンは既に存在するため、自動採番になります。",
+                         "نسخه‌ای با این اسم از قبل وجود دارد و خروجی به‌جایش خودکار شماره‌گذاری می‌شود.");
+            }
+            return null;
         }
 
         // ==========================================
@@ -127,12 +164,24 @@ namespace AmirCollider.UnityDocSnap.Editor
 
             using (new EditorGUI.DisabledScope(_existingVersions.Length == 0))
             {
-                _ontoExisting = !GUILayout.Toggle(!_ontoExisting,
-                    "  " + L("New export (new version folder)", "新規エクスポート(新しいバージョンフォルダ)", "خروجی جدید (فولدر نسخه‌ی جدید)"),
-                    EditorStyles.radioButton);
-                _ontoExisting = GUILayout.Toggle(_ontoExisting,
-                    "  " + L("Export onto a previous version", "以前のバージョンに上書き", "خروجی روی یکی از نسخه‌های قبلی"),
-                    EditorStyles.radioButton);
+                // A radio group, not two independent toggles. The old
+                // pair read each Toggle's return value straight back
+                // into _ontoExisting, and GUILayout.Toggle UNCHECKS an
+                // already-checked toggle when it is clicked - so
+                // clicking the option that was already selected flipped
+                // you to the other one.
+                if (GUILayout.Toggle(!_ontoExisting,
+                        "  " + L("New export (new version folder)", "新規エクスポート(新しいバージョンフォルダ)", "خروجی جدید (فولدر نسخه‌ی جدید)"),
+                        EditorStyles.radioButton))
+                {
+                    _ontoExisting = false;
+                }
+                if (GUILayout.Toggle(_ontoExisting,
+                        "  " + L("Export onto a previous version", "以前のバージョンに上書き", "خروجی روی یکی از نسخه‌های قبلی"),
+                        EditorStyles.radioButton))
+                {
+                    _ontoExisting = true;
+                }
             }
 
             EditorGUI.indentLevel++;
@@ -154,6 +203,13 @@ namespace AmirCollider.UnityDocSnap.Editor
                 EditorGUILayout.LabelField(" ", string.IsNullOrEmpty(_customVersion)
                     ? L("Auto: ", "自動: ", "خودکار: ") + _nextAutoVersion
                     : L("Custom: ", "カスタム: ", "دلخواه: ") + _customVersion, EditorStyles.miniLabel);
+
+                // A rejected custom name used to fall through to
+                // auto-numbering in total silence, so typing "v1/2"
+                // produced a folder called V1.0.3 and the user was
+                // left to work out why on their own.
+                string problem = CustomVersionProblem();
+                if (problem != null) { EditorGUILayout.HelpBox(problem, MessageType.Warning); }
             }
             EditorGUI.indentLevel--;
 
@@ -161,6 +217,19 @@ namespace AmirCollider.UnityDocSnap.Editor
 
             // ---- Content ----
             Section(L("Contents", "内容", "محتوا"));
+
+            _scenesInBuildOnly = EditorGUILayout.ToggleLeft(
+                L("Only Scenes listed in Build Settings", "Build Settings に登録されたシーンのみ", "فقط سین‌هایی که توی Build Settings هستند"),
+                _scenesInBuildOnly);
+            if (_scenesInBuildOnly)
+            {
+                int inBuild = DocSnapExportService.FindBuildSettingsScenePaths().Count;
+                EditorGUILayout.HelpBox(
+                    L(inBuild + " scene(s) are enabled in Build Settings. Test and sample Scenes are skipped, which is usually the slowest part of an export.",
+                      "Build Settings で有効なシーンは " + inBuild + " 件です。テスト用やサンプルのシーンは除外されます(エクスポートで最も時間がかかる部分です)。",
+                      "‏" + inBuild + " سین توی Build Settings فعال است. سین‌های تستی و نمونه رد می‌شوند — که معمولاً سنگین‌ترین بخش خروجی‌گیری‌اند."),
+                    inBuild == 0 ? MessageType.Warning : MessageType.None);
+            }
 
             _includeFiles = EditorGUILayout.ToggleLeft(
                 L("Include file copies (bytes, not just info)", "ファイル本体もコピー(情報だけでなく)", "کپی خود فایل‌ها هم گرفته شود (نه فقط اطلاعات)"),
@@ -176,6 +245,25 @@ namespace AmirCollider.UnityDocSnap.Editor
                       "プロジェクトが削除されても丸ごと復元できます。",
                       "حتی اگر پروژه پاک شود، کل آن را برمی‌گرداند."),
                     MessageType.None);
+            }
+
+            DrawSeparator();
+
+            // ---- Excludes ----
+            Section(L("Exclude", "除外", "حذف از خروجی"));
+            EditorGUILayout.LabelField(
+                L("One path or pattern per line, e.g. Assets/Plugins or *.psd",
+                  "1行につき1つのパスまたはパターン(例: Assets/Plugins、*.psd)",
+                  "هر خط یک مسیر یا الگو، مثل Assets/Plugins یا ‎*.psd"),
+                EditorStyles.miniLabel);
+            _excludes = EditorGUILayout.TextArea(_excludes, GUILayout.MinHeight(52));
+
+            DocSnapExcludeFilter preview = DocSnapExcludeFilter.Parse(_excludes);
+            if (!preview.IsEmpty)
+            {
+                EditorGUILayout.LabelField(" ",
+                    L("Active rules: ", "有効なルール: ", "قوانین فعال: ") + string.Join(" · ", preview.Patterns.ToArray()),
+                    EditorStyles.miniLabel);
             }
 
             DrawSeparator();
@@ -244,14 +332,26 @@ namespace AmirCollider.UnityDocSnap.Editor
                 if (!proceed) { return; }
             }
 
+            // A custom name that would be silently rejected is now
+            // reported before anything is written, instead of after
+            // the export landed in an auto-numbered folder.
+            string problem = CustomVersionProblem();
+            if (!_ontoExisting && problem != null)
+            {
+                EditorUtility.DisplayDialog(DocSnapConstants.ToolName, problem, L("OK", "OK", "باشه"));
+                return;
+            }
+
             DocSnapSettings.DefaultSiteLanguage = LangCodes[_siteLang];
             DocSnapSettings.DefaultSiteTheme = _siteTheme == 1 ? "dark" : "light";
+            DocSnapSettings.ExcludePatterns = _excludes ?? "";
 
             var options = new DocSnapExportOptions
             {
                 defaultLanguage = LangCodes[_siteLang],
                 defaultTheme = _siteTheme == 1 ? "dark" : "light",
                 includeFiles = _includeFiles,
+                scenesInBuildOnly = _scenesInBuildOnly,
                 makeBackup = _makeBackup,
                 recordChanges = _recordChanges && _existingVersions.Length > 0
             };

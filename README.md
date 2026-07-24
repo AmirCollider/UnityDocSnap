@@ -43,6 +43,11 @@ It's an Editor extension that walks every Scene in your project — every GameOb
 - 🌐 **An actual local website** — everything bakes into a self-contained `index.html` plus a handful of linked pages, complete with a sidebar and cross-links between objects and the assets they reference.
 - 🤖 **Built for AI too** — alongside the pretty HTML, DocSnap writes a structured JSON export, so handing your whole project's context to an AI assistant takes one file instead of a screen-sharing session.
 - 🧩 **Editor-only** — lives entirely inside an `Editor` assembly. Zero runtime cost, zero added build size.
+- 🩺 **Project health at a glance** — the dashboard leads with the number of missing scripts, broken object references and duplicate Scene names in your project, each linking straight to the page that holds them.
+- 🚫 **Exclude what you did not write** — one line like `Assets/Plugins` in Project Settings keeps imported Asset Store content out of the walk, the tree, the search index and the counts. Wildcards (`*`, `?`) work too, and what was excluded is stated in the output rather than silently missing.
+- 🎬 **Build Settings scenes only** — optionally document just the Scenes your game actually ships, skipping the test beds and sample Scenes that arrived with a package.
+- 📦 **One file for an AI** — `summary/ai-bundle.md` is every summary in the export concatenated into a single document, so a whole project is one paste instead of a folder.
+- ⏹️ **Cancelable** — both passes show a progress bar you can stop.
 
 ### 📋 Requirements
 
@@ -103,6 +108,7 @@ UnityDocSnap_Output/
 ├── packages.html      ← packages the project depends on (Unity + third-party)
 ├── summary.md         ← project index → points into summary/
 ├── summary/           ← simple, AI-friendly (short — hand these to an AI)
+│   ├── ai-bundle.md                 ← ALL of the below in one file (one paste)
 │   ├── scene-MainMenu.md            ← readable
 │   ├── scene-MainMenu.json          ← structured (a few hundred lines)
 │   ├── folder-Images_Backgrounds.md
@@ -166,6 +172,11 @@ If Unity DocSnap saves you some digging around later, a ⭐ on the repo goes a l
 - 🌐 **本物のローカルWebサイト** — すべてが `index.html` と数枚のリンクされたページにまとめられ、サイドバーと、オブジェクト同士・参照アセット間の相互リンク付きです。
 - 🤖 **AIのためにも** — 見やすいHTMLと一緒に、構造化されたJSONも出力します。プロジェクト全体の情報をAIアシスタントに渡すのに、画面共有ではなく1つのファイルで済みます。
 - 🧩 **エディタ専用** — すべて `Editor` アセンブリの中に収まります。ランタイムコストはゼロ、ビルドサイズへの影響もゼロです。
+- 🩺 **プロジェクトの健康状態を一目で** — ダッシュボードの先頭に、欠落したスクリプト・切れた参照・重複したシーン名の件数を表示し、それぞれ該当ページへ直接リンクします。
+- 🚫 **自分が書いていないものを除外** — Project Settings に `Assets/Plugins` のような1行を書くだけで、インポートしたアセットストアの中身をファイル走査・ツリー・検索インデックス・集計のすべてから外せます(`*` `?` のワイルドカード対応)。除外した内容は出力側にも明記されます。
+- 🎬 **Build Settings のシーンだけ** — 実際に出荷するシーンだけを対象にし、テスト用やパッケージ付属のサンプルシーンを飛ばせます。
+- 📦 **AIに渡す1ファイル** — `summary/ai-bundle.md` はエクスポート内のすべての要約を1つにまとめたもので、フォルダごとではなく1回の貼り付けでプロジェクト全体を渡せます。
+- ⏹️ **キャンセル可能** — どちらの処理もプログレスバーから中断できます。
 
 ### 📋 必要環境
 
@@ -225,6 +236,7 @@ UnityDocSnap_Output/
 ├── index.html         ← フル版のオフラインサイト(まずここから)
 ├── summary.md         ← プロジェクト索引 → summary/ への案内
 ├── summary/           ← シンプル / AI向け(短い。AIにはこれを渡す)
+│   ├── ai-bundle.md                 ← 下記すべてを1ファイルに(貼り付け1回)
 │   ├── scene-MainMenu.md            ← 読みやすい版
 │   ├── scene-MainMenu.json          ← 構造化版(数百行)
 │   ├── folder-Images_Backgrounds.md
@@ -291,6 +303,11 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 - 🌐 **یه وب‌سایت لوکال واقعی** — همه چی توی یه `index.html` و چندتا صفحه‌ی به‌هم‌وصل جمع میشه، با سایدبار و لینک‌های داخلی بین آبجکت‌ها و فایل‌هایی که بهشون رفرنس دارن.
 - 🤖 **برای هوش مصنوعی هم ساخته شده** — کنار HTML قشنگش، یه خروجی JSON ساختاریافته هم می‌ده؛ دادن کل اطلاعات پروژه به یه دستیار هوش مصنوعی، به‌جای اشتراک‌گذاری صفحه، فقط یه فایل می‌خواد.
 - 🧩 **فقط ادیتور** — کاملاً توی یه اسمبلی `Editor` جا می‌گیره. نه هزینه‌ای موقع اجرا داره، نه چیزی به حجم بیلد اضافه می‌کنه.
+- 🩺 **سلامت پروژه با یک نگاه** — داشبورد از همون اول تعداد اسکریپت‌های گم‌شده، ارجاع‌های شکسته و اسم‌های تکراری سین رو نشون می‌ده و هرکدوم مستقیم به صفحه‌ی مربوطه لینک می‌شن.
+- 🚫 **چیزی که خودت ننوشتی رو حذف کن** — یک خط مثل `Assets/Plugins` توی Project Settings کافیه تا محتوای ایمپورت‌شده‌ی Asset Store از پیمایش فایل‌ها، درخت پوشه‌ها، ایندکس جستجو و شمارش‌ها بیرون بمونه (وایلدکارت `*` و `?` هم کار می‌کنه). چیزی که حذف شده توی خروجی هم صریحاً نوشته می‌شه.
+- 🎬 **فقط سین‌های Build Settings** — می‌تونی فقط سین‌هایی رو مستند کنی که واقعاً توی بازی هستن و سین‌های تستی و نمونه‌ی پکیج‌ها رو رد کنی.
+- 📦 **یک فایل برای هوش مصنوعی** — `summary/ai-bundle.md` همه‌ی خلاصه‌های خروجی رو توی یک فایل جمع می‌کنه، پس کل پروژه با یک بار paste منتقل می‌شه نه یک پوشه.
+- ⏹️ **قابل لغو** — هر دو مرحله نوار پیشرفت دارن و می‌تونی متوقفشون کنی.
 
 ### 📋 پیش‌نیازها
 
@@ -350,6 +367,7 @@ UnityDocSnap_Output/
 ├── index.html         ← سایت آفلاین کامل (از اینجا شروع کن)
 ├── summary.md         ← فهرست پروژه → راهنما به summary/
 ├── summary/           ← ساده / مناسب هوش مصنوعی (کوتاه — اینا رو به AI بده)
+│   ├── ai-bundle.md                 ← همه‌ی موارد زیر در یک فایل (یک paste)
 │   ├── scene-MainMenu.md            ← نسخه‌ی خوانا
 │   ├── scene-MainMenu.json          ← نسخه‌ی ساختاریافته (چند صد خط)
 │   ├── folder-Images_Backgrounds.md

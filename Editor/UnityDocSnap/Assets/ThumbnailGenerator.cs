@@ -18,6 +18,47 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
     internal static class ThumbnailGenerator
     {
         // ==========================================
+        // The preview-wait budget.
+        //
+        // Unity renders asset previews asynchronously, so
+        // TryWritePreviewPng polls for one. It used to poll
+        // for up to AssetPreviewTimeoutMs PER ASSET on the
+        // main thread - a project with a few thousand
+        // non-image assets could therefore spend well over
+        // half an hour inside Thread.Sleep with the Editor
+        // frozen and no way to cancel, and the export looked
+        // hung rather than slow.
+        //
+        // The per-asset timeout is still honoured, but every
+        // millisecond spent waiting now also draws down one
+        // shared per-export budget. Once it is gone, previews
+        // are taken only if Unity already has them cached and
+        // the export finishes at full speed with type icons
+        // for the rest - a visibly worse thumbnail on some
+        // cards, which is a far better trade than an Editor
+        // that appears to have crashed.
+        // ==========================================
+        private static readonly System.Diagnostics.Stopwatch BudgetClock = new System.Diagnostics.Stopwatch();
+        private static int _budgetMs;
+
+        public static void BeginExport(int totalBudgetMs)
+        {
+            _budgetMs = totalBudgetMs;
+            BudgetClock.Reset();
+            BudgetClock.Start();
+        }
+
+        public static void EndExport()
+        {
+            BudgetClock.Stop();
+        }
+
+        public static bool BudgetExhausted
+        {
+            get { return _budgetMs > 0 && BudgetClock.IsRunning && BudgetClock.ElapsedMilliseconds >= _budgetMs; }
+        }
+
+        // ==========================================
         // TryGetImageThumbnailBase64
         // Reads a source image file's raw bytes,
         // downsizes it, and returns a data-URI PNG
@@ -143,11 +184,22 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
                 int instanceId = asset.GetInstanceID();
                 Texture2D preview = AssetPreview.GetAssetPreview(asset);
 
-                var clock = System.Diagnostics.Stopwatch.StartNew();
-                while (preview == null && AssetPreview.IsLoadingAssetPreview(instanceId) && clock.ElapsedMilliseconds < timeoutMs)
+                // Only wait while the shared export budget has room.
+                // When it is spent this becomes a single cache probe:
+                // assets Unity has already rendered still get their
+                // real preview, everything else falls through to the
+                // type icon instead of stalling the Editor again.
+                if (preview == null && !BudgetExhausted)
                 {
-                    System.Threading.Thread.Sleep(10);
-                    preview = AssetPreview.GetAssetPreview(asset);
+                    var clock = System.Diagnostics.Stopwatch.StartNew();
+                    while (preview == null
+                        && AssetPreview.IsLoadingAssetPreview(instanceId)
+                        && clock.ElapsedMilliseconds < timeoutMs
+                        && !BudgetExhausted)
+                    {
+                        System.Threading.Thread.Sleep(10);
+                        preview = AssetPreview.GetAssetPreview(asset);
+                    }
                 }
                 if (preview == null) { return null; }
 

@@ -87,22 +87,22 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             var list = new List<VersionFileEntry>();
             try
             {
-                string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-                string assets = Application.dataPath;
-                if (!Directory.Exists(assets)) { return list; }
+                string projectRoot = DocSnapFileScan.ProjectRootAbsolute();
 
-                foreach (string file in Directory.GetFiles(assets, "*", SearchOption.AllDirectories))
+                // DocSnapFileScan honours the exclude rules and the
+                // same "Unity does not import this" folder rules the
+                // rest of the export uses. This method's own comment
+                // already claimed to skip Unity's ~ folders; the
+                // Directory.GetFiles call it used to make did not, so
+                // the change diff listed files the Editor has never
+                // heard of as additions and deletions.
+                foreach (string relative in DocSnapFileScan.EnumerateProjectRelativeFiles("Assets", DocSnapExcludeFilter.FromSettings()))
                 {
-                    string name = Path.GetFileName(file);
-                    if (name.StartsWith(".", StringComparison.Ordinal)) { continue; }
-                    if (name.EndsWith(".meta", StringComparison.OrdinalIgnoreCase)) { continue; }
-
-                    string relative = MakeRelative(projectRoot, file);
                     long size;
                     long ticks;
                     try
                     {
-                        var fi = new FileInfo(file);
+                        var fi = new FileInfo(Path.Combine(projectRoot, relative));
                         size = fi.Length;
                         ticks = fi.LastWriteTimeUtc.Ticks;
                     }
@@ -122,14 +122,6 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 Debug.LogWarning("[Unity DocSnap] Could not collect asset file list: " + ex.Message);
             }
             return list;
-        }
-
-        private static string MakeRelative(string root, string full)
-        {
-            string r = full.Replace('\\', '/');
-            string rootN = root.Replace('\\', '/');
-            if (r.StartsWith(rootN + "/", StringComparison.OrdinalIgnoreCase)) { return r.Substring(rootN.Length + 1); }
-            return r;
         }
 
         // ==========================================
