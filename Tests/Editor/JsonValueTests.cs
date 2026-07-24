@@ -59,10 +59,25 @@ namespace AmirCollider.UnityDocSnap.Editor.Tests
         }
 
         [Test]
-        public void Number_NaNOrInfinity_WritesZeroNotInvalidJson()
+        public void Number_NaNOrInfinity_WritesNullNotInvalidJson()
         {
-            Assert.AreEqual("0", JsonValue.Num(double.NaN).ToString());
-            Assert.AreEqual("0", JsonValue.Num(double.PositiveInfinity).ToString());
+            // Written as null rather than 0. Neither has a JSON
+            // representation, but a Unity float field genuinely can
+            // hold Infinity, and reporting that as the number zero is
+            // a documentation tool inventing a value the project does
+            // not contain. Every renderer reads these back through
+            // AsNumber(fallback), which still yields 0.
+            Assert.AreEqual("null", JsonValue.Num(double.NaN).ToString());
+            Assert.AreEqual("null", JsonValue.Num(double.PositiveInfinity).ToString());
+            Assert.AreEqual("null", JsonValue.Num(double.NegativeInfinity).ToString());
+        }
+
+        [Test]
+        public void Number_NaN_RoundTripsToTheFallback()
+        {
+            JsonValue parsed;
+            Assert.IsTrue(JsonValue.TryParse(JsonValue.Obj().Set("x", double.NaN).ToString(), out parsed));
+            Assert.AreEqual(-1, parsed.Get("x").AsNumber(-1));
         }
 
         [Test]
