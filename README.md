@@ -68,7 +68,7 @@ It's an Editor extension that walks every Scene in your project — every GameOb
 
 **Option B — Manual**
 1. Download or clone this repository
-2. Copy the `Editor/UnityDocSnap` folder into your project's `Assets` folder
+2. Copy the `Editor/UnityDocSnap` folder into your project's `Assets` folder — including the `Site~` sub-folder, which holds the generated site's stylesheet, script and fonts
 3. Unity compiles it automatically — no restart needed
 
 ### 🚀 Usage
@@ -104,14 +104,30 @@ By default, output lands in `<ProjectRoot>/UnityDocSnap_Output/`. Use `Unity Doc
 
 ### 📁 Output Structure
 
-Every export writes **two forms of the same information** side by side: the **full** offline site (browse it, or read the raw JSON) and a **simple** set of short summaries — Markdown *and* JSON — gathered in the `summary/` folder, small enough to paste straight into an AI assistant.
+Every export lands in **its own versioned folder**. The output root is a shelf of them, and each one is a complete, self-contained site — so a snapshot you took last month is still there, intact, next to today's.
+
+The root itself holds only the two pages that lead into that shelf:
 
 ```
 UnityDocSnap_Output/
+├── index.html         ← redirects to the newest version
+├── versions.html      ← the shelf: every export, newest first
+├── V1.0.0/            ← one complete site per export
+├── V1.0.1/
+└── V1.1.0/
+```
+
+Inside **one version folder**, every export writes **two forms of the same information** side by side: the **full** offline site (browse it, or read the raw JSON) and a **simple** set of short summaries — Markdown *and* JSON — gathered in the `summary/` folder, small enough to paste straight into an AI assistant.
+
+```
+V1.1.0/
 ├── index.html         ← the full offline site (start here)
 ├── issues.html        ← every broken reference / missing script, linked to the exact object
 ├── packages.html      ← packages the project depends on (Unity + third-party)
+├── changes.html       ← what changed vs an earlier version (when change tracking is on)
 ├── summary.md         ← project index → points into summary/
+├── export-info.txt    ← what this export contains, in plain words
+├── export-info.json   ← the same, machine-readable
 ├── summary/           ← simple, AI-friendly (short — hand these to an AI)
 │   ├── ai-bundle.md                 ← ALL of the below in one file (one paste)
 │   ├── scene-MainMenu.md            ← readable
@@ -124,8 +140,12 @@ UnityDocSnap_Output/
 │   └── Images_Backgrounds.html
 ├── data/              ← full, every-field JSON (the advanced form)
 ├── theme/             ← css/js + search-index.js + thumbnails for the site itself
-└── source-files/      ← optional verbatim asset copies (With Files export only)
+├── source-files/      ← optional verbatim asset copies (With Files export only)
+├── changes-files/     ← the old and new bytes of each changed file, for review
+└── project-backup.unitypackage   ← optional whole-project backup
 ```
+
+Version names run `V1.0.0 → V1.0.9 → V1.1.0 → … → V9.9.9 → V10.0.0`, or you can type your own name in the export window. **Update Previous Export** re-exports *into* the newest folder instead of making a new one, reusing whatever has not changed.
 
 The site itself has a **Simple / Advanced** toggle in the sidebar: *Simple* shows a clean skim (hierarchy, custom-script configuration, key asset facts), *Advanced* shows every serialized field. It opens in Simple by default and remembers your choice.
 
@@ -144,6 +164,30 @@ Every exported page follows the same clean, predictable structure — proper hea
 ### 🤝 Contributing
 
 Issues and pull requests are always welcome.
+
+**Where things live**
+
+- `Editor/UnityDocSnap/` — the tool itself. Everything is `internal`; it is a self-contained editor tool, not a public API.
+- `Editor/UnityDocSnap/Site~/` — the generated site's own `style.css`, `app.js`, `fonts.css` and `logo.svg`, as **real files**. Edit them directly; they are read at export time and written into each version folder. The trailing `~` keeps Unity from importing them, which is why they need no `.meta`.
+- `Tests/Editor/` — EditMode tests (NUnit), reaching the `internal` types via `InternalsVisibleTo`.
+
+**Before opening a PR**
+
+```bash
+python3 .github/scripts/validate_package.py   # version sync, .meta coverage, site assets
+```
+
+Then run the EditMode tests from **Window → General → Test Runner** in any project that has the package installed. CI runs both on every push, and the Unity tests against 2021.3 (the declared floor) and Unity 6.
+
+**Releases**
+
+`package.json`, `DocSnapConstants.Version` and the `CHANGELOG.md` heading all carry the version and must agree — CI fails if they do not. To publish, tag the commit and push the tag; the release workflow does the rest:
+
+```bash
+git tag v0.9.0 && git push origin v0.9.0
+```
+
+Tagging is what lets a user pin a version in the Package Manager (`…UnityDocSnap.git#v0.9.0`) instead of always getting whatever the default branch happens to be.
 
 ### 📜 License
 
@@ -202,7 +246,7 @@ If Unity DocSnap saves you some digging around later, a ⭐ on the repo goes a l
 
 **方法B — 手動インストール**
 1. このリポジトリをダウンロードまたはクローン
-2. `Editor/UnityDocSnap` フォルダをプロジェクトの `Assets` フォルダにコピー
+2. `Editor/UnityDocSnap` フォルダをプロジェクトの `Assets` フォルダにコピー(生成サイトのCSS・JS・フォントが入っている `Site~` サブフォルダも忘れずに)
 3. Unityが自動的にコンパイルします。再起動は不要です
 
 ### 🚀 使い方
@@ -238,13 +282,30 @@ Unity DocSnap
 
 ### 📁 出力構造
 
-エクスポートするたびに、**同じ情報が2つの形**で並んで書き出されます。**フル版**のオフラインサイト(ブラウザで見る、または生のJSONを読む)と、AIアシスタントにそのまま貼り付けられる**シンプル版**の短い要約(MarkdownとJSONの両方)で、後者はすべて `summary/` フォルダにまとまっています。
+エクスポートは毎回**専用のバージョンフォルダ**に書き出されます。出力ルートはその棚であり、それぞれが完全に独立した1つのサイトです。先月撮ったスナップショットは、今日のものと並んでそのまま残ります。
+
+ルート直下にあるのは、その棚へ案内する2つのページだけです。
 
 ```
 UnityDocSnap_Output/
+├── index.html         ← 最新バージョンへリダイレクト
+├── versions.html      ← 棚:全エクスポートを新しい順に一覧
+├── V1.0.0/            ← エクスポート1回につき、完全なサイト1つ
+├── V1.0.1/
+└── V1.1.0/
+```
+
+**1つのバージョンフォルダ**の中には、**同じ情報が2つの形**で並んで書き出されます。**フル版**のオフラインサイト(ブラウザで見る、または生のJSONを読む)と、AIアシスタントにそのまま貼り付けられる**シンプル版**の短い要約(MarkdownとJSONの両方)で、後者はすべて `summary/` フォルダにまとまっています。
+
+```
+V1.1.0/
 ├── index.html         ← フル版のオフラインサイト(まずここから)
 ├── issues.html        ← 切れた参照・欠落スクリプトを1件ずつ、該当オブジェクトへのリンク付きで
+├── packages.html      ← プロジェクトが依存するパッケージ(Unity + サードパーティ)
+├── changes.html       ← 以前のバージョンとの差分(変更履歴を有効にした場合)
 ├── summary.md         ← プロジェクト索引 → summary/ への案内
+├── export-info.txt    ← このエクスポートの内容を平易な文章で
+├── export-info.json   ← 同じ内容の機械可読版
 ├── summary/           ← シンプル / AI向け(短い。AIにはこれを渡す)
 │   ├── ai-bundle.md                 ← 下記すべてを1ファイルに(貼り付け1回)
 │   ├── scene-MainMenu.md            ← 読みやすい版
@@ -255,11 +316,14 @@ UnityDocSnap_Output/
 │   └── MainMenu.html                ← フルの対話ページ
 ├── folders/
 │   └── Images_Backgrounds.html
-├── packages.html      ← プロジェクトが依存するパッケージ(Unity + サードパーティ)
 ├── data/              ← 完全な構造化JSON(全フィールドを含む詳細版)
 ├── theme/             ← サイト自体のcss/js + search-index.js + サムネイル
-└── source-files/      ← アセット実体のコピー(任意 / With Files エクスポート時のみ)
+├── source-files/      ← アセット実体のコピー(任意 / With Files エクスポート時のみ)
+├── changes-files/     ← 変更された各ファイルの新旧の実体(確認用)
+└── project-backup.unitypackage   ← プロジェクト全体のバックアップ(任意)
 ```
+
+バージョン名は `V1.0.0 → V1.0.9 → V1.1.0 → … → V9.9.9 → V10.0.0` と進みます。エクスポートウィンドウで独自の名前を付けることもできます。**Update Previous Export** は新しいフォルダを作らず、最新のフォルダに**上書きで**再エクスポートし、変更のないものは再利用します。
 
 サイトにはサイドバーに **Simple / Advanced** の切り替えがあります。*Simple* はすっきりした概要(ヒエラルキー、カスタムスクリプトの設定、アセットの要点)を、*Advanced* はすべてのシリアライズ済みフィールドを表示します。初期状態は Simple で、選択は記憶されます。
 
@@ -338,7 +402,7 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 
 **روش ب — نصب دستی**
 ۱. این ریپازیتوری رو دانلود یا کلون کن
-۲. پوشه‌ی `Editor/UnityDocSnap` رو بریز توی پوشه‌ی `Assets` پروژه‌ت
+۲. پوشه‌ی `Editor/UnityDocSnap` رو بریز توی پوشه‌ی `Assets` پروژه‌ت — همراه با زیرپوشه‌ی `Site~` که استایل و اسکریپت و فونت‌های سایت خروجی توشه
 ۳. یونیتی خودش کامپایلش می‌کنه؛ نیازی به ری‌استارت نیست
 
 ### 🚀 نحوه‌ی استفاده
@@ -374,13 +438,30 @@ Unity DocSnap
 
 ### 📁 ساختار خروجی
 
-هر اکسپورت **دو شکل از یک اطلاعات** رو کنار هم می‌نویسه: نسخه‌ی **کامل** یعنی سایت آفلاین (توی مرورگر ببینش یا JSON خامش رو بخون) و نسخه‌ی **ساده** یعنی چند فایل خلاصه‌ی کوتاه — هم Markdown هم JSON — که همه توی پوشه‌ی `summary/` جمع شدن و می‌تونی مستقیم بچسبونی توی یه دستیار هوش مصنوعی.
+هر اکسپورت توی **پوشه‌ی نسخه‌ی خودش** نوشته می‌شه. ریشه‌ی خروجی یه قفسه از این پوشه‌هاست و هرکدوم یه سایت کامل و مستقله — پس اسنپ‌شاتی که ماه پیش گرفتی هنوز دست‌نخورده کنار اسنپ‌شات امروز هست.
+
+خودِ ریشه فقط دو تا صفحه داره که راه رو به اون قفسه نشون می‌دن:
 
 ```
 UnityDocSnap_Output/
+├── index.html         ← ریدایرکت به جدیدترین نسخه
+├── versions.html      ← قفسه: همه‌ی اکسپورت‌ها، از جدید به قدیم
+├── V1.0.0/            ← به ازای هر اکسپورت، یک سایت کامل
+├── V1.0.1/
+└── V1.1.0/
+```
+
+داخل **یک پوشه‌ی نسخه**، هر اکسپورت **دو شکل از یک اطلاعات** رو کنار هم می‌نویسه: نسخه‌ی **کامل** یعنی سایت آفلاین (توی مرورگر ببینش یا JSON خامش رو بخون) و نسخه‌ی **ساده** یعنی چند فایل خلاصه‌ی کوتاه — هم Markdown هم JSON — که همه توی پوشه‌ی `summary/` جمع شدن و می‌تونی مستقیم بچسبونی توی یه دستیار هوش مصنوعی.
+
+```
+V1.1.0/
 ├── index.html         ← سایت آفلاین کامل (از اینجا شروع کن)
 ├── issues.html        ← هر ارجاع شکسته و اسکریپت گم‌شده، دونه‌دونه، با لینک به همون آبجکت
+├── packages.html      ← پکیج‌هایی که پروژه بهشون وابسته‌ست (یونیتی + شخص‌ثالث)
+├── changes.html       ← تفاوت‌ها نسبت به یک نسخه‌ی قبلی (وقتی ثبت تغییرات روشن باشه)
 ├── summary.md         ← فهرست پروژه → راهنما به summary/
+├── export-info.txt    ← این اکسپورت شامل چیه، به زبان ساده
+├── export-info.json   ← همون، ولی ماشین‌خوان
 ├── summary/           ← ساده / مناسب هوش مصنوعی (کوتاه — اینا رو به AI بده)
 │   ├── ai-bundle.md                 ← همه‌ی موارد زیر در یک فایل (یک paste)
 │   ├── scene-MainMenu.md            ← نسخه‌ی خوانا
@@ -391,11 +472,14 @@ UnityDocSnap_Output/
 │   └── MainMenu.html                ← صفحه‌ی کامل و تعاملی
 ├── folders/
 │   └── Images_Backgrounds.html
-├── packages.html      ← پکیج‌هایی که پروژه بهشون وابسته‌ست (یونیتی + شخص‌ثالث)
 ├── data/              ← JSON کامل و ساختاریافته (نسخه‌ی پیشرفته، همه‌ی فیلدها)
 ├── theme/             ← css/js و search-index.js و تصاویر بندانگشتی خود سایت
-└── source-files/      ← کپی خام فایل‌ها (اختیاری / فقط در اکسپورت With Files)
+├── source-files/      ← کپی خام فایل‌ها (اختیاری / فقط در اکسپورت With Files)
+├── changes-files/     ← بایت‌های قدیم و جدید هر فایل تغییرکرده، برای بررسی
+└── project-backup.unitypackage   ← بک‌آپ کل پروژه (اختیاری)
 ```
+
+نام نسخه‌ها این‌طور جلو می‌ره: `V1.0.0 → V1.0.9 → V1.1.0 → … → V9.9.9 → V10.0.0`. توی پنجره‌ی اکسپورت می‌تونی اسم دلخواه خودت رو هم بذاری. گزینه‌ی **Update Previous Export** به‌جای ساختن پوشه‌ی جدید، **روی** جدیدترین پوشه دوباره اکسپورت می‌کنه و هرچی تغییر نکرده رو دوباره استفاده می‌کنه.
 
 خود سایت توی سایدبار یه کلید **Simple / Advanced** داره: حالت *Simple* یه نمای تمیز و سریع نشون می‌ده (Hierarchy، تنظیمات اسکریپت‌های خودت، نکات کلیدی فایل‌ها) و حالت *Advanced* همه‌ی فیلدهای سریالایز‌شده رو. به‌صورت پیش‌فرض روی Simple باز میشه و انتخابت رو یادش می‌مونه.
 
