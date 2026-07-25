@@ -129,21 +129,59 @@ namespace AmirCollider.UnityDocSnap.Editor.Licensing
     // ==========================================
     internal static class DocSnapEditionLimits
     {
-        // How many version folders an edition without
-        // UnlimitedVersions keeps on the shelf at once.
+        // How many version folders each edition keeps on the
+        // shelf at once.
         //
-        // Three rather than one on purpose. One would hide the
-        // feature completely: somebody who never sees a second
-        // snapshot never learns that a version history is a
-        // thing this tool does, and cannot miss what they have
+        // Free gets three rather than one on purpose. One would
+        // hide the feature completely: somebody who never sees a
+        // second snapshot never learns that a version history is
+        // a thing this tool does, and cannot miss what they have
         // not seen. Three is enough to use it, feel it working,
         // and then hit the wall on the fourth export - which is
-        // the moment the upgrade means something.
+        // the moment an upgrade means something.
         //
-        // Hitting the cap is not an error. The export re-uses
-        // the newest folder instead of adding a fourth, so the
-        // work always completes; only the history stops growing.
+        // Plus gets five rather than three, and the difference
+        // between those two numbers is the entire reason this is
+        // a per-edition value instead of one constant. A paid
+        // tier that behaves identically to the free one in some
+        // visible respect teaches the customer that paying
+        // changed less than they thought - which is a bad thing
+        // to teach somebody you would like to sell the NEXT tier
+        // to. Five is a real, noticeable step up and still
+        // leaves unlimited history as a reason to buy Pro.
+        //
+        // Hitting the cap is never an error. The export re-uses
+        // the newest folder instead of adding another, so the
+        // work always completes; only the history stops growing,
+        // and nothing already on the shelf is deleted.
         public const int FreeVersionFolders = 3;
+        public const int PlusVersionFolders = 5;
+
+        // Pro. int.MaxValue rather than a sentinel like 0 or -1,
+        // so the comparison in ResolveVersionCap reads the same
+        // way for every edition and there is no special case to
+        // forget.
+        public const int Unlimited = int.MaxValue;
+
+        // ==========================================
+        // VersionFolders
+        // The shelf limit for one edition.
+        //
+        // Every caller asks this rather than picking a constant,
+        // so a limit can never be quoted by the export window and
+        // enforced differently by the gate - which is exactly the
+        // sort of disagreement a customer reports as "it said
+        // five and then did three".
+        // ==========================================
+        public static int VersionFolders(DocSnapEdition edition)
+        {
+            switch (edition)
+            {
+                case DocSnapEdition.Pro: return Unlimited;
+                case DocSnapEdition.Plus: return PlusVersionFolders;
+                default: return FreeVersionFolders;
+            }
+        }
     }
 
     internal static class DocSnapEditionMatrix

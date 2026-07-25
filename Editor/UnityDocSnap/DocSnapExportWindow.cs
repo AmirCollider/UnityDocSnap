@@ -269,17 +269,18 @@ namespace AmirCollider.UnityDocSnap.Editor
                 // and finding that out from the completion dialog -
                 // after ten minutes of scanning - is finding it out
                 // too late to have chosen differently.
-                if (!DocSnapLicense.Has(DocSnapFeature.UnlimitedVersions)
-                    && _existingVersions.Length >= DocSnapEditionLimits.FreeVersionFolders)
+                int shelfLimit = DocSnapEditionLimits.VersionFolders(DocSnapLicense.Edition);
+                if (shelfLimit != DocSnapEditionLimits.Unlimited && _existingVersions.Length >= shelfLimit)
                 {
+                    string target = _existingVersions.Length > 0 ? _existingVersions[0] : "";
                     EditorGUILayout.HelpBox(
-                        L("The free edition keeps " + DocSnapEditionLimits.FreeVersionFolders + " snapshots, and you have that many. "
-                          + "This export will refresh " + (_existingVersions.Length > 0 ? _existingVersions[0] : "the newest version")
+                        L("Your edition keeps " + shelfLimit + " snapshots, and you have that many. "
+                          + "This export will refresh " + (target.Length > 0 ? target : "the newest version")
                           + " instead of adding a new folder. Nothing is deleted.",
-                          "無料版のスナップショット保持数は " + DocSnapEditionLimits.FreeVersionFolders + " 件で、既に上限に達しています。"
-                          + "今回は新しいフォルダを作らず " + (_existingVersions.Length > 0 ? _existingVersions[0] : "最新バージョン") + " を更新します。削除は行われません。",
-                          "نسخه‌ی رایگان " + DocSnapEditionLimits.FreeVersionFolders + " اسنپ‌شات نگه می‌دارد و همین حالا همین‌قدر داری. "
-                          + "این خروجی به‌جای ساختن فولدر جدید، " + (_existingVersions.Length > 0 ? _existingVersions[0] : "جدیدترین نسخه")
+                          "現在のエディションのスナップショット保持数は " + shelfLimit + " 件で、既に上限に達しています。"
+                          + "今回は新しいフォルダを作らず " + (target.Length > 0 ? target : "最新バージョン") + " を更新します。削除は行われません。",
+                          "نسخه‌ی فعلی‌ات " + shelfLimit + " اسنپ‌شات نگه می‌دارد و همین حالا همین‌قدر داری. "
+                          + "این خروجی به‌جای ساختن فولدر جدید، " + (target.Length > 0 ? target : "جدیدترین نسخه")
                           + " را بروزرسانی می‌کند. هیچ چیزی پاک نمی‌شود."),
                         MessageType.Info);
                 }

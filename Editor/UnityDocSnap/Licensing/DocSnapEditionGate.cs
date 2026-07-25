@@ -194,10 +194,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Licensing
         // ==========================================
         public static string ResolveVersionCap(string baseRoot, VersionsState registry, DocSnapGateReport report, string lang)
         {
-            if (DocSnapLicense.Has(DocSnapFeature.UnlimitedVersions)) { return null; }
+            // The limit is per edition (Free 3, Plus 5, Pro
+            // unlimited) rather than one number with a bool in
+            // front of it, so this reads the same way for all three
+            // and there is no tier with its own branch to forget.
+            int limit = DocSnapEditionLimits.VersionFolders(DocSnapLicense.Edition);
+            if (limit == DocSnapEditionLimits.Unlimited) { return null; }
 
             HashSet<string> existing = DocSnapVersioning.ExistingVersionNames(baseRoot, registry);
-            if (existing.Count < DocSnapEditionLimits.FreeVersionFolders) { return null; }
+            if (existing.Count < limit) { return null; }
 
             string newest = DocSnapVersioning.NewestVersion(registry);
 
@@ -209,16 +214,51 @@ namespace AmirCollider.UnityDocSnap.Editor.Licensing
             // directory somebody assembled themselves.
             if (string.IsNullOrEmpty(newest)) { return null; }
 
+            // This one line does NOT go through Tag(), which would
+            // quote Pro's price because that is where "unlimited"
+            // lives. For a Free user standing at three snapshots
+            // the honest next step is Plus, which keeps five for
+            // $19.99 - and sending them to the $49.99 page for a
+            // limit the cheaper tier already raises is both worse
+            // selling and, once they notice, a small dishonesty.
             report.VersionCapped = true;
-            report.Clamped.Add(Tag(DocSnapFeature.UnlimitedVersions, DocSnapText.Resolve(lang,
-                "Keeping more than " + DocSnapEditionLimits.FreeVersionFolders
-                    + " snapshots — this export refreshed " + newest + " instead of adding a new folder",
-                "スナップショットを " + DocSnapEditionLimits.FreeVersionFolders
-                    + " 件より多く保持すること — 今回は新しいフォルダを作らず " + newest + " を更新しました",
-                "نگه‌داشتن بیش از " + DocSnapEditionLimits.FreeVersionFolders
-                    + " اسنپ‌شات — این خروجی به‌جای ساختن فولدر جدید، " + newest + " را بروزرسانی کرد")));
+            report.Clamped.Add(DocSnapText.Resolve(lang,
+                "Keeping more than " + limit + " snapshots — this export refreshed " + newest
+                    + " instead of adding a new folder.  " + NextShelf(lang),
+                "スナップショットを " + limit + " 件より多く保持すること — 今回は新しいフォルダを作らず "
+                    + newest + " を更新しました。  " + NextShelf(lang),
+                "نگه‌داشتن بیش از " + limit + " اسنپ‌شات — این خروجی به‌جای ساختن فولدر جدید، "
+                    + newest + " را بروزرسانی کرد.  " + NextShelf(lang)));
 
             return newest;
+        }
+
+        // ==========================================
+        // NextShelf
+        // What the tiers above this one keep, named with their
+        // prices, so the sentence answers "and what do I do about
+        // it?" rather than only "this happened".
+        // ==========================================
+        private static string NextShelf(string lang)
+        {
+            if (DocSnapLicense.Edition == DocSnapEdition.Free)
+            {
+                return DocSnapText.Resolve(lang,
+                    "Plus (" + DocSnapUpgradePitch.Price(DocSnapEdition.Plus) + ") keeps "
+                        + DocSnapEditionLimits.PlusVersionFolders + "; Pro ("
+                        + DocSnapUpgradePitch.Price(DocSnapEdition.Pro) + ") keeps every one.",
+                    "Plus(" + DocSnapUpgradePitch.Price(DocSnapEdition.Plus) + ")は "
+                        + DocSnapEditionLimits.PlusVersionFolders + " 件、Pro("
+                        + DocSnapUpgradePitch.Price(DocSnapEdition.Pro) + ")はすべて保持します。",
+                    "نسخه‌ی Plus (" + DocSnapUpgradePitch.Price(DocSnapEdition.Plus) + ") "
+                        + DocSnapEditionLimits.PlusVersionFolders + " تا نگه می‌دارد و Pro ("
+                        + DocSnapUpgradePitch.Price(DocSnapEdition.Pro) + ") همه را.");
+            }
+
+            return DocSnapText.Resolve(lang,
+                "Pro (" + DocSnapUpgradePitch.Price(DocSnapEdition.Pro) + ") keeps every one.",
+                "Pro(" + DocSnapUpgradePitch.Price(DocSnapEdition.Pro) + ")はすべて保持します。",
+                "نسخه‌ی Pro (" + DocSnapUpgradePitch.Price(DocSnapEdition.Pro) + ") همه را نگه می‌دارد.");
         }
     }
 }

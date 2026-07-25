@@ -135,13 +135,38 @@ namespace AmirCollider.UnityDocSnap.Editor.Tests
             Assert.IsFalse(DocSnapEditionMatrix.ShowsFreeEditionBadge(DocSnapEdition.Pro));
         }
 
-        // The free shelf limit is a number the export window quotes,
-        // the gate enforces, and the README publishes. Changing it is
-        // allowed; changing it by accident is what this catches.
+        // The shelf limits are numbers the export window quotes,
+        // the gate enforces, and the README publishes. Changing them
+        // is allowed; changing one by accident is what this catches.
         [Test]
-        public void Free_KeepsThreeVersionFolders()
+        public void ShelfLimitsAreThreeFiveAndUnlimited()
         {
-            Assert.AreEqual(3, DocSnapEditionLimits.FreeVersionFolders);
+            Assert.AreEqual(3, DocSnapEditionLimits.VersionFolders(DocSnapEdition.Free));
+            Assert.AreEqual(5, DocSnapEditionLimits.VersionFolders(DocSnapEdition.Plus));
+            Assert.AreEqual(DocSnapEditionLimits.Unlimited,
+                DocSnapEditionLimits.VersionFolders(DocSnapEdition.Pro));
+        }
+
+        // Plus must not merely equal Free here. A paid tier that
+        // behaves identically to the free one in a visible respect
+        // teaches the customer that paying changed less than they
+        // thought - which is a bad lesson to teach somebody you would
+        // like to sell the next tier to.
+        [Test]
+        public void PlusKeepsStrictlyMoreSnapshotsThanFree()
+        {
+            Assert.Greater(DocSnapEditionLimits.VersionFolders(DocSnapEdition.Plus),
+                           DocSnapEditionLimits.VersionFolders(DocSnapEdition.Free));
+        }
+
+        [Test]
+        public void ShelfLimitRisesWithEveryTier()
+        {
+            int free = DocSnapEditionLimits.VersionFolders(DocSnapEdition.Free);
+            int plus = DocSnapEditionLimits.VersionFolders(DocSnapEdition.Plus);
+            int pro = DocSnapEditionLimits.VersionFolders(DocSnapEdition.Pro);
+            Assert.Less(free, plus);
+            Assert.Less(plus, pro);
         }
 
         [Test]

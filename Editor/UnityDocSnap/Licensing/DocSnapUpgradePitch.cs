@@ -96,9 +96,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Licensing
             // ---- Pro ----
             new DocSnapPitchLine(DocSnapFeature.UnlimitedVersions, "📚",
                 "Unlimited version history", "無制限のバージョン履歴", "تاریخچه‌ی نامحدود نسخه‌ها",
-                "Keep every snapshot you ever take, side by side on the versions shelf. Free and Plus keep the three most recent.",
-                "取得したスナップショットをすべて、バージョン一覧に並べて保持できます。無料版と Plus は最新 3 件までです。",
-                "هر اسنپ‌شاتی که گرفتی روی قفسه‌ی نسخه‌ها می‌ماند. نسخه‌ی رایگان و Plus سه تای آخر را نگه می‌دارند."),
+                "Keep every snapshot you ever take, side by side on the versions shelf. Free keeps "
+                    + DocSnapEditionLimits.FreeVersionFolders + ", Plus keeps " + DocSnapEditionLimits.PlusVersionFolders + ".",
+                "取得したスナップショットをすべて、バージョン一覧に並べて保持できます。無料版は "
+                    + DocSnapEditionLimits.FreeVersionFolders + " 件、Plus は " + DocSnapEditionLimits.PlusVersionFolders + " 件までです。",
+                "هر اسنپ‌شاتی که گرفتی روی قفسه‌ی نسخه‌ها می‌ماند. نسخه‌ی رایگان "
+                    + DocSnapEditionLimits.FreeVersionFolders + " تا نگه می‌دارد و Plus " + DocSnapEditionLimits.PlusVersionFolders + " تا."),
 
             new DocSnapPitchLine(DocSnapFeature.IncrementalUpdate, "⚡",
                 "Incremental updates", "差分更新", "بروزرسانی افزایشی",

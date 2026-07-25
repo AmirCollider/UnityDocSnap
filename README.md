@@ -65,7 +65,7 @@ Unity DocSnap ships in three editions. **Free needs no key, no account and no ne
 | 🤖 **AI-ready summaries** — `summary/*.md`, `summary/*.json` and the one-paste `summary/ai-bundle.md` | — | ✅ | ✅ |
 | 🔁 **Changes page** — what moved between two exports, old and new bytes side by side | — | ✅ | ✅ |
 | No "free edition" line in the exported footer | — | ✅ | ✅ |
-| 📚 **Version history** | 3 snapshots | 3 snapshots | unlimited |
+| 📚 **Version history** | 3 snapshots | 5 snapshots | unlimited |
 | ⚡ **Incremental `Update Previous Export`** — reuse the Scenes that did not change | — | — | ✅ |
 | 🤖 **CI automation** — `DocSnapAPI` and `-executeMethod` | — | — | ✅ |
 | 📁 **File copies** — the real asset bytes in `source-files/` | — | — | ✅ |
@@ -78,7 +78,7 @@ Unity DocSnap ships in three editions. **Free needs no key, no account and no ne
 
 **Why Plus exists.** The AI summaries and the Changes page are what most people actually come for, and a lot of those people have no use for CI automation, file copies or project backups. Making them buy the $49.99 tier to get two features means most of them buy nothing at all. Plus is those two, on their own, at $19.99.
 
-**A note on what the Free edition does.** Everything in the first three rows is the entire exporter, and it is not time-limited or nagged. Free hits exactly three walls in normal use: it keeps three snapshots rather than every one, it re-scans everything instead of reusing unchanged Scenes, and it writes one credit line into the footer of the site it generates. Where an edition's option is switched on and not licensed, the export still runs — the option is skipped and the completion dialog says which, and at what price. The one exception is `DocSnapAPI`, which refuses outright, because a build agent that half-succeeds publishes a docs folder missing the outputs the pipeline existed to produce and still goes green.
+**A note on what the Free edition does.** Everything in the first three rows is the entire exporter, and it is not time-limited or nagged. Free hits exactly three walls in normal use: it keeps three snapshots rather than every one (Plus keeps five), it re-scans everything instead of reusing unchanged Scenes, and it writes one credit line into the footer of the site it generates. Where an edition's option is switched on and not licensed, the export still runs — the option is skipped and the completion dialog says which, and at what price. The one exception is `DocSnapAPI`, which refuses outright, because a build agent that half-succeeds publishes a docs folder missing the outputs the pipeline existed to produce and still goes green.
 
 **What leaves your machine.** In the Free edition, nothing: it never touches the network. A paid edition sends one request when activating and one when renewing, carrying the licence key, a salted hash of Unity's `deviceUniqueIdentifier`, and the package version. Nothing about your project — not its name, not its path, not its size — is ever transmitted. After activation the licence verifies offline for 45 days against a public key compiled into the package, so there is never a network call in front of an export.
 
@@ -356,7 +356,7 @@ Unity DocSnap には 3 つのエディションがあります。**無料版は�
 | 🤖 **AI 向けサマリー** — `summary/*.md`、`summary/*.json`、1 回の貼り付けで済む `summary/ai-bundle.md` | — | ✅ | ✅ |
 | 🔁 **変更ページ** — 2 つのエクスポート間の差分を、変更前後のバイトと並べて | — | ✅ | ✅ |
 | エクスポートのフッターに「無料版」表記なし | — | ✅ | ✅ |
-| 📚 **バージョン履歴** | 3 件 | 3 件 | 無制限 |
+| 📚 **バージョン履歴** | 3 件 | 5 件 | 無制限 |
 | ⚡ **差分更新(`Update Previous Export`)** — 変更のないシーンを再利用 | — | — | ✅ |
 | 🤖 **CI 自動化** — `DocSnapAPI` と `-executeMethod` | — | — | ✅ |
 | 📁 **ファイル本体のコピー** — アセットの実バイトを `source-files/` へ | — | — | ✅ |
@@ -369,7 +369,7 @@ Unity DocSnap には 3 つのエディションがあります。**無料版は�
 
 **Plus がある理由。** 多くの方が実際に求めているのは AI サマリーと変更ページであり、その大半は CI 自動化・ファイルコピー・プロジェクトバックアップを必要としていません。その 2 つのために $49.99 のエディションを買わせると、結局ほとんどの方は何も購入しません。Plus はその 2 つだけを $19.99 で提供します。
 
-**無料版でできることについて。** 上の 3 行はエクスポーターのすべてであり、期限も催促もありません。通常の利用で無料版が制限に触れるのは 3 か所だけです。スナップショットを 3 件までしか保持しないこと、変更のないシーンを再利用せず毎回すべて再スキャンすること、そして生成されるサイトのフッターにクレジット行が 1 行入ることです。ライセンスのないオプションを有効にしていても、エクスポート自体は実行されます。該当のオプションがスキップされ、完了ダイアログにその内容と価格が表示されます。唯一の例外が `DocSnapAPI` で、こちらは明示的に失敗します。ビルドエージェントが中途半端に成功すると、パイプラインが本来生成するはずの出力を欠いたまま成功として扱われてしまうためです。
+**無料版でできることについて。** 上の 3 行はエクスポーターのすべてであり、期限も催促もありません。通常の利用で無料版が制限に触れるのは 3 か所だけです。スナップショットを 3 件までしか保持しないこと(Plus は 5 件)、変更のないシーンを再利用せず毎回すべて再スキャンすること、そして生成されるサイトのフッターにクレジット行が 1 行入ることです。ライセンスのないオプションを有効にしていても、エクスポート自体は実行されます。該当のオプションがスキップされ、完了ダイアログにその内容と価格が表示されます。唯一の例外が `DocSnapAPI` で、こちらは明示的に失敗します。ビルドエージェントが中途半端に成功すると、パイプラインが本来生成するはずの出力を欠いたまま成功として扱われてしまうためです。
 
 **送信される情報。** 無料版では一切ありません(ネットワークに接続しません)。有料版は有効化時と更新時にそれぞれ 1 回リクエストを送り、ライセンスキー、Unity の `deviceUniqueIdentifier` のソルト付きハッシュ、パッケージのバージョンのみを含みます。プロジェクトの名前・パス・規模など、プロジェクトに関する情報は一切送信されません。有効化後はパッケージに埋め込まれた公開鍵で 45 日間オフライン検証されるため、エクスポートの前にネットワーク通信が入ることはありません。
 
@@ -590,7 +590,7 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 | 🤖 **خروجی آماده‌ی هوش مصنوعی** — `summary/*.md`، `summary/*.json` و `summary/ai-bundle.md` که یک پیست است | — | ✅ | ✅ |
 | 🔁 **صفحه‌ی تغییرات** — بین دو خروجی چه عوض شده، با بایت‌های قبل و بعد کنار هم | — | ✅ | ✅ |
 | بدون خط «نسخه‌ی رایگان» توی فوتر خروجی | — | ✅ | ✅ |
-| 📚 **تاریخچه‌ی نسخه‌ها** | ۳ اسنپ‌شات | ۳ اسنپ‌شات | نامحدود |
+| 📚 **تاریخچه‌ی نسخه‌ها** | ۳ اسنپ‌شات | ۵ اسنپ‌شات | نامحدود |
 | ⚡ **بروزرسانی افزایشی (`Update Previous Export`)** — سین‌های تغییرنکرده دوباره استفاده می‌شوند | — | — | ✅ |
 | 🤖 **اتوماسیون CI** — `DocSnapAPI` و `-executeMethod` | — | — | ✅ |
 | 📁 **کپی خود فایل‌ها** — بایت واقعی اسست‌ها توی `source-files/` | — | — | ✅ |
@@ -603,7 +603,7 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 
 **‏Plus برای چیست؟** خروجی AI و صفحه‌ی تغییرات همان چیزی است که بیشتر آدم‌ها واقعاً برایش می‌آیند، و خیلی از همان آدم‌ها هیچ کاری با اتوماسیون CI، کپی فایل‌ها یا بک‌آپ پروژه ندارند. اگر مجبورشان کنی برای دو تا قابلیت نسخه‌ی ۴۹.۹۹ دلاری بخرند، بیشترشان هیچ چیزی نمی‌خرند. نسخه‌ی Plus همان دو تاست، تنها، با ۱۹.۹۹ دلار.
 
-**یک توضیح درباره‌ی نسخه‌ی رایگان.** هرچه در سه ردیف اول است، تمامِ اکسپورتر است — نه محدودیت زمانی دارد نه پیام مزاحم. نسخه‌ی رایگان توی استفاده‌ی معمولی دقیقاً به سه دیوار می‌خورد: سه اسنپ‌شات نگه می‌دارد نه همه را، به‌جای استفاده‌ی دوباره از سین‌های تغییرنکرده همه‌چیز را دوباره اسکن می‌کند، و یک خط کردیت توی فوتر سایتی که می‌سازد می‌نویسد. اگر گزینه‌ای را روشن کنی که لایسنسش را نداری، خروجی باز هم گرفته می‌شود — آن گزینه رد می‌شود و دیالوگ پایان کار می‌گوید کدام‌ها و با چه قیمتی. تنها استثنا `DocSnapAPI` است که صریحاً رد می‌کند، چون یک بیلد اجنت که نصفه‌نیمه موفق شود، پوشه‌ی مستنداتی منتشر می‌کند که دقیقاً خروجی‌هایی را ندارد که پایپ‌لاین برایشان ساخته شده بود — و سبز هم می‌شود.
+**یک توضیح درباره‌ی نسخه‌ی رایگان.** هرچه در سه ردیف اول است، تمامِ اکسپورتر است — نه محدودیت زمانی دارد نه پیام مزاحم. نسخه‌ی رایگان توی استفاده‌ی معمولی دقیقاً به سه دیوار می‌خورد: سه اسنپ‌شات نگه می‌دارد نه همه را (نسخه‌ی Plus پنج تا)، به‌جای استفاده‌ی دوباره از سین‌های تغییرنکرده همه‌چیز را دوباره اسکن می‌کند، و یک خط کردیت توی فوتر سایتی که می‌سازد می‌نویسد. اگر گزینه‌ای را روشن کنی که لایسنسش را نداری، خروجی باز هم گرفته می‌شود — آن گزینه رد می‌شود و دیالوگ پایان کار می‌گوید کدام‌ها و با چه قیمتی. تنها استثنا `DocSnapAPI` است که صریحاً رد می‌کند، چون یک بیلد اجنت که نصفه‌نیمه موفق شود، پوشه‌ی مستنداتی منتشر می‌کند که دقیقاً خروجی‌هایی را ندارد که پایپ‌لاین برایشان ساخته شده بود — و سبز هم می‌شود.
 
 **چه چیزی از سیستمت بیرون می‌رود.** توی نسخه‌ی رایگان: هیچ‌چیز. اصلاً به شبکه وصل نمی‌شود. نسخه‌های پولی یک درخواست موقع فعال‌سازی و یکی موقع تمدید می‌فرستند که فقط شامل کد لایسنس، هش نمک‌دار `deviceUniqueIdentifier` یونیتی، و شماره‌ی نسخه‌ی پکیج است. هیچ‌چیزی از پروژه‌ات — نه اسمش، نه مسیرش، نه اندازه‌اش — هرگز فرستاده نمی‌شود. بعد از فعال‌سازی، لایسنس ۴۵ روز به‌صورت آفلاین و با یک کلید عمومی که داخل خود پکیج کامپایل شده تأیید می‌شود، پس هیچ‌وقت سر راه یک اکسپورت، تماس شبکه‌ای وجود ندارد.
 
