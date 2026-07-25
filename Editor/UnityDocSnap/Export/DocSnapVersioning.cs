@@ -94,7 +94,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         public int assetCount;               // non-.meta files under Assets/
         public int packageCount;
         public int packagesUpdatable;
-        public string defaultLanguage = "en";
+        public string defaultLanguage = DocSnapLanguages.Fallback;
         public string defaultTheme = "light";
         public bool withFiles;
         public bool hasBackup;

@@ -376,18 +376,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
 
         private static string DefaultFilterPlaceholder()
         {
-            string lang = DocSnapRenderContext.DefaultLanguage;
-            if (lang == "ja") { return "オブジェクト・フィールド・シーンで絞り込み…"; }
-            if (lang == "fa") { return "فیلتر بر اساس آبجکت، فیلد یا سین…"; }
-            return "Filter by object, field or scene…";
+            return Localised("Filter by object, field or scene…",
+                "オブジェクト・フィールド・シーンで絞り込み…",
+                "فیلتر بر اساس آبجکت، فیلد یا سین…");
         }
 
         private static string Localised(string en, string ja, string fa)
         {
-            string lang = DocSnapRenderContext.DefaultLanguage;
-            if (lang == "ja") { return ja; }
-            if (lang == "fa") { return fa; }
-            return en;
+            return DocSnapText.Resolve(DocSnapRenderContext.DefaultLanguage, en, ja, fa);
         }
     }
 }

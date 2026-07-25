@@ -10,6 +10,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Text;
 
 namespace AmirCollider.UnityDocSnap.Editor.Json
@@ -407,8 +408,38 @@ namespace AmirCollider.UnityDocSnap.Editor.Json
         public override string ToString()
         {
             var sb = new StringBuilder(256);
-            Write(sb, 0);
+            using (var writer = new StringWriter(sb, CultureInfo.InvariantCulture))
+            {
+                Write(writer, 0);
+            }
             return sb.ToString();
+        }
+
+        // ==========================================
+        // WriteTo(writer) — the same output as ToString(),
+        // sent straight to a destination instead of built
+        // in memory first.
+        //
+        // ToString() on a full Scene export is a single
+        // string holding the entire document: a Scene with
+        // tens of thousands of GameObjects produces tens of
+        // megabytes of JSON, and writing it to disk meant
+        // holding all of it, then handing File.WriteAllText a
+        // copy to encode - two large-object-heap allocations
+        // for a file that is written once, forwards, and
+        // never re-read. Streaming it costs nothing extra
+        // (the recursion is unchanged; only the sink
+        // differs) and the peak no longer scales with the
+        // size of the biggest Scene in the project.
+        //
+        // ToString() is kept, unchanged byte-for-byte, for
+        // the callers that genuinely want a string - the
+        // search index embedded in a page, and the tests.
+        // ==========================================
+        public void WriteTo(TextWriter writer)
+        {
+            if (writer == null) { throw new ArgumentNullException("writer"); }
+            Write(writer, 0);
         }
 
         // ==========================================
@@ -426,8 +457,21 @@ namespace AmirCollider.UnityDocSnap.Editor.Json
         public string ToCompactString()
         {
             var sb = new StringBuilder(256);
-            WriteCompact(sb, 0);
+            using (var writer = new StringWriter(sb, CultureInfo.InvariantCulture))
+            {
+                WriteCompact(writer, 0);
+            }
             return sb.ToString();
+        }
+
+        // ==========================================
+        // WriteCompactTo(writer) — ToCompactString()
+        // streamed, for the same reason as WriteTo.
+        // ==========================================
+        public void WriteCompactTo(TextWriter writer)
+        {
+            if (writer == null) { throw new ArgumentNullException("writer"); }
+            WriteCompact(writer, 0);
         }
 
         private bool IsInlineable()
@@ -445,104 +489,106 @@ namespace AmirCollider.UnityDocSnap.Editor.Json
             return true;
         }
 
-        private void WriteCompact(StringBuilder sb, int indent)
+        private void WriteCompact(TextWriter writer, int indent)
         {
             switch (Kind)
             {
                 case JsonKind.Object:
-                    if (_members.Count == 0) { sb.Append("{}"); return; }
-                    if (IsInlineable()) { WriteInlineObject(sb); return; }
-                    WriteBlockObjectCompact(sb, indent);
+                    if (_members.Count == 0) { writer.Write("{}"); return; }
+                    if (IsInlineable()) { WriteInlineObject(writer); return; }
+                    WriteBlockObjectCompact(writer, indent);
                     return;
                 case JsonKind.Array:
-                    if (_items.Count == 0) { sb.Append("[]"); return; }
-                    if (IsInlineable()) { WriteInlineArray(sb); return; }
-                    WriteBlockArrayCompact(sb, indent);
+                    if (_items.Count == 0) { writer.Write("[]"); return; }
+                    if (IsInlineable()) { WriteInlineArray(writer); return; }
+                    WriteBlockArrayCompact(writer, indent);
                     return;
                 default:
-                    Write(sb, indent);
+                    Write(writer, indent);
                     return;
             }
         }
 
-        private void WriteInlineObject(StringBuilder sb)
+        private void WriteInlineObject(TextWriter writer)
         {
-            sb.Append("{ ");
+            writer.Write("{ ");
             for (int i = 0; i < _members.Count; i++)
             {
-                WriteEscapedString(sb, _members[i].Key);
-                sb.Append(": ");
-                _members[i].Value.Write(sb, 0);
-                if (i < _members.Count - 1) { sb.Append(", "); }
+                WriteEscapedString(writer, _members[i].Key);
+                writer.Write(": ");
+                _members[i].Value.Write(writer, 0);
+                if (i < _members.Count - 1) { writer.Write(", "); }
             }
-            sb.Append(" }");
+            writer.Write(" }");
         }
 
-        private void WriteInlineArray(StringBuilder sb)
+        private void WriteInlineArray(TextWriter writer)
         {
-            sb.Append('[');
+            writer.Write('[');
             for (int i = 0; i < _items.Count; i++)
             {
-                _items[i].Write(sb, 0);
-                if (i < _items.Count - 1) { sb.Append(", "); }
+                _items[i].Write(writer, 0);
+                if (i < _items.Count - 1) { writer.Write(", "); }
             }
-            sb.Append(']');
+            writer.Write(']');
         }
 
-        private void WriteBlockObjectCompact(StringBuilder sb, int indent)
+        private void WriteBlockObjectCompact(TextWriter writer, int indent)
         {
-            sb.Append("{\n");
+            writer.Write("{\n");
             string childPad = Pad(indent + 1);
             for (int i = 0; i < _members.Count; i++)
             {
-                sb.Append(childPad);
-                WriteEscapedString(sb, _members[i].Key);
-                sb.Append(": ");
-                _members[i].Value.WriteCompact(sb, indent + 1);
-                if (i < _members.Count - 1) { sb.Append(','); }
-                sb.Append('\n');
+                writer.Write(childPad);
+                WriteEscapedString(writer, _members[i].Key);
+                writer.Write(": ");
+                _members[i].Value.WriteCompact(writer, indent + 1);
+                if (i < _members.Count - 1) { writer.Write(','); }
+                writer.Write('\n');
             }
-            sb.Append(Pad(indent)).Append('}');
+            writer.Write(Pad(indent));
+            writer.Write('}');
         }
 
-        private void WriteBlockArrayCompact(StringBuilder sb, int indent)
+        private void WriteBlockArrayCompact(TextWriter writer, int indent)
         {
-            sb.Append("[\n");
+            writer.Write("[\n");
             string childPad = Pad(indent + 1);
             for (int i = 0; i < _items.Count; i++)
             {
-                sb.Append(childPad);
-                _items[i].WriteCompact(sb, indent + 1);
-                if (i < _items.Count - 1) { sb.Append(','); }
-                sb.Append('\n');
+                writer.Write(childPad);
+                _items[i].WriteCompact(writer, indent + 1);
+                if (i < _items.Count - 1) { writer.Write(','); }
+                writer.Write('\n');
             }
-            sb.Append(Pad(indent)).Append(']');
+            writer.Write(Pad(indent));
+            writer.Write(']');
         }
 
         // ==========================================
-        // Write(sb, indent) — recursive pretty-printer.
+        // Write(writer, indent) — recursive pretty-printer.
         // ==========================================
-        private void Write(StringBuilder sb, int indent)
+        private void Write(TextWriter writer, int indent)
         {
             switch (Kind)
             {
                 case JsonKind.Null:
-                    sb.Append("null");
+                    writer.Write("null");
                     break;
                 case JsonKind.Bool:
-                    sb.Append(_boolValue ? "true" : "false");
+                    writer.Write(_boolValue ? "true" : "false");
                     break;
                 case JsonKind.Number:
-                    WriteNumber(sb, _numberValue);
+                    WriteNumber(writer, _numberValue);
                     break;
                 case JsonKind.String:
-                    WriteEscapedString(sb, _stringValue);
+                    WriteEscapedString(writer, _stringValue);
                     break;
                 case JsonKind.Array:
-                    WriteArrayItems(sb, indent);
+                    WriteArrayItems(writer, indent);
                     break;
                 case JsonKind.Object:
-                    WriteObject(sb, indent);
+                    WriteObject(writer, indent);
                     break;
             }
         }
@@ -562,64 +608,66 @@ namespace AmirCollider.UnityDocSnap.Editor.Json
         // old 0 for every renderer, but no longer lies to
         // anyone reading the JSON directly.
         // ==========================================
-        private static void WriteNumber(StringBuilder sb, double value)
+        private static void WriteNumber(TextWriter writer, double value)
         {
             if (double.IsNaN(value) || double.IsInfinity(value))
             {
-                sb.Append("null");
+                writer.Write("null");
                 return;
             }
             if (value == System.Math.Floor(value) && System.Math.Abs(value) < 1e15)
             {
-                sb.Append(((long)value).ToString(CultureInfo.InvariantCulture));
+                writer.Write(((long)value).ToString(CultureInfo.InvariantCulture));
             }
             else
             {
-                sb.Append(value.ToString("R", CultureInfo.InvariantCulture));
+                writer.Write(value.ToString("R", CultureInfo.InvariantCulture));
             }
         }
 
         // ==========================================
         // WriteObject / WriteArrayItems
         // ==========================================
-        private void WriteObject(StringBuilder sb, int indent)
+        private void WriteObject(TextWriter writer, int indent)
         {
             if (_members.Count == 0)
             {
-                sb.Append("{}");
+                writer.Write("{}");
                 return;
             }
-            sb.Append("{\n");
+            writer.Write("{\n");
             string childPad = Pad(indent + 1);
             for (int i = 0; i < _members.Count; i++)
             {
-                sb.Append(childPad);
-                WriteEscapedString(sb, _members[i].Key);
-                sb.Append(": ");
-                _members[i].Value.Write(sb, indent + 1);
-                if (i < _members.Count - 1) { sb.Append(','); }
-                sb.Append('\n');
+                writer.Write(childPad);
+                WriteEscapedString(writer, _members[i].Key);
+                writer.Write(": ");
+                _members[i].Value.Write(writer, indent + 1);
+                if (i < _members.Count - 1) { writer.Write(','); }
+                writer.Write('\n');
             }
-            sb.Append(Pad(indent)).Append('}');
+            writer.Write(Pad(indent));
+            writer.Write('}');
         }
 
-        private void WriteArrayItems(StringBuilder sb, int indent)
+        private void WriteArrayItems(TextWriter writer, int indent)
         {
             if (_items.Count == 0)
             {
-                sb.Append("[]");
+                writer.Write("[]");
                 return;
             }
-            sb.Append("[\n");
+            writer.Write("[\n");
             string childPad = Pad(indent + 1);
             for (int i = 0; i < _items.Count; i++)
             {
-                sb.Append(childPad);
-                _items[i].Write(sb, indent + 1);
-                if (i < _items.Count - 1) { sb.Append(','); }
-                sb.Append('\n');
+                writer.Write(childPad);
+                _items[i].Write(writer, indent + 1);
+                if (i < _items.Count - 1) { writer.Write(','); }
+                writer.Write('\n');
             }
-            sb.Append(Pad(indent)).Append(']');
+            writer.Write(Pad(indent));
+            writer.Write(']');
         }
 
         private static string Pad(int indent)
@@ -632,33 +680,34 @@ namespace AmirCollider.UnityDocSnap.Editor.Json
         // plus escaping '<' so this JSON can always be
         // safely embedded inside an inline <script> tag.
         // ==========================================
-        private static void WriteEscapedString(StringBuilder sb, string value)
+        private static void WriteEscapedString(TextWriter writer, string value)
         {
-            sb.Append('"');
+            writer.Write('"');
             foreach (char c in value)
             {
                 switch (c)
                 {
-                    case '"': sb.Append("\\\""); break;
-                    case '\\': sb.Append("\\\\"); break;
-                    case '\n': sb.Append("\\n"); break;
-                    case '\r': sb.Append("\\r"); break;
-                    case '\t': sb.Append("\\t"); break;
-                    case '<': sb.Append("\\u003c"); break;
-                    case '>': sb.Append("\\u003e"); break;
+                    case '"': writer.Write("\\\""); break;
+                    case '\\': writer.Write("\\\\"); break;
+                    case '\n': writer.Write("\\n"); break;
+                    case '\r': writer.Write("\\r"); break;
+                    case '\t': writer.Write("\\t"); break;
+                    case '<': writer.Write("\\u003c"); break;
+                    case '>': writer.Write("\\u003e"); break;
                     default:
                         if (c < 0x20)
                         {
-                            sb.Append("\\u").Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
+                            writer.Write("\\u");
+                            writer.Write(((int)c).ToString("x4", CultureInfo.InvariantCulture));
                         }
                         else
                         {
-                            sb.Append(c);
+                            writer.Write(c);
                         }
                         break;
                 }
             }
-            sb.Append('"');
+            writer.Write('"');
         }
     }
 }

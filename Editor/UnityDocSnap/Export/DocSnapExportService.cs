@@ -65,7 +65,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string htmlFile = DocSnapConstants.ScenesSubFolder + "/" + sceneKey + ".html";
             string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.SceneJsonPrefix + sceneKey + ".json";
 
-            WriteText(outputRoot, jsonFile, sceneData.ToString());
+            WriteJson(outputRoot, jsonFile, sceneData);
             WriteSceneSummaries(outputRoot, sceneKey, sceneData);
 
             DocSnapManifest.UpsertScene(manifest, new ManifestSceneEntry
@@ -182,7 +182,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string htmlFile = DocSnapConstants.AssetsSubFolder + "/" + folderKey + ".html";
             string jsonFile = DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.FolderJsonPrefix + folderKey + ".json";
 
-            WriteText(outputRoot, jsonFile, folderData.ToString());
+            WriteJson(outputRoot, jsonFile, folderData);
             WriteFolderSummaries(outputRoot, folderKey, folderData);
 
             DocSnapManifest.ReplaceAssetIndexForFolder(manifest, folderKey, indexEntries);
@@ -458,7 +458,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                         Debug.LogWarning("[Unity DocSnap] Skipped scene " + scenePath + ": " + ex.Message);
                         continue;
                     }
-                    WriteText(outputRoot, jsonFile, sceneData.ToString());
+                    WriteJson(outputRoot, jsonFile, sceneData);
                     WriteSceneSummaries(outputRoot, sceneKey, sceneData);
                     if (copyFiles) { AssetProjectExporter.CopyPhysicalFile(scenePath, physicalFilesRoot); }
                     exportedScenes++;
@@ -526,7 +526,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 {
                     EditorUtility.ClearProgressBar();
                 }
-                WriteText(outputRoot, assetJsonFile, folderData.ToString());
+                WriteJson(outputRoot, assetJsonFile, folderData);
                 WriteFolderSummaries(outputRoot, rootFolderKey, folderData);
                 DocSnapManifest.ReplaceAssetIndexForFolder(manifest, rootFolderKey, indexEntries);
             }
@@ -669,6 +669,32 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                     + "スクリプトのコンパイル / アセットのインポート中です。完了してからエクスポートしてください。\n\n"
                     + "─────\n"
                     + "یونیتی هنوز داره کامپایل / ایمپورت می‌کنه. صبر کن تموم بشه، بعد خروجی بگیر.");
+                return false;
+            }
+
+            // Where the export is about to write. Checked here, at the
+            // one gate every export path already passes through, rather
+            // than at each of the five entry points - and before any
+            // folder is created, because ResolveOutputRootAbsolute
+            // creates what it resolves and the whole point is not to
+            // create a UnityDocSnap_Output inside Assets/ on the way to
+            // refusing to use it.
+            //
+            // A destination configured before this rule existed is the
+            // realistic case, so the message names the folder and says
+            // where to change it, rather than only reporting that it is
+            // wrong.
+            DocSnapOutputPathVerdict verdict = DocSnapSettings.ValidateOutputRoot();
+            if (verdict != DocSnapOutputPathVerdict.Ok)
+            {
+                string resolved = DocSnapSettings.ResolveOutputRootAbsoluteWithoutCreating();
+                string reason = DocSnapOutputPathMessages.DescribeForEditor(verdict);
+                DocSnapRunResult.Fail("Output folder \"" + resolved + "\" cannot be used: "
+                    + DocSnapOutputPathMessages.Describe(verdict, DocSnapLanguages.Fallback));
+                DocSnapInteraction.Alert(
+                    reason + "\n\n"
+                    + resolved + "\n\n"
+                    + "Project Settings → " + DocSnapConstants.ToolName);
                 return false;
             }
 
@@ -1243,7 +1269,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // writes into every version folder before anything
         // else happens.
         // ==========================================
-        private static bool IsDocSnapVersionFolder(string outputRoot)
+        internal static bool IsDocSnapVersionFolder(string outputRoot)
         {
             if (string.IsNullOrEmpty(outputRoot)) { return false; }
             return File.Exists(Path.Combine(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder), DocSnapConstants.StyleFileName));
@@ -1397,6 +1423,21 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         private static string PrepareOutput(string outputRoot)
         {
+            // Whether this folder was ALREADY a Unity DocSnap version
+            // folder, captured before the lines below make it look like
+            // one. CleanLegacyOutput deletes three whole directory
+            // trees by name, and the ownership proof PruneDir relies on
+            // (theme/style.css exists) is written four lines from here
+            // - so asking the same question after the fact would always
+            // answer yes and prove nothing.
+            //
+            // A folder that was not ours a moment ago is either brand
+            // new, in which case there is nothing legacy in it, or it
+            // is somebody else's - and a folder of somebody else's that
+            // happens to contain "assets/" or "files/" is exactly the
+            // case that must not be cleaned.
+            bool wasDocSnapFolder = IsDocSnapVersionFolder(outputRoot);
+
             Directory.CreateDirectory(outputRoot);
             Directory.CreateDirectory(Path.Combine(outputRoot, DocSnapConstants.ScenesSubFolder));
             Directory.CreateDirectory(Path.Combine(outputRoot, DocSnapConstants.AssetsSubFolder));
@@ -1408,7 +1449,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             File.WriteAllText(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder, DocSnapConstants.StyleFileName), DocSnapSiteAssets.StyleCss);
             File.WriteAllText(Path.Combine(outputRoot, DocSnapConstants.SiteAssetsSubFolder, DocSnapConstants.ScriptFileName), DocSnapSiteAssets.AppJs);
 
-            CleanLegacyOutput(outputRoot);
+            if (wasDocSnapFolder) { CleanLegacyOutput(outputRoot); }
             return outputRoot;
         }
 
@@ -1440,9 +1481,25 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // assets_ui/ -> theme/, files/ -> source-files/).
         // Their names are unused by the current tool, so
         // deleting them only clears stale output.
+        //
+        // Only ever called for a folder that was a DocSnap
+        // version folder BEFORE this export touched it (see
+        // PrepareOutput). The check is repeated here because
+        // this method recursively deletes three directories
+        // by name, and "assets" and "files" are names other
+        // things use: a caller added later that had not
+        // thought about ownership would otherwise turn a
+        // mistyped output path into a recursive delete.
         // ==========================================
-        private static void CleanLegacyOutput(string outputRoot)
+        internal static void CleanLegacyOutput(string outputRoot)
         {
+            if (!IsDocSnapVersionFolder(outputRoot))
+            {
+                Debug.LogWarning("[" + DocSnapConstants.ToolName + "] Refusing to clean legacy output in \""
+                    + outputRoot + "\": it does not look like a Unity DocSnap version folder.");
+                return;
+            }
+
             TryDelete(Path.Combine(outputRoot, "export_complete.html"));
             foreach (string legacyDir in new[] { "assets", "assets_ui", "files" })
             {
@@ -1464,9 +1521,44 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
         private static void WriteText(string outputRoot, string relativeFile, string content)
         {
+            string fullPath = ResolveOutputFile(outputRoot, relativeFile);
+            File.WriteAllText(fullPath, content);
+        }
+
+        // ==========================================
+        // WriteJson
+        // A JsonValue written straight to its file.
+        //
+        // This used to be WriteText(root, file, data.ToString()),
+        // and the ToString() was the single largest allocation
+        // an export made: the complete JSON document of a
+        // Scene as one string, which File.WriteAllText then
+        // encoded into a second buffer of comparable size.
+        // On a Scene with tens of thousands of GameObjects
+        // that is tens of megabytes twice, on the large
+        // object heap, for a document that is written once
+        // and never read back in the same pass.
+        //
+        // The document is identical - the same writer, the
+        // same bytes - it simply goes to the file as it is
+        // produced. Peak memory during a full-project export
+        // now tracks the Scene being walked rather than the
+        // text of the largest one.
+        // ==========================================
+        private static void WriteJson(string outputRoot, string relativeFile, JsonValue value)
+        {
+            string fullPath = ResolveOutputFile(outputRoot, relativeFile);
+            using (var writer = new StreamWriter(fullPath, false, new UTF8Encoding(false)))
+            {
+                value.WriteTo(writer);
+            }
+        }
+
+        private static string ResolveOutputFile(string outputRoot, string relativeFile)
+        {
             string fullPath = Path.Combine(outputRoot, relativeFile.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
-            File.WriteAllText(fullPath, content);
+            return fullPath;
         }
 
         // ==========================================

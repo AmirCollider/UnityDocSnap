@@ -82,11 +82,52 @@ namespace AmirCollider.UnityDocSnap.Editor
         }
 
         // ==========================================
-        // FromSettings — the project's configured rules.
+        // AddPrefix
+        // Adds one folder-prefix rule after parsing. Used
+        // for rules the tool derives rather than the user
+        // types; it goes into Patterns like any other,
+        // because an export that quietly leaves something
+        // out is worse than one that says what it left out.
+        // ==========================================
+        public DocSnapExcludeFilter AddPrefix(string prefix)
+        {
+            string pattern = Normalize(prefix);
+            if (pattern.Length == 0) { return this; }
+            if (Patterns.Contains(pattern)) { return this; }
+
+            Patterns.Add(pattern);
+            _prefixes.Add(pattern);
+            return this;
+        }
+
+        // ==========================================
+        // FromSettings
+        // The project's configured rules, plus one the tool
+        // adds itself: its own output folder, when that
+        // folder sits inside Assets.
+        //
+        // This is a second line of defence, not the first.
+        // An output folder inside Assets is refused outright
+        // before an export starts (DocSnapOutputPath), so in
+        // a correctly configured project this adds nothing.
+        // It matters for the project that was configured that
+        // way before the rule existed and whose settings file
+        // still says so, and it is the difference between an
+        // export that documents its own previous output -
+        // every run compounding the last - and one that does
+        // not. Cheap, and the failure it prevents is not one
+        // a user can easily undo.
         // ==========================================
         public static DocSnapExcludeFilter FromSettings()
         {
-            return Parse(DocSnapSettings.ExcludePatterns);
+            DocSnapExcludeFilter filter = Parse(DocSnapSettings.ExcludePatterns);
+
+            string outputRelative = DocSnapOutputPath.ProjectRelativeOrNull(
+                DocSnapSettings.ResolveOutputRootAbsoluteWithoutCreating(),
+                DocSnapSettings.ProjectRootAbsolute());
+            if (!string.IsNullOrEmpty(outputRelative)) { filter.AddPrefix(outputRelative); }
+
+            return filter;
         }
 
         // ==========================================

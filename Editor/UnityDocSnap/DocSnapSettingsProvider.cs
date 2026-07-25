@@ -42,6 +42,32 @@ namespace AmirCollider.UnityDocSnap.Editor
                 DocSnapSettings.OutputRootPath);
             if (EditorGUI.EndChangeCheck()) { DocSnapSettings.OutputRootPath = outputPath; }
 
+            // The field still accepts anything - a text field that
+            // fights the person typing into it is worse than one that
+            // explains itself, and half of "Assets/Docs" is a prefix of
+            // a perfectly good path. What it does not do is let the
+            // value sit there looking accepted: the resolved
+            // destination is shown, and a destination an export will
+            // refuse says so here, with the reason, at the moment it is
+            // typed rather than ten minutes into a full export.
+            DocSnapOutputPathVerdict verdict = DocSnapSettings.ValidateOutputRoot(outputPath);
+            string resolvedOutput = DocSnapSettings.ResolveOutputRootAbsoluteWithoutCreating();
+            if (verdict == DocSnapOutputPathVerdict.Ok)
+            {
+                EditorGUILayout.LabelField("Exports to: " + resolvedOutput, EditorStyles.miniLabel);
+            }
+            else
+            {
+                EditorGUILayout.HelpBox(
+                    DocSnapOutputPathMessages.DescribeForEditor(verdict) + "\n\n" + resolvedOutput,
+                    MessageType.Error);
+                if (GUILayout.Button("Use the default (UnityDocSnap_Output)"))
+                {
+                    DocSnapSettings.OutputRootPath = "";
+                    GUI.FocusControl(null);
+                }
+            }
+
             EditorGUILayout.Space(12);
             EditorGUILayout.LabelField("Scope", EditorStyles.boldLabel);
             EditorGUILayout.LabelField(

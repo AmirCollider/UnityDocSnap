@@ -97,6 +97,67 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         }
 
         // ==========================================
+        // JsStringArray
+        // A JavaScript array literal of quoted strings,
+        // each escaped by JsString - so a language code or
+        // catalogue key can never break out of the inline
+        // script it is emitted into.
+        // ==========================================
+        public static string JsStringArray(string[] values)
+        {
+            if (values == null || values.Length == 0) { return "[]"; }
+
+            var sb = new StringBuilder(values.Length * 8);
+            sb.Append('[');
+            for (int i = 0; i < values.Length; i++)
+            {
+                if (i > 0) { sb.Append(','); }
+                sb.Append(JsString(values[i]));
+            }
+            sb.Append(']');
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // TranslationCatalogueJson
+        // DocSnapTranslations as a JavaScript object, so the
+        // strings app.js builds at runtime can be localised
+        // into a language added after the fact exactly like
+        // the ones baked into the markup.
+        //
+        // Emits "{}" while the catalogue is empty, which is
+        // the shipped state - the three built-in languages
+        // are written inline in app.js, so there is nothing
+        // to send.
+        // ==========================================
+        public static string TranslationCatalogueJson()
+        {
+            if (DocSnapTranslations.IsEmpty) { return "{}"; }
+
+            var sb = new StringBuilder(256);
+            sb.Append('{');
+            bool firstKey = true;
+            foreach (string english in DocSnapTranslations.EnglishKeys())
+            {
+                List<string> codes = DocSnapTranslations.CodesFor(english);
+                if (codes.Count == 0) { continue; }
+
+                if (!firstKey) { sb.Append(','); }
+                firstKey = false;
+                sb.Append(JsString(english)).Append(":{");
+                for (int i = 0; i < codes.Count; i++)
+                {
+                    if (i > 0) { sb.Append(','); }
+                    sb.Append(JsString(codes[i])).Append(':')
+                      .Append(JsString(DocSnapTranslations.Find(english, codes[i])));
+                }
+                sb.Append('}');
+            }
+            sb.Append('}');
+            return sb.ToString();
+        }
+
+        // ==========================================
         // Href
         // The one way a link to another page in this site
         // is built: percent-encode the path, then escape it
@@ -123,21 +184,64 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
 
         // ==========================================
         // I18n
-        // Emits one element carrying all three
-        // language variants as data attributes. The
+        // Emits one element carrying every registered
+        // language's text as a data attribute. The
         // VISIBLE text is pre-rendered in the export's
         // default language (not always English), so the
         // very first paint of a ja/fa site is already in
         // the right language - no flash of English text
         // while app.js waits for DOMContentLoaded.
+        //
+        // The attribute list is built from
+        // DocSnapLanguages rather than hard-coded as
+        // data-en/data-ja/data-fa, so a language added to
+        // that registry shows up in the markup here with
+        // no change to this method or to any of its ~140
+        // call sites. The call sites keep passing the three
+        // built-in languages inline; anything beyond them
+        // comes from DocSnapTranslations.
         // ==========================================
         public static string I18n(string tag, string cssClass, string en, string ja, string fa)
         {
             string cls = string.IsNullOrEmpty(cssClass) ? "" : " class=\"" + cssClass + "\"";
-            string visible = DocSnapRenderContext.DefaultLanguage == "ja" ? ja
-                : DocSnapRenderContext.DefaultLanguage == "fa" ? fa
-                : en;
-            return "<" + tag + cls + " data-en=\"" + Escape(en) + "\" data-ja=\"" + Escape(ja) + "\" data-fa=\"" + Escape(fa) + "\">" + Escape(visible) + "</" + tag + ">";
+            string[] codes = DocSnapLanguages.Codes();
+            string[] values = DocSnapText.ResolveAll(en, ja, fa);
+
+            var sb = new StringBuilder(64 + (values.Length * 32));
+            sb.Append('<').Append(tag).Append(cls);
+            for (int i = 0; i < codes.Length; i++)
+            {
+                sb.Append(" data-").Append(codes[i]).Append("=\"").Append(Escape(values[i])).Append('"');
+            }
+            sb.Append('>')
+              .Append(Escape(DocSnapText.Resolve(DocSnapRenderContext.DefaultLanguage, en, ja, fa)))
+              .Append("</").Append(tag).Append('>');
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // I18nAttributes
+        // The same per-language expansion as I18n, but as a
+        // run of attributes on an element the caller is
+        // building itself - "data-ph-en", "data-ph-ja", …
+        // for an <input> placeholder, which cannot be
+        // localised by swapping element text.
+        //
+        // Returns a leading space so it drops straight into
+        // a tag being concatenated.
+        // ==========================================
+        public static string I18nAttributes(string attributePrefix, string en, string ja, string fa)
+        {
+            string[] codes = DocSnapLanguages.Codes();
+            string[] values = DocSnapText.ResolveAll(en, ja, fa);
+
+            var sb = new StringBuilder(values.Length * 40);
+            for (int i = 0; i < codes.Length; i++)
+            {
+                sb.Append(' ').Append(attributePrefix).Append(codes[i])
+                  .Append("=\"").Append(Escape(values[i])).Append('"');
+            }
+            return sb.ToString();
         }
 
         // ==========================================
@@ -158,7 +262,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // app.js still lets a reader's own saved choice win.
             string defLang = DocSnapRenderContext.DefaultLanguage;
             string defTheme = DocSnapRenderContext.DefaultTheme == "dark" ? "dark" : "light";
-            string dir = defLang == "fa" ? "rtl" : "ltr";
+            string dir = DocSnapLanguages.Direction(defLang);
             string stamp = DocSnapRenderContext.ExportStamp;
 
             // Which visual skin this export opens with, measured from the
@@ -192,11 +296,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // briefly hidden via html.ds-lang-pending so the swap is
             // invisible; a 1.5s timeout guarantees the page can
             // never stay hidden even if app.js fails to load.
-            sb.Append("<script>(function(){var d=document.documentElement;var bakedLang=d.getAttribute('lang')||'en';var lang=bakedLang;var theme=d.getAttribute('data-theme')||'light';var stamp=d.getAttribute('data-export')||'';")
+            // The RTL list is baked in from DocSnapLanguages rather
+            // than written as lang==='fa' here and again in app.js.
+            // A right-to-left language added to the registry gets its
+            // direction right on the very first paint, in the one
+            // script that runs before the body exists.
+            sb.Append("<script>(function(){var d=document.documentElement;var rtl=").Append(JsStringArray(DocSnapLanguages.RightToLeftCodes())).Append(";")
+              .Append("var bakedLang=d.getAttribute('lang')||'en';var lang=bakedLang;var theme=d.getAttribute('data-theme')||'light';var stamp=d.getAttribute('data-export')||'';")
               .Append("var skin=d.getAttribute('data-skin')||'lite';")
               .Append("try{if(localStorage.getItem('unityDocSnapDefaults')===stamp+'|'+bakedLang+'|'+theme){var L=localStorage.getItem('unityDocSnapLang');var T=localStorage.getItem('unityDocSnapTheme');var S=localStorage.getItem('unityDocSnapSkin');if(L){lang=L;}if(T){theme=T;}if(S==='cozy'||S==='lite'){skin=S;}}}catch(e){}")
               .Append("if(lang!==bakedLang){d.classList.add('ds-lang-pending');setTimeout(function(){d.classList.remove('ds-lang-pending');},1500);}")
-              .Append("d.setAttribute('lang',lang);d.setAttribute('dir',lang==='fa'?'rtl':'ltr');d.setAttribute('data-theme',theme);d.setAttribute('data-skin',skin);})();</script>\n");
+              .Append("d.setAttribute('lang',lang);d.setAttribute('dir',rtl.indexOf(lang)>=0?'rtl':'ltr');d.setAttribute('data-theme',theme);d.setAttribute('data-skin',skin);})();</script>\n");
             sb.Append("<link rel=\"stylesheet\" href=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.StyleFileName).Append("\">\n</head>\n");
             // Default to the calmer Simple view; app.js restores whichever
             // view the reader last chose. Advanced-only detail is present
@@ -220,6 +330,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // before app.js.
             sb.Append("<script>window.__DOCSNAP_PREFIX__=").Append(JsString(prefix)).Append(";")
               .Append("window.__DOCSNAP_LANG__=").Append(JsString(defLang)).Append(";")
+              // The language registry, handed to the page: which
+              // languages exist, which of them are right-to-left, and
+              // any translations for strings app.js builds itself
+              // rather than receives as markup (search results, the
+              // "copied" toast). Without these, app.js needed its own
+              // copy of the language list to stay correct.
+              .Append("window.__DOCSNAP_LANGS__=").Append(JsStringArray(DocSnapLanguages.Codes())).Append(";")
+              .Append("window.__DOCSNAP_RTL__=").Append(JsStringArray(DocSnapLanguages.RightToLeftCodes())).Append(";")
+              .Append("window.__DOCSNAP_I18N__=").Append(TranslationCatalogueJson()).Append(";")
               .Append("window.__DOCSNAP_THEME__=").Append(JsString(defTheme)).Append(";")
               .Append("window.__DOCSNAP_SKIN__=").Append(JsString(defSkin)).Append(";")
               .Append("window.__DOCSNAP_CAPS__=").Append(CapabilityJson(caps)).Append(";")
@@ -266,10 +385,19 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // called after the page shell computed it.
             string defSkin = DocSnapCapability.Normalize(DocSnapRenderContext.ResolveCapability(manifest).Skin);
             sb.Append("<div class=\"ds-topbar\">");
+            // One button per registered language, in registry order.
+            // app.js validates a reader's stored language against the
+            // buttons it finds here, so a language that is in the
+            // registry is automatically offered, and one that has been
+            // removed automatically stops being honoured.
             sb.Append("<div class=\"ds-langbar\" role=\"group\" aria-label=\"Language\">");
-            sb.Append("<button class=\"ds-lang-btn").Append(defLang == "en" ? " is-active" : "").Append("\" data-lang=\"en\">EN</button>");
-            sb.Append("<button class=\"ds-lang-btn").Append(defLang == "ja" ? " is-active" : "").Append("\" data-lang=\"ja\">日本語</button>");
-            sb.Append("<button class=\"ds-lang-btn").Append(defLang == "fa" ? " is-active" : "").Append("\" data-lang=\"fa\">فارسی</button>");
+            foreach (DocSnapLanguage language in DocSnapLanguages.All)
+            {
+                sb.Append("<button class=\"ds-lang-btn")
+                  .Append(defLang == language.Code ? " is-active" : "")
+                  .Append("\" data-lang=\"").Append(Escape(language.Code)).Append("\">")
+                  .Append(Escape(language.ButtonLabel)).Append("</button>");
+            }
             sb.Append("</div>");
             // Light / dark theme toggle. app.js swaps the icon,
             // flips <html data-theme>, and remembers the choice.
@@ -307,13 +435,18 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // app.js via the data-ph-* attributes (applyLanguage sets it),
             // and the results panel is populated from the embedded search
             // index entirely client-side - no network, works under file://.
-            string defPlaceholder = defLang == "ja" ? "オブジェクト・アセットを検索…"
-                : defLang == "fa" ? "جستجوی آبجکت‌ها، فایل‌ها…"
-                : "Search objects, assets…";
+            const string phEn = "Search objects, assets…";
+            const string phJa = "オブジェクト・アセットを検索…";
+            const string phFa = "جستجوی آبجکت‌ها، فایل‌ها…";
             sb.Append("<div class=\"ds-search\">");
-            sb.Append("<input type=\"search\" class=\"ds-search-input\" autocomplete=\"off\" spellcheck=\"false\" aria-label=\"Search\" ")
-              .Append("data-ph-en=\"Search objects, assets…\" data-ph-ja=\"オブジェクト・アセットを検索…\" data-ph-fa=\"جستجوی آبجکت‌ها، فایل‌ها…\" ")
-              .Append("placeholder=\"").Append(defPlaceholder).Append("\">");
+            sb.Append("<input type=\"search\" class=\"ds-search-input\" autocomplete=\"off\" spellcheck=\"false\" aria-label=\"Search\"")
+              .Append(I18nAttributes("data-ph-", phEn, phJa, phFa))
+              // Escaped like any other attribute value. It is a literal
+              // today, but it is the only attribute on this element that
+              // was being concatenated raw, and a localised string that
+              // acquires an apostrophe or a quote should not be the thing
+              // that discovers the omission.
+              .Append(" placeholder=\"").Append(Escape(DocSnapText.Resolve(defLang, phEn, phJa, phFa))).Append("\">");
             sb.Append("<span class=\"ds-search-hint\" aria-hidden=\"true\">/</span>");
             sb.Append("<div class=\"ds-search-filters\" role=\"group\" aria-label=\"Search filter\">");
             sb.Append("<button class=\"ds-search-filter is-active\" data-search-filter=\"all\">").Append(I18n("span", null, "All", "すべて", "همه")).Append("</button>");

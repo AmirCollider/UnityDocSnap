@@ -172,20 +172,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // ==========================================
         private static string RenderTreeToolbar(string treeId, string titleHtml, string phEn, string phJa, string phFa)
         {
-            string defaultPh = DocSnapRenderContext.DefaultLanguage == "ja" ? phJa
-                : DocSnapRenderContext.DefaultLanguage == "fa" ? phFa
-                : phEn;
+            string defaultPh = DocSnapText.Resolve(DocSnapRenderContext.DefaultLanguage, phEn, phJa, phFa);
 
             var sb = new StringBuilder(768);
             sb.Append("<div class=\"ds-card-head\">");
             sb.Append(titleHtml);
             sb.Append("<div class=\"ds-toolbar\">");
             sb.Append("<input type=\"search\" class=\"ds-inline-filter\" data-tree-filter=\"").Append(treeId).Append("\" ")
-              .Append("autocomplete=\"off\" spellcheck=\"false\" aria-label=\"Filter\" ")
-              .Append("data-ph-en=\"").Append(HtmlPageBuilder.Escape(phEn)).Append("\" ")
-              .Append("data-ph-ja=\"").Append(HtmlPageBuilder.Escape(phJa)).Append("\" ")
-              .Append("data-ph-fa=\"").Append(HtmlPageBuilder.Escape(phFa)).Append("\" ")
-              .Append("placeholder=\"").Append(HtmlPageBuilder.Escape(defaultPh)).Append("\">");
+              .Append("autocomplete=\"off\" spellcheck=\"false\" aria-label=\"Filter\"")
+              .Append(HtmlPageBuilder.I18nAttributes("data-ph-", phEn, phJa, phFa))
+              .Append(" placeholder=\"").Append(HtmlPageBuilder.Escape(defaultPh)).Append("\">");
             sb.Append("<span class=\"ds-empty-note\" data-tree-filter-count=\"").Append(treeId).Append("\" style=\"padding:0;\"></span>");
             sb.Append("<button type=\"button\" class=\"ds-chip-btn\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"expand\">")
               .Append(HtmlPageBuilder.I18n("span", null, "Expand all", "\u3059\u3079\u3066\u5C55\u958B", "\u0628\u0627\u0632 \u06A9\u0631\u062F\u0646 \u0647\u0645\u0647")).Append("</button>");

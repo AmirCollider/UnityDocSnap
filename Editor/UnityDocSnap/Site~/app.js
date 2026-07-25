@@ -18,7 +18,21 @@
 (function () {
   'use strict';
 
-  var RTL_LANGS = { fa: true };
+  // The language registry, baked into the page by
+  // HtmlPageBuilder from DocSnapLanguages. This file used to
+  // carry its own copy of it — `var RTL_LANGS = { fa: true }`
+  // and a t() that knew exactly three languages — so a
+  // language added on the C# side rendered its text correctly
+  // and then laid the page out left-to-right anyway, and every
+  // string this script builds itself stayed English. Reading
+  // the list from the export keeps the two ends from drifting.
+  // The fallbacks are for a page rendered by an older exporter.
+  var RTL_LANGS = (function () {
+    var map = {};
+    var codes = window.__DOCSNAP_RTL__ || ['fa'];
+    for (var i = 0; i < codes.length; i++) { map[codes[i]] = true; }
+    return map;
+  })();
   var LANG_KEY = 'unityDocSnapLang';
   var MODE_KEY = 'unityDocSnapMode';
   var THEME_KEY = 'unityDocSnapTheme';
@@ -156,10 +170,20 @@
     return document.documentElement.getAttribute('lang') || 'en';
   }
 
+  // Same resolution order as DocSnapText on the C# side: the
+  // catalogue first (which is where a language added after the
+  // fact gets its words), then the three written inline here,
+  // then English. The catalogue is keyed by the English string,
+  // so `en` doubles as the lookup key.
   function t(en, ja, fa) {
     var lang = currentLang();
-    if (lang === 'ja') { return ja; }
-    if (lang === 'fa') { return fa; }
+    var catalogue = window.__DOCSNAP_I18N__;
+    if (catalogue) {
+      var row = catalogue[en];
+      if (row && typeof row[lang] === 'string' && row[lang] !== '') { return row[lang]; }
+    }
+    if (lang === 'ja' && ja) { return ja; }
+    if (lang === 'fa' && fa) { return fa; }
     return en;
   }
 
@@ -693,6 +717,38 @@
       .split(String.fromCharCode(39)).join('&#39;');
   }
 
+  // ==========================================
+  // safeHref
+  // A URL for an href built by this script, escaped for the
+  // attribute AND checked for its scheme.
+  //
+  // Escaping alone was enough to stop a value breaking out of
+  // the attribute, but not to stop the value BEING a
+  // javascript: URL - and every one of these links is built
+  // from a search record, which is built from a GameObject or
+  // asset name that came out of the project. Nothing in the
+  // exporter can currently produce such a record, which is
+  // exactly why this is cheap to add now and unpleasant to
+  // discover later.
+  //
+  // Site links are relative by construction ("scenes/Main.html"),
+  // so the rule is simply: no scheme at all. A value with one
+  // becomes '#', which is inert and still renders.
+  // ==========================================
+  function safeHref(url) {
+    var raw = String(url === null || url === undefined ? '' : url).trim();
+    // Strip control characters first: "java\0script:" and
+    // "java\tscript:" are both read as a scheme by browsers but
+    // would slip past a plain prefix test.
+    var probe = raw.replace(/[\u0000-\u0020]/g, '').toLowerCase();
+    // A scheme can only appear before the first '/', '?' or '#',
+    // so a relative path containing a colon later on is fine.
+    var stop = probe.search(/[/?#]/);
+    var head = stop < 0 ? probe : probe.slice(0, stop);
+    if (head.indexOf(':') >= 0) { return '#'; }
+    return esc(raw);
+  }
+
   function highlight(text, q) {
     var t2 = String(text === null || text === undefined ? '' : text);
     if (!q) { return esc(t2); }
@@ -801,7 +857,7 @@
       var html = '';
       for (var i = 0; i < items.length; i++) {
         var r = items[i].r;
-        html += '<a class="ds-search-result" href="' + esc(prefix + (r.u || '')) + '">'
+        html += '<a class="ds-search-result" href="' + safeHref(prefix + (r.u || '')) + '">'
           + '<span class="r-top"><span class="r-name">' + highlight(r.n, q) + '</span>'
           + '<span class="r-cat">' + esc(r.c) + '</span></span>'
           + '<span class="r-sub">' + highlight(r.s, q) + '</span></a>';

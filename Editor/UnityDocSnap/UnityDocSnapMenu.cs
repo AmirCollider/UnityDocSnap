@@ -147,6 +147,22 @@ namespace AmirCollider.UnityDocSnap.Editor
         [MenuItem(DocSnapConstants.MenuOpenOutputFolder, false, 34)]
         private static void OpenOutputFolderMenuItem()
         {
+            // Checked before resolving, because resolving creates the
+            // folder. Opening a misconfigured destination would
+            // otherwise be the one action that silently creates a
+            // UnityDocSnap_Output inside Assets/ - without exporting
+            // anything into it, so nothing would ever explain where it
+            // came from.
+            DocSnapOutputPathVerdict verdict = DocSnapSettings.ValidateOutputRoot();
+            if (verdict != DocSnapOutputPathVerdict.Ok)
+            {
+                DocSnapInteraction.Alert(
+                    DocSnapOutputPathMessages.DescribeForEditor(verdict) + "\n\n"
+                    + DocSnapSettings.ResolveOutputRootAbsoluteWithoutCreating() + "\n\n"
+                    + "Project Settings → " + DocSnapConstants.ToolName);
+                return;
+            }
+
             string root = DocSnapSettings.ResolveOutputRootAbsolute();
             // Prefer the newest version's own index; fall back to
             // the root redirect page, then the folder itself.

@@ -164,7 +164,8 @@ namespace AmirCollider.UnityDocSnap.Editor
         //   -docsnapWithFiles              also copy asset bytes
         //   -docsnapOutput <path>          output root (absolute or project-relative)
         //   -docsnapExclude "a;b"          exclude patterns, ';' separated
-        //   -docsnapLanguage en|ja|fa      language the site opens in
+        //   -docsnapLanguage <code>        language the site opens in
+        //                                  (any code in DocSnapLanguages)
         //   -docsnapTheme light|dark       theme the site opens in
         //   -docsnapSkin auto|cozy|lite    skin the site opens in
         //   -docsnapNoThumbnails           metadata only, no pixel previews
@@ -198,7 +199,27 @@ namespace AmirCollider.UnityDocSnap.Editor
             bool persist = Flag(args, "-docsnapSaveSettings");
 
             string output = Value(args, "-docsnapOutput", ref badArguments);
-            if (output != null) { ApplySetting("outputPath", output, persist, v => DocSnapSettings.OutputRootPath = v); }
+            if (output != null)
+            {
+                // Validated here rather than left to the export, so a
+                // pipeline that points its documentation at Assets/ or
+                // Library/ is told which argument is wrong and stops -
+                // instead of opening every Scene first and only then
+                // refusing, or (before this rule existed) succeeding and
+                // leaving the project with thousands of imported files
+                // in it.
+                DocSnapOutputPathVerdict verdict = DocSnapSettings.ValidateOutputRoot(output);
+                if (verdict != DocSnapOutputPathVerdict.Ok)
+                {
+                    Debug.LogError("[" + DocSnapConstants.ToolName + "] -docsnapOutput \"" + output + "\": "
+                        + DocSnapOutputPathMessages.Describe(verdict, DocSnapLanguages.Fallback));
+                    badArguments = true;
+                }
+                else
+                {
+                    ApplySetting("outputPath", output, persist, v => DocSnapSettings.OutputRootPath = v);
+                }
+            }
 
             string excludes = Value(args, "-docsnapExclude", ref badArguments);
             if (excludes != null) { ApplySetting("excludePatterns", excludes.Replace(";", "\n"), persist, v => DocSnapSettings.ExcludePatterns = v); }

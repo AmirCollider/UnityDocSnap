@@ -24,7 +24,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         private int _uiLang;
 
         // Site defaults.
-        private int _siteLang;   // 0 en, 1 ja, 2 fa
+        private int _siteLang;   // an index into DocSnapLanguages.All
         private int _siteTheme;  // 0 light, 1 dark
         private int _siteSkin;   // 0 auto, 1 cozy, 2 lite
 
@@ -51,7 +51,17 @@ namespace AmirCollider.UnityDocSnap.Editor
         private string[] _existingVersions = new string[0];
         private string _nextAutoVersion = "V1.0.0";
 
-        private static readonly string[] LangCodes = { "en", "ja", "fa" };
+        // The popup labels, and the index<->code mapping that
+        // goes with them, both come from DocSnapLanguages - so a
+        // language added to that registry appears in both popups
+        // here without this window being touched.
+        //
+        // An index is turned back into a code with CodeAt rather
+        // than by indexing this array: the popup index survives a
+        // domain reload, and a registry that gained or lost a
+        // language in between would otherwise be indexed out of
+        // range.
+        private static string[] LangNames { get { return DocSnapLanguages.EditorNames(); } }
 
         // ==========================================
         // ShowWindow
@@ -141,8 +151,8 @@ namespace AmirCollider.UnityDocSnap.Editor
 
             EditorGUILayout.BeginHorizontal();
             GUILayout.Label(L("Window language", "ウィンドウの言語", "زبان پنجره"), GUILayout.Width(160));
-            int newUiLang = EditorGUILayout.Popup(_uiLang, new[] { "English", "日本語", "فارسی" });
-            if (newUiLang != _uiLang) { _uiLang = newUiLang; DocSnapSettings.WindowLanguage = LangCodes[_uiLang]; }
+            int newUiLang = EditorGUILayout.Popup(_uiLang, LangNames);
+            if (newUiLang != _uiLang) { _uiLang = newUiLang; DocSnapSettings.WindowLanguage = DocSnapLanguages.CodeAt(_uiLang); }
             EditorGUILayout.EndHorizontal();
 
             DrawSeparator();
@@ -153,7 +163,7 @@ namespace AmirCollider.UnityDocSnap.Editor
             _siteLang = LabeledPopup(
                 L("Default language", "デフォルト言語", "زبان پیش‌فرض"),
                 L("The language the site opens in the first time it's viewed.", "初回表示時にサイトが開く言語。", "زبانی که سایت بار اول با آن باز می‌شود."),
-                _siteLang, new[] { "English", "日本語", "فارسی" });
+                _siteLang, LangNames);
 
             _siteTheme = LabeledPopup(
                 L("Theme", "テーマ", "تم"),
@@ -372,7 +382,7 @@ namespace AmirCollider.UnityDocSnap.Editor
                 return;
             }
 
-            DocSnapSettings.DefaultSiteLanguage = LangCodes[_siteLang];
+            DocSnapSettings.DefaultSiteLanguage = DocSnapLanguages.CodeAt(_siteLang);
             DocSnapSettings.DefaultSiteTheme = _siteTheme == 1 ? "dark" : "light";
             DocSnapSettings.SiteSkin = _siteSkin == 1 ? DocSnapCapability.SkinCozy
                 : _siteSkin == 2 ? DocSnapCapability.SkinLite : "auto";
@@ -380,7 +390,7 @@ namespace AmirCollider.UnityDocSnap.Editor
 
             var options = new DocSnapExportOptions
             {
-                defaultLanguage = LangCodes[_siteLang],
+                defaultLanguage = DocSnapLanguages.CodeAt(_siteLang),
                 defaultTheme = _siteTheme == 1 ? "dark" : "light",
                 includeFiles = _includeFiles,
                 scenesInBuildOnly = _scenesInBuildOnly,
@@ -413,22 +423,12 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         private string L(string en, string ja, string fa)
         {
-            switch (_uiLang)
-            {
-                case 1: return ja;
-                case 2: return fa;
-                default: return en;
-            }
+            return DocSnapText.Resolve(DocSnapLanguages.CodeAt(_uiLang), en, ja, fa);
         }
 
         private static int LangIndex(string code)
         {
-            switch (code)
-            {
-                case "ja": return 1;
-                case "fa": return 2;
-                default: return 0;
-            }
+            return DocSnapLanguages.IndexOf(code);
         }
 
         private int LabeledPopup(string label, string tooltip, int value, string[] options)

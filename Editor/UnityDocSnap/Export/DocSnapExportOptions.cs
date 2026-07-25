@@ -37,7 +37,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
     internal sealed class DocSnapExportOptions
     {
         // What language / theme the produced site opens in.
-        public string defaultLanguage = "en";   // "en" | "ja" | "fa"
+        public string defaultLanguage = DocSnapLanguages.Fallback;   // any DocSnapLanguages code
         public string defaultTheme = "light";   // "light" | "dark"
 
         // Which folder this export writes to.
@@ -94,7 +94,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
     // ==========================================
     internal static class DocSnapRenderContext
     {
-        public static string DefaultLanguage = "en";
+        public static string DefaultLanguage = DocSnapLanguages.Fallback;
         public static string DefaultTheme = "light";
         public static bool HasChangesPage;
         public static string ChangesBaseVersion = "";
@@ -121,7 +121,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
         public static void Reset()
         {
-            DefaultLanguage = "en";
+            DefaultLanguage = DocSnapLanguages.Fallback;
             DefaultTheme = "light";
             HasChangesPage = false;
             ChangesBaseVersion = "";
@@ -188,7 +188,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
         public static string NormalizeLang(string lang)
         {
-            return lang == "ja" || lang == "fa" ? lang : "en";
+            return DocSnapLanguages.Normalize(lang);
         }
     }
 }

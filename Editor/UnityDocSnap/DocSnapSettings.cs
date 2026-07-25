@@ -264,14 +264,19 @@ namespace AmirCollider.UnityDocSnap.Editor
         // DefaultSiteLanguage
         // Which language the generated site opens in the
         // first time a reader visits it (before they pick
-        // one themselves): "en", "ja" or "fa". The export
-        // window lets a Japanese or Persian user set this
-        // once so the site is friendly out of the box.
+        // one themselves): any code DocSnapLanguages knows.
+        // The export window lets a Japanese or Persian user
+        // set this once so the site is friendly out of the box.
+        //
+        // Normalised on the way in and on the way out, so a
+        // hand-edited settings file naming a language this
+        // build does not have falls back to English instead of
+        // producing a site whose every label is blank.
         // ==========================================
         public static string DefaultSiteLanguage
         {
-            get { return GetProject(KeyDefaultLang, "en"); }
-            set { Store.Set(KeyDefaultLang, string.IsNullOrEmpty(value) ? "en" : value); }
+            get { return DocSnapLanguages.Normalize(GetProject(KeyDefaultLang, DocSnapLanguages.Fallback)); }
+            set { Store.Set(KeyDefaultLang, DocSnapLanguages.Normalize(value)); }
         }
 
         // ==========================================
@@ -290,18 +295,14 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         // WindowLanguage
         // The language the export window's own labels are
-        // drawn in ("en" / "ja" / "fa"), so the window is
-        // as usable for a Japanese or Persian user as the
-        // site it produces.
+        // drawn in - any code DocSnapLanguages knows - so the
+        // window is as usable for a Japanese or Persian user
+        // as the site it produces.
         // ==========================================
         public static string WindowLanguage
         {
-            get
-            {
-                string raw = EditorUserSettings.GetConfigValue(KeyWindowLang);
-                return string.IsNullOrEmpty(raw) ? "en" : raw;
-            }
-            set { EditorUserSettings.SetConfigValue(KeyWindowLang, string.IsNullOrEmpty(value) ? "en" : value); }
+            get { return DocSnapLanguages.Normalize(EditorUserSettings.GetConfigValue(KeyWindowLang)); }
+            set { EditorUserSettings.SetConfigValue(KeyWindowLang, DocSnapLanguages.Normalize(value)); }
         }
 
         // ==========================================
@@ -409,21 +410,69 @@ namespace AmirCollider.UnityDocSnap.Editor
         }
 
         // ==========================================
+        // ProjectRootAbsolute
+        // The folder that holds Assets/ - the anchor every
+        // relative setting resolves against. Public because
+        // the output-path rules need it and should not each
+        // rebuild it from Application.dataPath.
+        // ==========================================
+        public static string ProjectRootAbsolute()
+        {
+            return ProjectRoot();
+        }
+
+        // ==========================================
         // ResolveOutputRootAbsolute
         // Resolves the effective, absolute output
         // folder, creating it on first use.
+        //
+        // This does NOT validate the destination - see
+        // ValidateOutputRoot, which every export calls before
+        // it writes anything. Keeping the two apart matters:
+        // a caller that merely wants to know where output
+        // would go (the settings UI drawing its resolved-path
+        // hint, "Open Output Folder" on a project that has
+        // never exported) must not be blocked by a bad value,
+        // and must not create a folder somewhere it should
+        // not.
         // ==========================================
         public static string ResolveOutputRootAbsolute()
         {
-            string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-            string configured = OutputRootPath;
-
-            string resolved = string.IsNullOrEmpty(configured)
-                ? Path.Combine(projectRoot, DocSnapConstants.DefaultOutputFolderName)
-                : (Path.IsPathRooted(configured) ? configured : Path.Combine(projectRoot, configured));
-
+            string resolved = ResolveOutputRootAbsoluteWithoutCreating();
             Directory.CreateDirectory(resolved);
             return resolved;
+        }
+
+        // ==========================================
+        // ResolveOutputRootAbsoluteWithoutCreating
+        // The same resolution with no side effect on disk.
+        // ==========================================
+        public static string ResolveOutputRootAbsoluteWithoutCreating()
+        {
+            string projectRoot = ProjectRoot();
+            string resolved = DocSnapOutputPath.Resolve(OutputRootPath, projectRoot);
+            // Resolve returns null only for a value that is not a
+            // path at all. Falling back to the default keeps this
+            // method total; ValidateOutputRoot is what refuses the
+            // export.
+            return resolved ?? Path.Combine(projectRoot, DocSnapConstants.DefaultOutputFolderName);
+        }
+
+        // ==========================================
+        // ValidateOutputRoot
+        // The verdict on the currently configured output
+        // folder. Ok means an export may write there.
+        // ==========================================
+        public static DocSnapOutputPathVerdict ValidateOutputRoot()
+        {
+            string resolved;
+            return DocSnapOutputPath.ResolveAndValidate(OutputRootPath, ProjectRoot(), out resolved);
+        }
+
+        public static DocSnapOutputPathVerdict ValidateOutputRoot(string configured)
+        {
+            string resolved;
+            return DocSnapOutputPath.ResolveAndValidate(configured, ProjectRoot(), out resolved);
         }
     }
 }

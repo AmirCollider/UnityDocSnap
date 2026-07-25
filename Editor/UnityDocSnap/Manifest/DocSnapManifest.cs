@@ -16,6 +16,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using AmirCollider.UnityDocSnap.Editor.Json;
 using UnityEngine;
 
@@ -592,7 +593,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
             root.Set("issues", issuesArr);
 
             Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-            File.WriteAllText(filePath, root.ToString());
+            // Streamed rather than materialised: this document carries
+            // every issue in the project, and on a project with
+            // thousands of them the string was large enough to be worth
+            // not building. Same bytes, same writer - see
+            // JsonValue.WriteTo.
+            using (var writer = new StreamWriter(filePath, false, new UTF8Encoding(false)))
+            {
+                root.WriteTo(writer);
+            }
         }
     }
 }
