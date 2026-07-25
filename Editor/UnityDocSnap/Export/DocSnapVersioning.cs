@@ -290,7 +290,42 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             {
                 if (name.IndexOf(c) >= 0) { return false; }
             }
-            return name != "." && name != "..";
+            if (name == "." || name == "..") { return false; }
+
+            // Path.GetInvalidFileNameChars() is the whole check the runtime
+            // offers, and on Windows it is not enough: a name ending in '.'
+            // or a space is silently TRIMMED when the directory is created,
+            // so "V1." becomes a folder called "V1" while the registry, the
+            // versions page and every link keep saying "V1." - which then
+            // collides with the real V1 the next time one is made. Rejecting
+            // it up front is the only way the name the user typed and the
+            // folder they get are ever the same thing.
+            char last = name[name.Length - 1];
+            if (last == '.' || last == ' ') { return false; }
+
+            // Reserved DOS device names, still reserved on modern Windows,
+            // with or without an extension ("CON", "COM1.txt", …). Creating
+            // one fails outright, so an export would die at the very last
+            // step with an unexplained IO error.
+            return !IsReservedDeviceName(name);
+        }
+
+        private static readonly string[] ReservedDeviceNames =
+        {
+            "CON", "PRN", "AUX", "NUL",
+            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+        };
+
+        private static bool IsReservedDeviceName(string name)
+        {
+            int dot = name.IndexOf('.');
+            string stem = dot >= 0 ? name.Substring(0, dot) : name;
+            foreach (string reserved in ReservedDeviceNames)
+            {
+                if (string.Equals(stem, reserved, StringComparison.OrdinalIgnoreCase)) { return true; }
+            }
+            return false;
         }
 
         // ==========================================

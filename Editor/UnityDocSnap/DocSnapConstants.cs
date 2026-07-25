@@ -20,7 +20,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // reported a version the package had not been on for two
         // releases). PackageVersionTests now fails the build if
         // the two ever disagree again.
-        public const string Version = "0.7.0";
+        public const string Version = "0.8.0";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
 
@@ -133,6 +133,30 @@ namespace AmirCollider.UnityDocSnap.Editor
         public const string PackagesFileName = "packages.html";
         public const string SearchIndexFileName = "search-index.js";
         public const string PackagesSummaryName = "packages";
+
+        // ==========================================
+        // Project health / issues page.
+        //
+        // The dashboard used to say "8 broken references
+        // in Assets" and link to the Assets page - a page
+        // with thousands of rows on it. Knowing a project
+        // has eight broken references but not WHERE is
+        // barely better than not being told, so every
+        // finding is now recorded with the exact object,
+        // component and field it sits on, listed on its
+        // own page, and linked straight to the card that
+        // holds it.
+        // ==========================================
+        public const string IssuesFileName = "issues.html";
+        public const string IssuesSummaryName = "issues";
+
+        // A project that is broken enough to produce tens of
+        // thousands of findings does not need every one of them
+        // enumerated - it needs the first few hundred and an
+        // honest note that there are more. The cap also keeps the
+        // manifest state file (and the issues page) bounded.
+        public const int MaxIssuesPerScope = 400;
+        public const int MaxIssuesRendered = 2000;
 
         // A hard ceiling on how many records the search
         // index ever contains, so an enormous project can

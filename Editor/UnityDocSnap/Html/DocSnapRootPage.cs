@@ -92,23 +92,29 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             return sb.ToString();
         }
 
+        // Deliberately its own small stylesheet rather than a link
+        // to theme/style.css: this page lives at the output ROOT,
+        // one level above every version folder, and must keep
+        // working when a version folder is deleted or moved. It
+        // mirrors the site's tokens so the two do not look like
+        // different products.
         private const string RootCss = @"
-:root{--bg:#fffaf3;--card:#fff;--ink:#4a3b52;--soft:#8a7a92;--line:#f0dfe8;--pink:#ff8fa3;--mint:#8fd98c;}
-@media (prefers-color-scheme: dark){:root{--bg:#1c1922;--card:#241f2d;--ink:#ece7f2;--soft:#b3a8c2;--line:#38313f;--pink:#ff86a0;--mint:#8fd98c;}}
+:root{color-scheme:light;--bg:#fbfbfd;--card:#fff;--surface-2:#f5f5f8;--ink:#1d1b26;--soft:#64616f;--faint:#97949f;--line:#e4e3ec;--accent:#7c5cd6;--ok:#2f8f5b;--ok-soft:#e9f7ef;}
+@media (prefers-color-scheme: dark){:root{color-scheme:dark;--bg:#131218;--card:#1a1922;--surface-2:#211f2b;--ink:#eceaf3;--soft:#a5a1b3;--faint:#797588;--line:#2e2c3a;--accent:#a78bfa;--ok:#6fd39b;--ok-soft:#17291f;}}
 *{box-sizing:border-box;}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:'Quicksand','Segoe UI',system-ui,sans-serif;line-height:1.6;}
-.wrap{max-width:760px;margin:0 auto;padding:44px 22px 64px;}
-h1{font-size:26px;margin:0 0 6px;}
-.sub{color:var(--soft);margin:0 0 26px;}
-.empty{color:var(--soft);font-style:italic;}
-.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
-.row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:14px 18px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);text-decoration:none;box-shadow:0 6px 20px rgba(0,0,0,.06);transition:transform .15s ease;}
-.row:hover{transform:translateY(-2px);}
-.tag{font-weight:700;font-size:18px;color:var(--pink);}
-.latest{font-size:10.5px;font-weight:700;color:#fff;background:var(--mint);border-radius:999px;padding:2px 9px;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:760px;margin:0 auto;padding:48px 22px 64px;}
+h1{font-size:22px;font-weight:650;letter-spacing:-.01em;margin:0 0 4px;}
+.sub{color:var(--soft);margin:0 0 24px;font-size:13px;}
+.empty{color:var(--faint);}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+.row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:12px 15px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);text-decoration:none;transition:border-color .12s ease,background .12s ease;}
+.row:hover{background:var(--surface-2);border-color:var(--accent);}
+.tag{font-weight:650;font-size:15px;color:var(--accent);font-variant-numeric:tabular-nums;}
+.latest{font-size:10px;font-weight:700;color:var(--ok);background:var(--ok-soft);border-radius:999px;padding:1px 8px;}
 .counts{font-size:12px;color:var(--soft);}
-.when{margin-inline-start:auto;font-size:12px;color:var(--soft);font-family:'Space Mono',monospace;direction:ltr;}
-.foot{margin-top:34px;color:var(--soft);font-size:12.5px;text-align:center;}
+.when{margin-inline-start:auto;font-size:11.5px;color:var(--faint);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;direction:ltr;}
+.foot{margin-top:32px;padding-top:14px;border-top:1px solid var(--line);color:var(--faint);font-size:12px;text-align:center;}
 ";
     }
 }

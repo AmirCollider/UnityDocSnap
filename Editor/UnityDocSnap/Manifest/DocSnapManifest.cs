@@ -130,6 +130,40 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
         public int missingScripts;
         public int missingReferences;
         public int unresolvedAssets;
+
+        // True when this scope produced more findings than
+        // MaxIssuesPerScope, so the issues page can say the list
+        // is partial instead of quietly disagreeing with the
+        // count shown right above it.
+        public bool issuesTruncated;
+    }
+
+    // ==========================================
+    // ManifestIssueEntry
+    // ONE finding, with enough context to walk straight
+    // to it.
+    //
+    // The counts in ManifestHealthEntry answer "how many?"
+    // and nothing else: the dashboard said "8 broken
+    // references" and linked to the Assets page, which on a
+    // real project is thousands of rows long. Being told a
+    // number and then handed a haystack is not much better
+    // than not being told. Each finding now carries the
+    // object it lives on, the component and field that hold
+    // it, and the anchor of the card that renders it - so
+    // the link lands on the actual problem.
+    // ==========================================
+    [Serializable]
+    internal sealed class ManifestIssueEntry
+    {
+        public string scope;       // sceneKey / folderKey — replaced with the health row
+        public string group;       // "scene" | "asset"
+        public string kind;        // "missingScript" | "missingReference" | "unresolvedAsset"
+        public string scopeLabel;  // "MainMenu" / "Assets/UI"
+        public string location;    // "Canvas/Panel/StartButton" or "Assets/UI/icon.png"
+        public string detail;      // "PlayerController › targetTransform"
+        public string htmlFile;    // "scenes/MainMenu.html"
+        public string anchor;      // "go-12345" / "asset-<guid>"
     }
 
     [Serializable]
@@ -154,6 +188,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
         public List<ManifestPackageEntry> packages = new List<ManifestPackageEntry>();
         public List<ManifestSearchEntry> searchRecords = new List<ManifestSearchEntry>();
         public List<ManifestHealthEntry> health = new List<ManifestHealthEntry>();
+        public List<ManifestIssueEntry> issues = new List<ManifestIssueEntry>();
         public string packagesExportedUtc = "";
 
         // The exclude patterns the last export ran with, so the
@@ -200,6 +235,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
                 state.packages = state.packages ?? new List<ManifestPackageEntry>();
                 state.searchRecords = state.searchRecords ?? new List<ManifestSearchEntry>();
                 state.health = state.health ?? new List<ManifestHealthEntry>();
+                state.issues = state.issues ?? new List<ManifestIssueEntry>();
                 state.excludePatterns = state.excludePatterns ?? new List<string>();
                 BackfillSceneKeys(state);
                 return state;
@@ -252,6 +288,18 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
         {
             state.health.RemoveAll(h => h.scope == scope);
             if (entry != null) { state.health.Add(entry); }
+        }
+
+        // ==========================================
+        // ReplaceIssuesForScope — the per-finding detail
+        // behind one scope's health counts, swapped in the
+        // same breath so a row saying "3 broken references"
+        // can never list two.
+        // ==========================================
+        public static void ReplaceIssuesForScope(ManifestState state, string scope, List<ManifestIssueEntry> entries)
+        {
+            state.issues.RemoveAll(i => i.scope == scope);
+            if (entries != null) { state.issues.AddRange(entries); }
         }
 
         // ==========================================
@@ -458,9 +506,26 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
                     .Set("htmlFile", h.htmlFile)
                     .Set("missingScripts", h.missingScripts)
                     .Set("missingReferences", h.missingReferences)
-                    .Set("unresolvedAssets", h.unresolvedAssets));
+                    .Set("unresolvedAssets", h.unresolvedAssets)
+                    .Set("issuesTruncated", h.issuesTruncated));
             }
             root.Set("health", healthArr);
+
+            // The individual findings behind those counts. An AI
+            // assistant handed this file can now name the object and
+            // field that are broken instead of only how many are.
+            var issuesArr = JsonValue.Arr();
+            foreach (ManifestIssueEntry i in state.issues)
+            {
+                issuesArr.Add(JsonValue.Obj()
+                    .Set("kind", i.kind)
+                    .Set("group", i.group)
+                    .Set("scope", i.scopeLabel)
+                    .Set("location", i.location)
+                    .Set("detail", i.detail)
+                    .Set("page", string.IsNullOrEmpty(i.anchor) ? i.htmlFile : i.htmlFile + "#" + i.anchor));
+            }
+            root.Set("issues", issuesArr);
 
             Directory.CreateDirectory(Path.GetDirectoryName(filePath));
             File.WriteAllText(filePath, root.ToString());

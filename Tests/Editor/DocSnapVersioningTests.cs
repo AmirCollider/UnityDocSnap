@@ -144,6 +144,31 @@ namespace AmirCollider.UnityDocSnap.Editor.Tests
             Assert.IsTrue(DocSnapVersioning.IsValidCustomName("Before the refactor"));
         }
 
+        // ==========================================
+        // Windows trims a trailing '.' or ' ' when it creates a
+        // directory, so "V1." would silently become a folder called
+        // "V1" while the registry, versions.html and every link kept
+        // saying "V1." - and the next real V1 would then collide with
+        // it. Path.GetInvalidFileNameChars() does not cover this.
+        // ==========================================
+        [Test]
+        public void IsValidCustomName_RejectsNamesWindowsWouldSilentlyRename()
+        {
+            Assert.IsFalse(DocSnapVersioning.IsValidCustomName("V1."));
+            Assert.IsFalse(DocSnapVersioning.IsValidCustomName("milestone "));
+            Assert.IsTrue(DocSnapVersioning.IsValidCustomName("v1.2"));
+        }
+
+        [Test]
+        public void IsValidCustomName_RejectsReservedDeviceNames()
+        {
+            Assert.IsFalse(DocSnapVersioning.IsValidCustomName("CON"));
+            Assert.IsFalse(DocSnapVersioning.IsValidCustomName("nul"));
+            Assert.IsFalse(DocSnapVersioning.IsValidCustomName("COM1.backup"));
+            Assert.IsTrue(DocSnapVersioning.IsValidCustomName("console"));
+            Assert.IsTrue(DocSnapVersioning.IsValidCustomName("COM10"));
+        }
+
         [Test]
         public void FindSnapshot_MissingVersion_IsNullNotAnException()
         {

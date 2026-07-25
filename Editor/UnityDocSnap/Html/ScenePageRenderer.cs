@@ -32,7 +32,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 HtmlPageBuilder.BadgeRaw(null, count + " " + HtmlPageBuilder.I18n("span", null, "GameObjects", "GameObject", "GameObject")),
                 HtmlPageBuilder.BadgeRaw("ghost", HtmlPageBuilder.I18n("span", null, "Exported", "エクスポート日時", "اکسپورت‌شده") + " " + HtmlPageBuilder.Escape(sceneData.Get("exportedUtc").AsString("")))
             };
-            string header = HtmlPageBuilder.RenderPageHeader("\uD83C\uDF33", sceneName, sceneData.Get("scenePath").AsString(""), badges);
+            string header = HtmlPageBuilder.Breadcrumb("../", "Scenes", "\u30B7\u30FC\u30F3", "\u0633\u06CC\u0646\u200C\u0647\u0627", sceneName)
+                + HtmlPageBuilder.RenderPageHeader("\uD83C\uDF33", sceneName, sceneData.Get("scenePath").AsString(""), badges);
             string body = FieldRenderer.RenderHierarchy(sceneData.Get("rootObjects"), resolver, "ds-hier-scene");
 
             return HtmlPageBuilder.RenderPage(manifest, htmlFile, sceneName, header, body);

@@ -43,11 +43,13 @@ It's an Editor extension that walks every Scene in your project — every GameOb
 - 🌐 **An actual local website** — everything bakes into a self-contained `index.html` plus a handful of linked pages, complete with a sidebar and cross-links between objects and the assets they reference.
 - 🤖 **Built for AI too** — alongside the pretty HTML, DocSnap writes a structured JSON export, so handing your whole project's context to an AI assistant takes one file instead of a screen-sharing session.
 - 🧩 **Editor-only** — lives entirely inside an `Editor` assembly. Zero runtime cost, zero added build size.
-- 🩺 **Project health at a glance** — the dashboard leads with the number of missing scripts, broken object references and duplicate Scene names in your project, each linking straight to the page that holds them.
+- 🩺 **Project health that tells you *where*** — a dedicated `issues.html` lists every missing script, broken object reference and unresolved asset **individually**, with the GameObject path it sits on (`Canvas/Menu/StartButton`), the component and field that hold it (`MenuController › targetScene`), and a link that opens the collapsed card it lives in and flashes it. The dashboard leads with the counts, and each one is a link into that report filtered to its own kind.
+- 🔎 **Filter any page in place** — every Hierarchy and folder tree has a filter box: type four letters and a Scene with 20,000 GameObjects collapses to the handful that match, ancestors kept so the path still reads.
 - 🚫 **Exclude what you did not write** — one line like `Assets/Plugins` in Project Settings keeps imported Asset Store content out of the walk, the tree, the search index and the counts. Wildcards (`*`, `?`) work too, and what was excluded is stated in the output rather than silently missing.
 - 🎬 **Build Settings scenes only** — optionally document just the Scenes your game actually ships, skipping the test beds and sample Scenes that arrived with a package.
 - 📦 **One file for an AI** — `summary/ai-bundle.md` is every summary in the export concatenated into a single document, so a whole project is one paste instead of a folder.
 - ⏹️ **Cancelable** — both passes show a progress bar you can stop.
+- ⚡ **Built for big projects** — the site skips layout for everything off-screen, so a Scene with tens of thousands of objects opens as fast as a small one. Minimal, modern UI in light and dark, keyboard-driven (`/` to search, `[` to collapse the sidebar), with copy-path buttons where you'd reach for them.
 
 ### 📋 Requirements
 
@@ -105,6 +107,7 @@ Every export writes **two forms of the same information** side by side: the **fu
 ```
 UnityDocSnap_Output/
 ├── index.html         ← the full offline site (start here)
+├── issues.html        ← every broken reference / missing script, linked to the exact object
 ├── packages.html      ← packages the project depends on (Unity + third-party)
 ├── summary.md         ← project index → points into summary/
 ├── summary/           ← simple, AI-friendly (short — hand these to an AI)
@@ -172,11 +175,13 @@ If Unity DocSnap saves you some digging around later, a ⭐ on the repo goes a l
 - 🌐 **本物のローカルWebサイト** — すべてが `index.html` と数枚のリンクされたページにまとめられ、サイドバーと、オブジェクト同士・参照アセット間の相互リンク付きです。
 - 🤖 **AIのためにも** — 見やすいHTMLと一緒に、構造化されたJSONも出力します。プロジェクト全体の情報をAIアシスタントに渡すのに、画面共有ではなく1つのファイルで済みます。
 - 🧩 **エディタ専用** — すべて `Editor` アセンブリの中に収まります。ランタイムコストはゼロ、ビルドサイズへの影響もゼロです。
-- 🩺 **プロジェクトの健康状態を一目で** — ダッシュボードの先頭に、欠落したスクリプト・切れた参照・重複したシーン名の件数を表示し、それぞれ該当ページへ直接リンクします。
+- 🩺 **「どこが」壊れているかまで分かる健康状態** — 専用の `issues.html` が、欠落スクリプト・切れた参照・型不明アセットを**1件ずつ**列挙します。該当GameObjectのパス(`Canvas/Menu/StartButton`)、それを保持しているコンポーネントとフィールド(`MenuController › targetScene`)まで示し、リンクをたどると折りたたまれたカードが開いてハイライトされます。ダッシュボードは件数を先頭に出し、その件数自体が種類別に絞り込んだレポートへのリンクです。
+- 🔎 **ページ内をその場で絞り込み** — Hierarchy とフォルダツリーには絞り込みボックスが付きました。4文字打てば、GameObject が2万個あるシーンでも一致する数件まで畳まれます(パスが読めるよう親は残ります)。
 - 🚫 **自分が書いていないものを除外** — Project Settings に `Assets/Plugins` のような1行を書くだけで、インポートしたアセットストアの中身をファイル走査・ツリー・検索インデックス・集計のすべてから外せます(`*` `?` のワイルドカード対応)。除外した内容は出力側にも明記されます。
 - 🎬 **Build Settings のシーンだけ** — 実際に出荷するシーンだけを対象にし、テスト用やパッケージ付属のサンプルシーンを飛ばせます。
 - 📦 **AIに渡す1ファイル** — `summary/ai-bundle.md` はエクスポート内のすべての要約を1つにまとめたもので、フォルダごとではなく1回の貼り付けでプロジェクト全体を渡せます。
 - ⏹️ **キャンセル可能** — どちらの処理もプログレスバーから中断できます。
+- ⚡ **大規模プロジェクト向け** — 画面外の要素はレイアウトを省略するため、数万オブジェクトのシーンでも小さなシーンと同じ速さで開きます。ライト/ダーク対応のミニマルでモダンなUI、キーボード操作(`/` で検索、`[` でサイドバー折りたたみ)、必要な場所にパスのコピーボタン。
 
 ### 📋 必要環境
 
@@ -234,6 +239,7 @@ Unity DocSnap
 ```
 UnityDocSnap_Output/
 ├── index.html         ← フル版のオフラインサイト(まずここから)
+├── issues.html        ← 切れた参照・欠落スクリプトを1件ずつ、該当オブジェクトへのリンク付きで
 ├── summary.md         ← プロジェクト索引 → summary/ への案内
 ├── summary/           ← シンプル / AI向け(短い。AIにはこれを渡す)
 │   ├── ai-bundle.md                 ← 下記すべてを1ファイルに(貼り付け1回)
@@ -303,11 +309,13 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 - 🌐 **یه وب‌سایت لوکال واقعی** — همه چی توی یه `index.html` و چندتا صفحه‌ی به‌هم‌وصل جمع میشه، با سایدبار و لینک‌های داخلی بین آبجکت‌ها و فایل‌هایی که بهشون رفرنس دارن.
 - 🤖 **برای هوش مصنوعی هم ساخته شده** — کنار HTML قشنگش، یه خروجی JSON ساختاریافته هم می‌ده؛ دادن کل اطلاعات پروژه به یه دستیار هوش مصنوعی، به‌جای اشتراک‌گذاری صفحه، فقط یه فایل می‌خواد.
 - 🧩 **فقط ادیتور** — کاملاً توی یه اسمبلی `Editor` جا می‌گیره. نه هزینه‌ای موقع اجرا داره، نه چیزی به حجم بیلد اضافه می‌کنه.
-- 🩺 **سلامت پروژه با یک نگاه** — داشبورد از همون اول تعداد اسکریپت‌های گم‌شده، ارجاع‌های شکسته و اسم‌های تکراری سین رو نشون می‌ده و هرکدوم مستقیم به صفحه‌ی مربوطه لینک می‌شن.
+- 🩺 **سلامت پروژه که می‌گه *کجا*** — یک صفحه‌ی مستقل `issues.html` هر اسکریپت گم‌شده، ارجاع شکسته و فایل بدون نوع رو **دونه‌دونه** لیست می‌کنه: با مسیر همون GameObject (`Canvas/Menu/StartButton`)، و کامپوننت و فیلدی که نگهش داشته (`MenuController › targetScene`)، و یک لینک که کارت جمع‌شده‌ش رو باز می‌کنه و هایلایتش می‌کنه. داشبورد شمارش‌ها رو اول می‌آره و هر شمارش خودش لینکیه به همون گزارش، فیلترشده روی همون نوع.
+- 🔎 **فیلتر کردن همون صفحه، سرجاش** — هر Hierarchy و درخت پوشه یه باکس فیلتر داره: چهار حرف تایپ کن و یه سین با بیست‌هزار GameObject جمع می‌شه به همون چندتایی که مطابقن (والدها می‌مونن تا مسیر خونا بمونه).
 - 🚫 **چیزی که خودت ننوشتی رو حذف کن** — یک خط مثل `Assets/Plugins` توی Project Settings کافیه تا محتوای ایمپورت‌شده‌ی Asset Store از پیمایش فایل‌ها، درخت پوشه‌ها، ایندکس جستجو و شمارش‌ها بیرون بمونه (وایلدکارت `*` و `?` هم کار می‌کنه). چیزی که حذف شده توی خروجی هم صریحاً نوشته می‌شه.
 - 🎬 **فقط سین‌های Build Settings** — می‌تونی فقط سین‌هایی رو مستند کنی که واقعاً توی بازی هستن و سین‌های تستی و نمونه‌ی پکیج‌ها رو رد کنی.
 - 📦 **یک فایل برای هوش مصنوعی** — `summary/ai-bundle.md` همه‌ی خلاصه‌های خروجی رو توی یک فایل جمع می‌کنه، پس کل پروژه با یک بار paste منتقل می‌شه نه یک پوشه.
 - ⏹️ **قابل لغو** — هر دو مرحله نوار پیشرفت دارن و می‌تونی متوقفشون کنی.
+- ⚡ **ساخته‌شده برای پروژه‌های بزرگ** — سایت برای هر چیزی که بیرون صفحه‌ست layout انجام نمی‌ده، پس یه سین با ده‌ها هزار آبجکت هم به‌سرعت یه سین کوچیک باز می‌شه. ظاهر مینیمال و مدرن در حالت روشن و تاریک، کار با کیبورد (`/` برای جستجو، `[` برای بستن سایدبار)، و دکمه‌ی کپی مسیر همون‌جایی که لازمش داری.
 
 ### 📋 پیش‌نیازها
 
@@ -365,6 +373,7 @@ Unity DocSnap
 ```
 UnityDocSnap_Output/
 ├── index.html         ← سایت آفلاین کامل (از اینجا شروع کن)
+├── issues.html        ← هر ارجاع شکسته و اسکریپت گم‌شده، دونه‌دونه، با لینک به همون آبجکت
 ├── summary.md         ← فهرست پروژه → راهنما به summary/
 ├── summary/           ← ساده / مناسب هوش مصنوعی (کوتاه — اینا رو به AI بده)
 │   ├── ai-bundle.md                 ← همه‌ی موارد زیر در یک فایل (یک paste)

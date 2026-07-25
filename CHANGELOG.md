@@ -2,6 +2,32 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [0.8.0] - 2026-07-25
+
+### Added
+
+- **Project health now tells you *where*.** The dashboard said "8 broken references in Assets" and linked to the Assets page — which on a real project is thousands of rows long, so a reader learned a number and then had to go hunting anyway. Every finding is now recorded individually with the GameObject path it sits on (`Canvas/Menu/StartButton`), the component and field that hold it (`MenuController › targetScene`, `PathFollower › waypoints[3].marker`), and the anchor of the card that renders it. A new **`issues.html`** lists them all, each row a link that opens the collapsed section it lives in, scrolls to it, and flashes it so the arrival is visible. Findings inside a Prefab asset are labelled with the Prefab (`Player.prefab › Body/Hand`) and pinned to that Prefab's card. The dashboard's counts became links into the report pre-filtered to their own kind, and every scope row links to the report scoped to that Scene/folder instead of dumping you on the page. **Health** has its own sidebar entry with a live count. The same detail lands in `summary.md` (so an assistant asked "why is the menu button dead?" can answer) and in `data/manifest.json`. Capped per scope at 400 findings, and a capped scope says so instead of quietly disagreeing with the count above it.
+- **An in-page filter on every tree.** The sidebar search jumps to one record on some page; this narrows *this* page to the rows that match, keeping each match's ancestors so the path stays readable and collapsing their detail bodies so the match is not buried under a screen of fields. On a folder with thousands of assets, or a Canvas holding 300 buttons, it is the difference between scrolling for a minute and typing four letters.
+- **Breadcrumbs** on every Scene and folder page, so a page reached from a search result or a cross-link says where it sits and offers the way back out.
+- **A collapsible sidebar** (the `«` button, or `[`), remembered per reader — on a 13" laptop the field tables want the width more than the nav does.
+- **Copy path / Copy GUID** on every asset card. The asset path is the most-copied string in the whole site and the only way to get it was to select it out of a table cell by hand.
+- **Arrow-key navigation in search results**, so the fastest route to any object in the project no longer ends with reaching for the mouse.
+
+### Changed
+
+- **The generated site was rebuilt around finding things in a large project.** The old stylesheet dressed every surface — gradient card headers, 22px radii, a lift-on-hover shadow on every row, a pastel wash behind the sidebar. On a small demo that reads as charm; on a real project it is thousands of decorated rows between a reader and the object they came for, and every one of those decorations is layout and paint work the browser does before the page responds. The rebuild keeps the brand where a person looks once (the mark, the accent, the empty states) and gets out of the way everywhere a person looks a thousand times: flat surfaces separated by 1px borders, one accent colour instead of four pastels, a tighter type scale, a denser and calmer information layout in both light and dark.
+- **Large pages are dramatically lighter.** `content-visibility` now applies to every repeated block — each tree node, each GameObject detail body, each component card, each issue row, each diff row — so a Scene with 20 000 GameObjects no longer makes the browser lay out 20 000 rows before it paints anything, with `contain-intrinsic-size` keeping the scrollbar stable while it works.
+- **Text renders in the OS's own UI font first.** The embedded families stay in the stack as an offline-identical fallback (so the export is still fully self-contained and makes zero network requests), but on any normal desktop the text is now the face the system renders best.
+- The root `versions.html` picker was restyled to the same tokens, so the first page you open and the site it leads into no longer look like two different products.
+- `preview-sample.html` regenerated from the real `theme/style.css` and `theme/app.js`, with sample health findings, working filters and working deep links — it is the shipped site, not a picture of it.
+
+### Fixed
+
+- **A rejected version name could still produce a folder with a different name than the one shown.** `Path.GetInvalidFileNameChars()` is the whole check the runtime offers and on Windows it is not enough: a name ending in `.` or a space is silently trimmed when the directory is created, so `V1.` became a folder called `V1` while the registry, `versions.html` and every link kept saying `V1.` — and the next real `V1` then collided with it. Reserved DOS device names (`CON`, `NUL`, `COM1`, …) are rejected too; creating one fails outright, so an export used to die at the very last step with an unexplained IO error.
+- **`SerializedProperty` array elements were still leaking.** 0.7.0 disposed the `SerializedObject`s and the iterators but not the properties `GetArrayElementAtIndex` hands back — one per element of every array on every component, importer and ScriptableObject, which is the densest allocation site in the whole export.
+- A `data-copy` button's label is restored as markup rather than flattened to text, so copying a path no longer leaves that button stuck in one language for the rest of the session.
+- A deep link whose anchor is the `<li>` *wrapping* a collapsed node now opens that node too, instead of landing on a row that is still shut.
+
 ## [0.7.0] - 2026-07-24
 
 ### Fixed

@@ -242,8 +242,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Reflection
             int limit = Math.Min(count, cap);
             for (int i = 0; i < limit; i++)
             {
-                SerializedProperty element = prop.GetArrayElementAtIndex(i);
-                itemsArr.Add(ReadField(element, depth + 1, arrayDepth + 1));
+                // GetArrayElementAtIndex hands back a NEW SerializedProperty
+                // holding native memory, exactly like the iterators the rest
+                // of this file disposes. This is the densest allocation site
+                // in the whole export - one per element of every array on
+                // every component, importer and ScriptableObject - and it
+                // was the one place still leaking them.
+                using (SerializedProperty element = prop.GetArrayElementAtIndex(i))
+                {
+                    itemsArr.Add(ReadField(element, depth + 1, arrayDepth + 1));
+                }
             }
             node.Set("items", itemsArr);
             node.Set("truncated", count > limit);

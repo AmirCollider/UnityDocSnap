@@ -199,7 +199,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append(bodyHtml);
             sb.Append(RenderFooter());
             sb.Append("</main>\n</div>\n");
-            sb.Append("<button class=\"ds-back-top\" aria-label=\"Back to top\">\u2B06</button>\n");
+            sb.Append("<button class=\"ds-sidebar-reopen\" data-sidebar-toggle aria-label=\"Show sidebar\" title=\"Show sidebar  [\">\u00BB</button>\n");
+            sb.Append("<button class=\"ds-back-top\" aria-label=\"Back to top\">\u2191</button>\n");
             // The page's own depth prefix ("" at root, "../" one level down)
             // so the search script can rewrite its root-relative record links
             // to work from wherever this page lives, plus the exporter's chosen
@@ -232,7 +233,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append(ResolveLogoHtml());
             sb.Append("<div class=\"ds-brand-text\"><h1>Unity DocSnap</h1>");
             sb.Append(I18n("span", null, "Project documentation", "プロジェクトドキュメント", "مستندات پروژه"));
-            sb.Append("</div></div>\n");
+            sb.Append("</div>");
+            // The nav is worth its width when you are moving between
+            // pages and costs you the width of a field table when you
+            // are reading one. On a 13\" laptop that is the difference
+            // between a three-column Field/Type/Value grid and a
+            // stacked one, so it collapses (and remembers).
+            sb.Append("<button class=\"ds-icon-btn\" data-sidebar-toggle aria-label=\"Collapse sidebar\" title=\"Collapse sidebar  [\" style=\"margin-inline-start:auto;\">\u00AB</button>");
+            sb.Append("</div>\n");
             sb.Append("<p class=\"ds-tagline\">").Append(Escape(manifest.projectName)).Append("</p>\n");
 
             // The pre-rendered active state / icon match the export's
@@ -249,7 +257,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // Light / dark theme toggle. app.js swaps the icon,
             // flips <html data-theme>, and remembers the choice.
             sb.Append("<button class=\"ds-theme-toggle\" data-theme-toggle aria-label=\"Toggle theme\" title=\"Light / Dark\">")
-              .Append("<span class=\"ds-theme-icon\">").Append(defTheme == "dark" ? "☀️" : "🌙").Append("</span></button>");
+              .Append("<span class=\"ds-theme-icon\">").Append(defTheme == "dark" ? "☀" : "☾").Append("</span></button>");
             sb.Append("</div>\n");
 
             // Detail-level switch. Simple hides the heavy, every-field
@@ -274,6 +282,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append("<input type=\"search\" class=\"ds-search-input\" autocomplete=\"off\" spellcheck=\"false\" aria-label=\"Search\" ")
               .Append("data-ph-en=\"Search objects, assets…\" data-ph-ja=\"オブジェクト・アセットを検索…\" data-ph-fa=\"جستجوی آبجکت‌ها، فایل‌ها…\" ")
               .Append("placeholder=\"").Append(defPlaceholder).Append("\">");
+            sb.Append("<span class=\"ds-search-hint\" aria-hidden=\"true\">/</span>");
             sb.Append("<div class=\"ds-search-filters\" role=\"group\" aria-label=\"Search filter\">");
             sb.Append("<button class=\"ds-search-filter is-active\" data-search-filter=\"all\">").Append(I18n("span", null, "All", "すべて", "همه")).Append("</button>");
             sb.Append("<button class=\"ds-search-filter\" data-search-filter=\"scene\">").Append(I18n("span", null, "Scenes", "シーン", "سین‌ها")).Append("</button>");
@@ -285,10 +294,22 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             bool onIndex = currentHtmlFile == DocSnapConstants.IndexFileName;
             bool onPackages = currentHtmlFile == DocSnapConstants.PackagesFileName;
             bool onChanges = currentHtmlFile == DocSnapConstants.ChangesFileName;
+            bool onIssues = currentHtmlFile == DocSnapConstants.IssuesFileName;
             sb.Append("<div class=\"ds-nav-section\"><ul class=\"ds-nav-list\">");
             sb.Append("<li><a class=\"ds-nav-link").Append(onIndex ? " is-current" : "").Append("\" href=\"").Append(prefix).Append(DocSnapConstants.IndexFileName).Append("\">");
             sb.Append(I18n("span", null, "\uD83C\uDFE0 Dashboard", "\uD83C\uDFE0 ダッシュボード", "\uD83C\uDFE0 داشبورد"));
             sb.Append("</a></li>");
+
+            // Project health sits in the primary nav rather than only on
+            // the dashboard: it is the one page a reader opens with an
+            // actual question ("what is broken, and where?") instead of
+            // to browse. The count is the answer at a glance.
+            HealthTotals health = DocSnapHealthReport.Totals(manifest);
+            sb.Append("<li><a class=\"ds-nav-link").Append(onIssues ? " is-current" : "").Append("\" href=\"").Append(prefix).Append(DocSnapConstants.IssuesFileName).Append("\">");
+            sb.Append(I18n("span", null, "🩺 Health", "🩺 \u5065\u5EB7\u72B6\u614B", "🩺 \u0633\u0644\u0627\u0645\u062A"));
+            sb.Append("<span class=\"ds-nav-count ").Append(health.TotalFindings > 0 ? "is-warn" : "is-ok").Append("\">")
+              .Append(health.TotalFindings > 0 ? health.TotalFindings.ToString(CultureInfo.InvariantCulture) : "\u2713")
+              .Append("</span></a></li>");
             if (manifest.packages != null && manifest.packages.Count > 0)
             {
                 sb.Append("<li><a class=\"ds-nav-link").Append(onPackages ? " is-current" : "").Append("\" href=\"").Append(prefix).Append(DocSnapConstants.PackagesFileName).Append("\">");
@@ -309,7 +330,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
 
             sb.Append("<div class=\"ds-nav-section\"><p class=\"ds-nav-title\">");
             sb.Append(I18n("span", null, "Scenes", "シーン", "سین‌ها"));
-            sb.Append("</p><ul class=\"ds-nav-list\">\n");
+            sb.Append("</p><div class=\"ds-nav-scroll\"><ul class=\"ds-nav-list\">\n");
             if (manifest.scenes.Count == 0)
             {
                 sb.Append("<li>").Append(I18n("span", "ds-nav-empty", "No scenes exported yet", "エクスポート済みシーンはありません", "هنوز سینی اکسپورت نشده")).Append("</li>\n");
@@ -318,15 +339,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             {
                 bool isCurrent = entry.htmlFile == currentHtmlFile;
                 sb.Append("<li><a class=\"ds-nav-link").Append(isCurrent ? " is-current" : "").Append("\" href=\"")
-                  .Append(Href(prefix + entry.htmlFile)).Append("\">")
-                  .Append(Escape(entry.sceneName))
+                  .Append(Href(prefix + entry.htmlFile)).Append("\"><span>")
+                  .Append(Escape(entry.sceneName)).Append("</span>")
                   .Append("<span class=\"ds-nav-count\">").Append(entry.gameObjectCount).Append("</span></a></li>\n");
             }
-            sb.Append("</ul></div>\n");
+            sb.Append("</ul></div></div>\n");
 
             sb.Append("<div class=\"ds-nav-section\"><p class=\"ds-nav-title\">");
             sb.Append(I18n("span", null, "Assets", "アセット", "فایل‌ها"));
-            sb.Append("</p><ul class=\"ds-nav-list\">\n");
+            sb.Append("</p><div class=\"ds-nav-scroll\"><ul class=\"ds-nav-list\">\n");
             if (manifest.assetFolders.Count == 0)
             {
                 sb.Append("<li>").Append(I18n("span", "ds-nav-empty", "No asset folders exported yet", "エクスポート済みアセットはありません", "هنوز پوشه‌ای اکسپورت نشده")).Append("</li>\n");
@@ -335,11 +356,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             {
                 bool isCurrent = entry.htmlFile == currentHtmlFile;
                 sb.Append("<li><a class=\"ds-nav-link").Append(isCurrent ? " is-current" : "").Append("\" href=\"")
-                  .Append(Href(prefix + entry.htmlFile)).Append("\">")
-                  .Append(Escape(entry.folderPath))
+                  .Append(Href(prefix + entry.htmlFile)).Append("\"><span>")
+                  .Append(Escape(entry.folderPath)).Append("</span>")
                   .Append("<span class=\"ds-nav-count\">").Append(entry.fileCount).Append("</span></a></li>\n");
             }
-            sb.Append("</ul></div>\n");
+            sb.Append("</ul></div></div>\n");
 
             sb.Append("<div class=\"ds-sidebar-footer\">");
             sb.Append(I18n("span", null, "Made with \uD83E\uDDCB by", "\uD83E\uDDCB を込めて", "با \uD83E\uDDCB ساخته‌شده توسط"));
@@ -419,6 +440,34 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 sb.Append("</div>");
             }
             sb.Append("</div>\n");
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // Breadcrumb
+        // "Dashboard › Scenes › MainMenu" above a page's
+        // title.
+        //
+        // Every page below the root previously opened with no
+        // indication of where it sat, which on a Scene called
+        // "Main" inside a project with three of them is a real
+        // question. It is also the one control that gets a
+        // reader back out of a page they landed on from a
+        // search result or a cross-link.
+        // ==========================================
+        public static string Breadcrumb(string prefix, string sectionEn, string sectionJa, string sectionFa, string currentLabel)
+        {
+            var sb = new StringBuilder(256);
+            sb.Append("<nav class=\"ds-breadcrumb\" aria-label=\"Breadcrumb\">");
+            sb.Append("<a href=\"").Append(prefix).Append(DocSnapConstants.IndexFileName).Append("\">")
+              .Append(I18n("span", null, "Dashboard", "ダッシュボード", "داشبورد")).Append("</a>");
+            if (!string.IsNullOrEmpty(sectionEn))
+            {
+                sb.Append("<span class=\"sep\">/</span>")
+                  .Append(I18n("span", null, sectionEn, sectionJa, sectionFa));
+            }
+            sb.Append("<span class=\"sep\">/</span><span>").Append(Escape(currentLabel)).Append("</span>");
+            sb.Append("</nav>\n");
             return sb.ToString();
         }
 

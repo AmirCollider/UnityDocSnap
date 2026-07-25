@@ -36,7 +36,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 HtmlPageBuilder.BadgeRaw(null, fileCount + " " + HtmlPageBuilder.I18n("span", null, "files", "ファイル", "فایل")),
                 HtmlPageBuilder.BadgeRaw("ghost", HtmlPageBuilder.I18n("span", null, "Exported", "エクスポート日時", "اکسپورت‌شده") + " " + HtmlPageBuilder.Escape(folderData.Get("exportedUtc").AsString("")))
             };
-            string header = HtmlPageBuilder.RenderPageHeader("\uD83D\uDCC1", folderPath, "", badges);
+            string header = HtmlPageBuilder.Breadcrumb("../", "Assets", "\u30A2\u30BB\u30C3\u30C8", "\u0641\u0627\u06CC\u0644\u200C\u0647\u0627", folderPath)
+                + HtmlPageBuilder.RenderPageHeader("\uD83D\uDCC1", folderPath, "", badges);
 
             // OrdinalIgnoreCase: the folder tree normalises separators
             // while this map is keyed on the raw AssetDatabase path.

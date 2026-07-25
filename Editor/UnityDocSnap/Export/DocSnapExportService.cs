@@ -74,7 +74,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 sourceSignature = SceneSignature(scenePath)
             });
             DocSnapManifest.ReplaceSearchRecordsForScope(manifest, sceneKey, DocSnapSearchIndex.BuildSceneRecords(sceneData, sceneKey, sceneName, htmlFile));
-            DocSnapManifest.ReplaceHealthForScope(manifest, sceneKey, DocSnapHealthReport.BuildSceneEntry(sceneData, sceneKey, sceneName, htmlFile));
+            RecordSceneHealth(manifest, sceneData, sceneKey, sceneName, htmlFile);
             DocSnapManifest.Save(manifest);
 
             WriteText(outputRoot, htmlFile, ScenePageRenderer.Render(sceneData, manifest, htmlFile));
@@ -185,7 +185,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 sourceSignature = FolderSignature(folderPath, filter)
             });
             DocSnapManifest.ReplaceSearchRecordsForScope(manifest, folderKey, DocSnapSearchIndex.BuildFolderRecords(folderData, folderKey, htmlFile));
-            DocSnapManifest.ReplaceHealthForScope(manifest, folderKey, DocSnapHealthReport.BuildFolderEntry(folderData, folderKey, folderPath, htmlFile));
+            RecordFolderHealth(manifest, folderData, folderKey, folderPath, htmlFile);
             DocSnapManifest.SetExcludePatterns(manifest, filter.Patterns);
             DocSnapManifest.Save(manifest);
 
@@ -416,7 +416,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                     sourceSignature = signature
                 });
                 DocSnapManifest.ReplaceSearchRecordsForScope(manifest, sceneKey, DocSnapSearchIndex.BuildSceneRecords(sceneData, sceneKey, sceneName, htmlFile));
-                DocSnapManifest.ReplaceHealthForScope(manifest, sceneKey, DocSnapHealthReport.BuildSceneEntry(sceneData, sceneKey, sceneName, htmlFile));
+                RecordSceneHealth(manifest, sceneData, sceneKey, sceneName, htmlFile);
                 scenePages.Add(new KeyValuePair<string, JsonValue>(htmlFile, sceneData));
             }
             EditorUtility.ClearProgressBar();
@@ -474,7 +474,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 sourceSignature = folderSignature
             });
             DocSnapManifest.ReplaceSearchRecordsForScope(manifest, rootFolderKey, DocSnapSearchIndex.BuildFolderRecords(folderData, rootFolderKey, assetHtmlFile));
-            DocSnapManifest.ReplaceHealthForScope(manifest, rootFolderKey, DocSnapHealthReport.BuildFolderEntry(folderData, rootFolderKey, "Assets", assetHtmlFile));
+            RecordFolderHealth(manifest, folderData, rootFolderKey, "Assets", assetHtmlFile);
             DocSnapManifest.SetExcludePatterns(manifest, filter.Patterns);
 
             // Scenes that are no longer in the project (deleted, or
@@ -624,6 +624,33 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         }
 
         // ==========================================
+        // RecordSceneHealth / RecordFolderHealth
+        // One scope's health counts and the individual
+        // findings behind them, written together.
+        //
+        // They are deliberately never written apart: a
+        // dashboard row saying "3 broken references" whose
+        // issues page lists two is worse than either number
+        // alone, because a reader has no way to tell which
+        // one is stale.
+        // ==========================================
+        private static void RecordSceneHealth(ManifestState manifest, JsonValue sceneData, string sceneKey, string sceneName, string htmlFile)
+        {
+            var issues = new List<ManifestIssueEntry>();
+            ManifestHealthEntry entry = DocSnapHealthReport.BuildSceneEntry(sceneData, sceneKey, sceneName, htmlFile, issues);
+            DocSnapManifest.ReplaceHealthForScope(manifest, sceneKey, entry);
+            DocSnapManifest.ReplaceIssuesForScope(manifest, sceneKey, issues);
+        }
+
+        private static void RecordFolderHealth(ManifestState manifest, JsonValue folderData, string folderKey, string folderLabel, string htmlFile)
+        {
+            var issues = new List<ManifestIssueEntry>();
+            ManifestHealthEntry entry = DocSnapHealthReport.BuildFolderEntry(folderData, folderKey, folderLabel, htmlFile, issues);
+            DocSnapManifest.ReplaceHealthForScope(manifest, folderKey, entry);
+            DocSnapManifest.ReplaceIssuesForScope(manifest, folderKey, issues);
+        }
+
+        // ==========================================
         // PruneMissingScenes
         // Drops manifest state for Scenes this pass did not
         // cover, together with their search records and health
@@ -644,6 +671,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 manifest.scenes.Remove(scene);
                 DocSnapManifest.ReplaceSearchRecordsForScope(manifest, scene.sceneKey, null);
                 DocSnapManifest.ReplaceHealthForScope(manifest, scene.sceneKey, null);
+                DocSnapManifest.ReplaceIssuesForScope(manifest, scene.sceneKey, null);
             }
         }
 
@@ -723,6 +751,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
        private static void RefreshIndexAndManifest(string outputRoot, ManifestState manifest, VersionSnapshot exportInfo = null)
         {
             WriteText(outputRoot, DocSnapConstants.IndexFileName, IndexPageRenderer.Render(manifest, exportInfo));
+
+            // Always written, even for a clean project: the dashboard's
+            // health card links here, and a link that 404s because
+            // nothing happens to be broken is its own small bug.
+            WriteText(outputRoot, DocSnapConstants.IssuesFileName, IssuesPageRenderer.Render(manifest));
+
             WriteText(outputRoot, DocSnapConstants.ProjectSummaryFileName, DocSnapSummaryWriter.RenderProjectIndex(manifest));
             DocSnapManifest.WritePublicJson(manifest, Path.Combine(outputRoot, DocSnapConstants.DataSubFolder, DocSnapConstants.ManifestFileName));
 

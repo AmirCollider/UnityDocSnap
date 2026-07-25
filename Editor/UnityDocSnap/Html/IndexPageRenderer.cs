@@ -4,6 +4,7 @@
 // quick stats plus a live list of every
 // exported Scene and Asset folder.
 // ==========================================
+using System;
 using System.Collections.Generic;
 using System.Text;
 using AmirCollider.UnityDocSnap.Editor.Export;
@@ -123,8 +124,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             HealthTotals totals = DocSnapHealthReport.Totals(manifest);
 
             var sb = new StringBuilder(1024);
-            sb.Append("<div class=\"ds-card\">");
+            sb.Append("<div class=\"ds-card\"><div class=\"ds-card-head\">");
             sb.Append(HtmlPageBuilder.I18n("h3", null, "🩺 Project health", "🩺 プロジェクトの健康状態", "🩺 سلامت پروژه"));
+            sb.Append("<a class=\"ds-card-action\" href=\"").Append(DocSnapConstants.IssuesFileName).Append("\">")
+              .Append(HtmlPageBuilder.I18n("span", null, "Open health report →", "健康レポートを開く →", "باز کردن گزارش سلامت →"))
+              .Append("</a></div>");
 
             if (totals.IsClean)
             {
@@ -136,36 +140,45 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 return sb.ToString();
             }
 
+            // Every badge is a link into the health report, pre-filtered
+            // to its own kind. A count that cannot be clicked is a
+            // number the reader then has to go and find by hand, which
+            // is most of the work this card was meant to remove.
             sb.Append("<div class=\"ds-badge-row\">");
             if (totals.missingScripts > 0)
             {
-                sb.Append(HtmlPageBuilder.BadgeRaw("warn", totals.missingScripts + " " + HtmlPageBuilder.I18n("span", null,
-                    "missing scripts", "欠落スクリプト", "اسکریپت گم‌شده")));
+                sb.Append(HealthBadge(DocSnapHealthReport.KindMissingScript, "warn", totals.missingScripts,
+                    "missing scripts", "欠落スクリプト", "اسکریپت گم‌شده"));
             }
             if (totals.missingReferences > 0)
             {
-                sb.Append(HtmlPageBuilder.BadgeRaw("warn", totals.missingReferences + " " + HtmlPageBuilder.I18n("span", null,
-                    "broken references", "切れた参照", "ارجاع شکسته")));
+                sb.Append(HealthBadge(DocSnapHealthReport.KindMissingReference, "warn", totals.missingReferences,
+                    "broken references", "切れた参照", "ارجاع شکسته"));
             }
             if (totals.unresolvedAssets > 0)
             {
-                sb.Append(HtmlPageBuilder.BadgeRaw(null, totals.unresolvedAssets + " " + HtmlPageBuilder.I18n("span", null,
-                    "unresolved assets", "型不明アセット", "فایل بدون نوع مشخص")));
+                sb.Append(HealthBadge(DocSnapHealthReport.KindUnresolvedAsset, "lav", totals.unresolvedAssets,
+                    "unresolved assets", "型不明アセット", "فایل بدون نوع مشخص"));
             }
             if (totals.duplicateSceneNames.Count > 0)
             {
-                sb.Append(HtmlPageBuilder.BadgeRaw(null, totals.duplicateSceneNames.Count + " " + HtmlPageBuilder.I18n("span", null,
-                    "duplicate scene names", "重複シーン名", "اسم سین تکراری")));
+                sb.Append(HealthBadge("duplicateScene", null, totals.duplicateSceneNames.Count,
+                    "duplicate scene names", "重複シーン名", "اسم سین تکراری"));
             }
             sb.Append("</div>");
 
-            List<ManifestHealthEntry> worst = DocSnapHealthReport.Worst(manifest, 8);
+            List<ManifestHealthEntry> worst = DocSnapHealthReport.Worst(manifest, 6);
             if (worst.Count > 0)
             {
                 sb.Append("<ul class=\"ds-folder-list\">\n");
                 foreach (ManifestHealthEntry e in worst)
                 {
-                    sb.Append("<li><a class=\"ds-folder-row\" href=\"").Append(HtmlPageBuilder.Href(e.htmlFile)).Append("\">")
+                    // The scope row links into the health report scoped to
+                    // that Scene / folder, not to the Scene page itself:
+                    // "8 broken references in Assets" used to open the
+                    // Assets page and leave the reader to find all eight.
+                    string href = DocSnapConstants.IssuesFileName + "?scope=" + Uri.EscapeDataString(e.label ?? "") + "#findings";
+                    sb.Append("<li><a class=\"ds-folder-row\" href=\"").Append(HtmlPageBuilder.Escape(href)).Append("\">")
                       .Append("<span class=\"ds-folder-path\">").Append(HtmlPageBuilder.Escape(e.label)).Append("</span>")
                       .Append("<span class=\"ds-folder-meta\">").Append(HtmlPageBuilder.Escape(DescribeFindings(e)))
                       .Append("</span></a></li>\n");
@@ -186,6 +199,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
 
             sb.Append("</div>\n");
             return sb.ToString();
+        }
+
+        private static string HealthBadge(string kind, string variant, int count, string en, string ja, string fa)
+        {
+            string cls = string.IsNullOrEmpty(variant) ? "ds-badge" : "ds-badge " + variant;
+            return "<a class=\"" + cls + "\" href=\"" + DocSnapConstants.IssuesFileName + "?kind=" + kind + "#findings\">"
+                + count + " " + HtmlPageBuilder.I18n("span", null, en, ja, fa) + "</a>";
         }
 
         // Plain, language-neutral shorthand so one row stays

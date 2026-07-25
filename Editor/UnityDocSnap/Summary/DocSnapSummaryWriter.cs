@@ -747,7 +747,50 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                 }
                 sb.Append('\n');
             }
+
+            // The individual findings, not just the counts. An
+            // assistant asked "why is the menu button dead?" can answer
+            // from "Canvas/StartButton — MenuController › onClickTarget"
+            // and cannot answer from "3 broken references somewhere in
+            // MainMenu".
+            List<ManifestIssueEntry> issues = DocSnapHealthReport.SortedIssues(manifest);
+            if (issues.Count > 0)
+            {
+                sb.Append("Exactly where:\n\n");
+                int shown = 0;
+                foreach (ManifestIssueEntry issue in issues)
+                {
+                    if (shown >= MaxIssuesInSummary) { break; }
+                    sb.Append("- `").Append(Clean(issue.scopeLabel)).Append("` ")
+                      .Append(KindWord(issue.kind)).Append(" — **").Append(Clean(issue.location)).Append("**");
+                    if (!string.IsNullOrEmpty(issue.detail))
+                    {
+                        sb.Append(" (").Append(Clean(issue.detail)).Append(')');
+                    }
+                    sb.Append('\n');
+                    shown++;
+                }
+                if (issues.Count > shown)
+                {
+                    sb.Append("- …and ").Append(issues.Count - shown)
+                      .Append(" more — the full list is in `").Append(DocSnapConstants.IssuesFileName)
+                      .Append("` and `data/").Append(DocSnapConstants.ManifestFileName).Append("`.\n");
+                }
+                sb.Append('\n');
+            }
             return sb.ToString();
+        }
+
+        // A summary is meant to fit in a chat window, so the
+        // findings list is capped here far below the page's own
+        // cap - and says so when it stops.
+        private const int MaxIssuesInSummary = 60;
+
+        private static string KindWord(string kind)
+        {
+            if (kind == DocSnapHealthReport.KindMissingScript) { return "missing script"; }
+            if (kind == DocSnapHealthReport.KindMissingReference) { return "broken reference"; }
+            return "unresolved asset";
         }
 
         // ==========================================

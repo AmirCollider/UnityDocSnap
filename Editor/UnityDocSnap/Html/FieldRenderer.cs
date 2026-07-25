@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using AmirCollider.UnityDocSnap.Editor.Export;
 using AmirCollider.UnityDocSnap.Editor.Json;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
 
@@ -144,13 +145,53 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         public static string RenderHierarchy(JsonValue rootObjects, RefLinkResolver resolver, string treeId)
         {
             var sb = new StringBuilder(1024);
-            sb.Append("<div class=\"ds-card\"><div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;\">");
-            sb.Append(HtmlPageBuilder.I18n("h3", null, "Hierarchy", "\u30D2\u30A8\u30E9\u30EB\u30AD\u30FC", "Hierarchy"));
-            sb.Append("<span><button type=\"button\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"expand\" class=\"ds-badge lav\" style=\"cursor:pointer;border:none;\">").Append(HtmlPageBuilder.I18n("span", null, "Expand all", "すべて展開", "باز کردن همه")).Append("</button> ");
-            sb.Append("<button type=\"button\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"collapse\" class=\"ds-badge ghost\" style=\"cursor:pointer;border:1px solid var(--line);\">").Append(HtmlPageBuilder.I18n("span", null, "Collapse all", "すべて折りたたむ", "بستن همه")).Append("</button></span>");
-            sb.Append("</div><ul class=\"ds-tree\" id=\"").Append(treeId).Append("\">\n");
+            sb.Append("<div class=\"ds-card\">");
+            sb.Append(RenderTreeToolbar(treeId,
+                HtmlPageBuilder.I18n("h3", null, "Hierarchy", "\u30D2\u30A8\u30E9\u30EB\u30AD\u30FC", "Hierarchy"),
+                "Filter GameObjects\u2026", "GameObject\u3092\u7D5E\u308A\u8FBC\u307F\u2026", "\u0641\u06CC\u0644\u062A\u0631 GameObject \u0647\u0627\u2026"));
+            sb.Append("<ul class=\"ds-tree\" id=\"").Append(treeId).Append("\">\n");
             foreach (JsonValue go in rootObjects.Items) { sb.Append(RenderGoNode(go, resolver, true, 0)); }
             sb.Append("</ul></div>\n");
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // RenderTreeToolbar
+        // Title, an in-page filter box, and expand /
+        // collapse - the same header for the Scene tree and
+        // the folder tree.
+        //
+        // The filter is the piece that was missing. The
+        // sidebar search jumps to one record on some page;
+        // this narrows THIS page down to the rows that
+        // match, keeping each match's ancestors so the path
+        // stays readable. On a folder with 8000 assets, or a
+        // Canvas holding 300 buttons, that is the difference
+        // between scrolling for a minute and typing four
+        // letters.
+        // ==========================================
+        private static string RenderTreeToolbar(string treeId, string titleHtml, string phEn, string phJa, string phFa)
+        {
+            string defaultPh = DocSnapRenderContext.DefaultLanguage == "ja" ? phJa
+                : DocSnapRenderContext.DefaultLanguage == "fa" ? phFa
+                : phEn;
+
+            var sb = new StringBuilder(768);
+            sb.Append("<div class=\"ds-card-head\">");
+            sb.Append(titleHtml);
+            sb.Append("<div class=\"ds-toolbar\">");
+            sb.Append("<input type=\"search\" class=\"ds-inline-filter\" data-tree-filter=\"").Append(treeId).Append("\" ")
+              .Append("autocomplete=\"off\" spellcheck=\"false\" aria-label=\"Filter\" ")
+              .Append("data-ph-en=\"").Append(HtmlPageBuilder.Escape(phEn)).Append("\" ")
+              .Append("data-ph-ja=\"").Append(HtmlPageBuilder.Escape(phJa)).Append("\" ")
+              .Append("data-ph-fa=\"").Append(HtmlPageBuilder.Escape(phFa)).Append("\" ")
+              .Append("placeholder=\"").Append(HtmlPageBuilder.Escape(defaultPh)).Append("\">");
+            sb.Append("<span class=\"ds-empty-note\" data-tree-filter-count=\"").Append(treeId).Append("\" style=\"padding:0;\"></span>");
+            sb.Append("<button type=\"button\" class=\"ds-chip-btn\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"expand\">")
+              .Append(HtmlPageBuilder.I18n("span", null, "Expand all", "\u3059\u3079\u3066\u5C55\u958B", "\u0628\u0627\u0632 \u06A9\u0631\u062F\u0646 \u0647\u0645\u0647")).Append("</button>");
+            sb.Append("<button type=\"button\" class=\"ds-chip-btn\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"collapse\">")
+              .Append(HtmlPageBuilder.I18n("span", null, "Collapse all", "\u3059\u3079\u3066\u6298\u308A\u305F\u305F\u3080", "\u0628\u0633\u062A\u0646 \u0647\u0645\u0647")).Append("</button>");
+            sb.Append("</div></div>");
             return sb.ToString();
         }
 
@@ -723,11 +764,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         public static string RenderFolderTree(JsonValue treeRoot, Dictionary<string, JsonValue> filesByPath, RefLinkResolver resolver, string treeId)
         {
             var sb = new StringBuilder(1024);
-            sb.Append("<div class=\"ds-card\"><div style=\"display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;\">");
-            sb.Append(HtmlPageBuilder.I18n("h3", null, "Folders", "フォルダ", "پوشه‌ها"));
-            sb.Append("<span><button type=\"button\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"expand\" class=\"ds-badge lav\" style=\"cursor:pointer;border:none;\">").Append(HtmlPageBuilder.I18n("span", null, "Expand all", "すべて展開", "باز کردن همه")).Append("</button> ");
-            sb.Append("<button type=\"button\" data-tree-expand=\"").Append(treeId).Append("\" data-mode=\"collapse\" class=\"ds-badge ghost\" style=\"cursor:pointer;border:1px solid var(--line);\">").Append(HtmlPageBuilder.I18n("span", null, "Collapse all", "すべて折りたたむ", "بستن همه")).Append("</button></span>");
-            sb.Append("</div><ul class=\"ds-tree\" id=\"").Append(treeId).Append("\">\n");
+            sb.Append("<div class=\"ds-card\">");
+            sb.Append(RenderTreeToolbar(treeId,
+                HtmlPageBuilder.I18n("h3", null, "Folders", "フォルダ", "پوشه‌ها"),
+                "Filter files and folders…", "ファイル・フォルダを絞り込み…", "فیلتر فایل‌ها و پوشه‌ها…"));
+            sb.Append("<ul class=\"ds-tree\" id=\"").Append(treeId).Append("\">\n");
             sb.Append(RenderFolderNode(treeRoot, filesByPath, resolver, true));
             sb.Append("</ul></div>\n");
             return sb.ToString();
@@ -898,6 +939,24 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append("<div class=\"ds-asset-card-body\">");
 
             sb.Append(RenderAssetMedia(file, fileName, resolver));
+
+            // The asset path is the single most-copied string in the
+            // whole site - it is what you paste into the Project
+            // window's search box, a bug report or a prompt - and until
+            // now the only way to get it was to select it by hand out
+            // of a table cell.
+            if (!string.IsNullOrEmpty(path))
+            {
+                sb.Append("<div class=\"ds-file-actions\">");
+                sb.Append("<button type=\"button\" class=\"ds-file-link\" data-copy=\"").Append(HtmlPageBuilder.Escape(path)).Append("\">")
+                  .Append(HtmlPageBuilder.I18n("span", null, "Copy path", "パスをコピー", "کپی مسیر")).Append("</button>");
+                if (!string.IsNullOrEmpty(guid))
+                {
+                    sb.Append("<button type=\"button\" class=\"ds-file-link ds-adv\" data-copy=\"").Append(HtmlPageBuilder.Escape(guid)).Append("\">")
+                      .Append(HtmlPageBuilder.I18n("span", null, "Copy GUID", "GUIDをコピー", "کپی GUID")).Append("</button>");
+                }
+                sb.Append("</div>");
+            }
 
             sb.Append(KvLine("Path", "パス", "مسیر", path));
             sb.Append(KvLine("Type", "タイプ", "نوع", mainType));
