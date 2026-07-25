@@ -255,7 +255,107 @@ for name in ("style.css", "app.js", "fonts.css", "logo.svg"):
     )
 
 # ==========================================
-# 6. No stray absolute paths or leftover scratch
+# 6. Invariants that no licence can check for us
+#
+# The EditMode tests need a Unity licence, which a
+# fork cannot have and which this repository may not
+# have configured - so the job that runs them is
+# skipped far more often than it runs. That makes it
+# the wrong place for rules that are cheap to state
+# textually, and these three are exactly that shape:
+# each one is a rule the codebase deliberately holds,
+# each was violated at least once before it was a
+# rule, and each re-breaks by someone writing one
+# ordinary-looking line in a file they were already
+# editing.
+# ==========================================
+print("\ncodebase invariants")
+
+editor_sources = {}
+for current, dirs, names in os.walk(os.path.join(ROOT, "Editor")):
+    dirs[:] = [d for d in dirs if not d.startswith(".")]
+    for name in names:
+        if name.endswith(".cs"):
+            full = os.path.join(current, name)
+            editor_sources[os.path.relpath(full, ROOT).replace(os.sep, "/")] = read(full)
+
+
+def code_lines(source):
+    """Lines with // comments and string literals removed.
+
+    Crude on purpose: it only has to stop a comment or a
+    Japanese string constant from reading as code. A rule that
+    needs more than this does not belong in a text scan.
+    """
+    out = []
+    for line in source.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("//") or stripped.startswith("*") or stripped.startswith("/*"):
+            continue
+        out.append(re.sub(r'"(?:[^"\\]|\\.)*"', '""', line.split("//")[0]))
+    return out
+
+
+# --- The language registry is the only place that
+#     knows which languages exist. A comparison
+#     against a bare "ja" / "fa" anywhere else is how
+#     the registry silently stops being the source of
+#     truth: the language renders, and then lays
+#     itself out in the wrong direction.
+LANGUAGE_REGISTRY_FILES = {
+    "Editor/UnityDocSnap/DocSnapLanguages.cs",   # defines them
+    "Editor/UnityDocSnap/DocSnapText.cs",        # resolves them
+}
+hardcoded_language = []
+for path, source in sorted(editor_sources.items()):
+    if path in LANGUAGE_REGISTRY_FILES:
+        continue
+    for number, line in enumerate(code_lines(source), start=1):
+        if re.search(r'==\s*"(ja|fa)"|"(ja|fa)"\s*==', line):
+            hardcoded_language.append("{}:{}".format(path, number))
+
+check(
+    "no language code is compared outside the registry",
+    not hardcoded_language,
+    ", ".join(hardcoded_language[:5]),
+)
+
+# --- Recursive directory deletion. There are exactly
+#     three of these, all in code that has proved it
+#     owns the folder first. A fourth is not
+#     automatically wrong, but it is never something
+#     to add without noticing.
+recursive_deletes = []
+for path, source in sorted(editor_sources.items()):
+    for number, line in enumerate(code_lines(source), start=1):
+        if re.search(r"Directory\.Delete\([^)]*,\s*true\s*\)", line):
+            recursive_deletes.append("{}:{}".format(path, number))
+
+check(
+    "recursive deletes stay accounted for (found {})".format(len(recursive_deletes)),
+    len(recursive_deletes) <= 3,
+    ", ".join(recursive_deletes),
+)
+
+# --- The output folder must never be allowed inside
+#     Assets: Unity imports everything there, and the
+#     next export documents the previous one. The rule
+#     lives in DocSnapOutputPath and the gate is in the
+#     export service; if either disappears, nothing at
+#     runtime says so until a user's project has
+#     thousands of generated files in it.
+output_path_cs = editor_sources.get("Editor/UnityDocSnap/DocSnapOutputPath.cs", "")
+check(
+    "DocSnapOutputPath rejects an output folder inside Assets",
+    "InsideAssets" in output_path_cs and '"Assets"' in output_path_cs,
+)
+check(
+    "the export gate validates the output folder",
+    "ValidateOutputRoot()" in editor_sources.get("Editor/UnityDocSnap/Export/DocSnapExportService.cs", ""),
+)
+
+# ==========================================
+# 7. No stray absolute paths or leftover scratch
 #    files in the shipped package
 # ==========================================
 print("\nhousekeeping")
