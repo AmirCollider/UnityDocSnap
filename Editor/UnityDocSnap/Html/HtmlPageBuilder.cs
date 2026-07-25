@@ -260,6 +260,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // them at DOMContentLoaded (no flash).
             string defLang = DocSnapRenderContext.DefaultLanguage;
             string defTheme = DocSnapRenderContext.DefaultTheme;
+            // Resolved here rather than passed down from RenderPage: the
+            // report is cached per export run, so this returns the very
+            // same measurement without the sidebar depending on being
+            // called after the page shell computed it.
+            string defSkin = DocSnapCapability.Normalize(DocSnapRenderContext.ResolveCapability(manifest).Skin);
             sb.Append("<div class=\"ds-topbar\">");
             sb.Append("<div class=\"ds-langbar\" role=\"group\" aria-label=\"Language\">");
             sb.Append("<button class=\"ds-lang-btn").Append(defLang == "en" ? " is-active" : "").Append("\" data-lang=\"en\">EN</button>");
@@ -272,10 +277,6 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
               .Append("<span class=\"ds-theme-icon\">").Append(defTheme == "dark" ? "☀" : "☾").Append("</span></button>");
             sb.Append("</div>\n");
 
-            // Detail-level switch. Simple hides the heavy, every-field
-            // detail (engine-component fields, GUIDs, import settings)
-            // for a quick read; Advanced shows everything. app.js flips
-            // the body class and remembers the choice.
             // Visual skin. The cozy look is the tool's signature and the
             // nicer thing to sit in front of; it is also more paint work
             // per row, which is why the default is measured rather than
@@ -291,6 +292,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // cozy skin on against a measurement that said otherwise.
             sb.Append("<div class=\"ds-skin-warning\" data-skin-warning hidden></div>\n");
 
+            // Detail-level switch. Simple hides the heavy, every-field
+            // detail (engine-component fields, GUIDs, import settings)
+            // for a quick read; Advanced shows everything. app.js flips
+            // the body class and remembers the choice.
             sb.Append("<div class=\"ds-modebar\" role=\"group\" aria-label=\"Detail level\">");
             sb.Append("<button class=\"ds-mode-btn is-active\" data-mode=\"simple\">")
               .Append(I18n("span", null, "🌤 Simple", "🌤 シンプル", "🌤 ساده")).Append("</button>");
