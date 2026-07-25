@@ -425,6 +425,22 @@ for feature in ("UnlimitedVersions", "IncrementalUpdate", "IncludeFiles",
 # --- Allows() is a >= comparison over the enum's numeric order,
 #     so the order is load-bearing rather than cosmetic:
 #     renumbering it hands Plus everything Pro has.
+# --- Plus must keep strictly more snapshots than Free. A paid
+#     tier that behaves identically to the free one in a visible
+#     respect is a tier the customer learns not to trust.
+free_shelf = re.search(r"FreeVersionFolders\s*=\s*(\d+)", edition_matrix)
+plus_shelf = re.search(r"PlusVersionFolders\s*=\s*(\d+)", edition_matrix)
+check(
+    "Plus keeps more version snapshots than Free",
+    free_shelf is not None
+    and plus_shelf is not None
+    and int(plus_shelf.group(1)) > int(free_shelf.group(1)),
+    "free={} plus={}".format(
+        free_shelf.group(1) if free_shelf else "?",
+        plus_shelf.group(1) if plus_shelf else "?",
+    ),
+)
+
 check(
     "the tier ladder is ordered Free < Plus < Pro",
     re.search(r"Free\s*=\s*0", edition_matrix) is not None
