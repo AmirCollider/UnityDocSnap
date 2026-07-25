@@ -49,7 +49,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
 
             string subHtml = HtmlPageBuilder.I18n("span", null, "Last scanned: ", "最終スキャン: ", "آخرین اسکن: ") + HtmlPageBuilder.Escape(manifest.packagesExportedUtc);
             string header = HtmlPageBuilder.RenderPageHeader("📦",
-                "Packages", subHtml, badges, true);
+                HtmlPageBuilder.I18n("span", null, "Packages", "パッケージ", "پکیج‌ها"),
+                subHtml, badges, true, true);
 
             var sb = new StringBuilder(4096);
 

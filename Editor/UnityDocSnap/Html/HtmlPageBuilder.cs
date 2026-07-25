@@ -455,11 +455,25 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // RenderPageHeader
         // The title block used at the top of every
         // page's <main>: heading, subtitle, badges.
+        //
+        // titleIsHtml distinguishes the two kinds of title this
+        // site has, which were previously handled the same way and
+        // should not be. A DATA title - a project name, a Scene
+        // name, a folder path - is one string, escaped, and must
+        // never be translated. A UI-LABEL title ("Project health",
+        // "Changes", "Packages") is a caption, and passing it as
+        // plain text baked one language into the page permanently:
+        // the Health heading stayed «سلامت پروژه» in every
+        // language, because it was resolved once at export time
+        // while every other label on the page carried all three
+        // variants for app.js to swap.
         // ==========================================
-        public static string RenderPageHeader(string emoji, string titleText, string subText, List<string> badgesHtml, bool subTextIsHtml = false)
+        public static string RenderPageHeader(string emoji, string titleText, string subText, List<string> badgesHtml,
+            bool subTextIsHtml = false, bool titleIsHtml = false)
         {
             var sb = new StringBuilder(512);
-            sb.Append("<div class=\"ds-page-header\"><div><h1>").Append(emoji).Append(" ").Append(Escape(titleText)).Append("</h1>");
+            sb.Append("<div class=\"ds-page-header\"><div><h1>").Append(emoji).Append(" ")
+              .Append(titleIsHtml ? titleText : Escape(titleText)).Append("</h1>");
             if (!string.IsNullOrEmpty(subText))
             {
                 sb.Append("<p class=\"ds-page-sub\">").Append(subTextIsHtml ? subText : Escape(subText)).Append("</p>");

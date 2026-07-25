@@ -49,13 +49,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 }
             }
 
+            // The heading carries all three languages like every other
+            // label, instead of being resolved once at export time - which
+            // is why it used to stay in the export's default language no
+            // matter which button the reader pressed.
             string header = HtmlPageBuilder.RenderPageHeader("🩺",
-                Localised("Project health", "プロジェクトの健康状態", "سلامت پروژه"),
+                HtmlPageBuilder.I18n("span", null, "Project health", "プロジェクトの健康状態", "سلامت پروژه"),
                 HtmlPageBuilder.I18n("span", null,
                     "Everything this export found wrong, linked to the exact object.",
                     "このエクスポートが見つけた問題を、該当オブジェクトへのリンク付きで。",
                     "هر چیزی که این خروجی پیدا کرده، با لینک مستقیم به همون آبجکت."),
-                badges, true);
+                badges, true, true);
 
             var sb = new StringBuilder(4096);
 

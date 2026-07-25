@@ -65,7 +65,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             };
             string subHtml = HtmlPageBuilder.I18n("span", null,
                 "What changed since ", "変更点(比較元: ", "تغییرات نسبت به ") + HtmlPageBuilder.Escape(baseSnap.version);
-            string header = HtmlPageBuilder.RenderPageHeader("🔀", "Changes", subHtml, badges, true);
+            // "Changes" was a bare English literal, so this heading never
+            // followed the language switch either.
+            string header = HtmlPageBuilder.RenderPageHeader("🔀",
+                HtmlPageBuilder.I18n("span", null, "Changes", "変更点", "تغییرات"),
+                subHtml, badges, true, true);
 
             var sb = new StringBuilder(4096);
 

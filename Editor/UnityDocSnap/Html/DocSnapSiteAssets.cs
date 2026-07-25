@@ -1964,6 +1964,17 @@ code, kbd, samp, pre { direction: ltr; unicode-bidi: isolate; }
       btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
 
+    // The <title> element cannot carry data-en/ja/fa attributes for the
+    // sweep above, so the browser tab kept whatever language the export
+    // was made in. Rebuilt from the page heading, which does carry them
+    // on the pages whose title is a UI label - and is the Scene / folder
+    // name, correctly untranslated, on the pages where it is data.
+    var heading = document.querySelector('.ds-page-header h1');
+    if (heading) {
+      var headingText = heading.textContent.replace(/\s+/g, ' ').trim();
+      if (headingText) { document.title = headingText + ' - Unity DocSnap'; }
+    }
+
     safeStorage.set(LANG_KEY, lang);
 
     // The skin warning is built in JS rather than markup, so it has
