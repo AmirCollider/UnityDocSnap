@@ -1,10 +1,26 @@
 // ==========================================
 // DocSnapSettings
-// Project-scoped configuration (output path,
-// custom logo, thumbnail toggle) persisted via
-// EditorUserSettings so values never leak
-// between different Unity projects on the
-// same machine the way EditorPrefs would.
+// The tool's configuration, split by who it
+// actually belongs to.
+//
+//   • Settings that describe the PROJECT - what it
+//     excludes, where it exports to, which folders
+//     are somebody else's code, what the site opens
+//     with - live in ProjectSettings/
+//     UnityDocSnapSettings.json via
+//     DocSnapSettingsStore. They are committed, so a
+//     team shares one answer and a CI agent gets the
+//     same one; see that file for the full reasoning.
+//
+//   • Settings that describe the PERSON at the
+//     keyboard - the language the export window is
+//     drawn in, and the absolute path to a logo on
+//     their own disk - stay in EditorUserSettings,
+//     which is where per-user data belongs.
+//
+// Callers see one flat API either way; which store
+// backs a given property is decided here and
+// nowhere else.
 // ==========================================
 using System.IO;
 using UnityEditor;
@@ -14,16 +30,105 @@ namespace AmirCollider.UnityDocSnap.Editor
 {
     internal static class DocSnapSettings
     {
-        private const string KeyOutputPath = "UnityDocSnap.OutputPath";
+        // --- Project-scoped keys (committed JSON file) ---
+        // Short, readable names: this file is meant to be
+        // opened in a pull request, not decoded.
+        private const string KeyOutputPath = "outputPath";
+        private const string KeyThumbnails = "generateThumbnails";
+        private const string KeyDefaultLang = "defaultSiteLanguage";
+        private const string KeyDefaultTheme = "defaultSiteTheme";
+        private const string KeyExcludes = "excludePatterns";
+        private const string KeyAiBundle = "writeAiBundle";
+        private const string KeyVendorFolders = "vendorFolders";
+        private const string KeySiteSkin = "siteSkin";
+        private const string KeyEmbedFonts = "embedFonts";
+
+        // --- Per-user keys (EditorUserSettings, as before) ---
         private const string KeyLogoPath = "UnityDocSnap.CustomLogoPath";
-        private const string KeyThumbnails = "UnityDocSnap.GenerateThumbnails";
-        private const string KeyDefaultLang = "UnityDocSnap.DefaultLanguage";
-        private const string KeyDefaultTheme = "UnityDocSnap.DefaultTheme";
         private const string KeyWindowLang = "UnityDocSnap.WindowLanguage";
-        private const string KeyExcludes = "UnityDocSnap.ExcludePatterns";
-        private const string KeyAiBundle = "UnityDocSnap.WriteAiBundle";
-        private const string KeyVendorFolders = "UnityDocSnap.VendorFolders";
-        private const string KeySiteSkin = "UnityDocSnap.SiteSkin";
+
+        // The legacy EditorUserSettings names, kept only so the
+        // one-time migration below can find values a user
+        // configured before 0.10.0.
+        private const string LegacyOutputPath = "UnityDocSnap.OutputPath";
+        private const string LegacyThumbnails = "UnityDocSnap.GenerateThumbnails";
+        private const string LegacyDefaultLang = "UnityDocSnap.DefaultLanguage";
+        private const string LegacyDefaultTheme = "UnityDocSnap.DefaultTheme";
+        private const string LegacyExcludes = "UnityDocSnap.ExcludePatterns";
+        private const string LegacyAiBundle = "UnityDocSnap.WriteAiBundle";
+        private const string LegacyVendorFolders = "UnityDocSnap.VendorFolders";
+        private const string LegacySiteSkin = "UnityDocSnap.SiteSkin";
+
+        // The committed settings file, relative to the project root.
+        public const string ProjectSettingsRelativePath = "ProjectSettings/UnityDocSnapSettings.json";
+
+        private static DocSnapSettingsStore _store;
+
+        // ==========================================
+        // Store
+        // Resolved once per domain reload. The first
+        // resolution also migrates anything the user had
+        // configured under the old per-user keys, so
+        // upgrading does not silently reset a project's
+        // exclude list to empty.
+        // ==========================================
+        internal static DocSnapSettingsStore Store
+        {
+            get
+            {
+                if (_store == null)
+                {
+                    _store = new DocSnapSettingsStore(Path.Combine(ProjectRoot(), ProjectSettingsRelativePath.Replace('/', Path.DirectorySeparatorChar)));
+                    MigrateLegacyUserSettings(_store);
+                }
+                return _store;
+            }
+        }
+
+        // ==========================================
+        // MigrateLegacyUserSettings
+        // Pre-0.10.0 installs kept every setting in
+        // EditorUserSettings. Adopt those values once, but
+        // only for keys the project file does not already
+        // answer - a repository that has committed its own
+        // settings must win over whatever happens to be in
+        // the local user's file.
+        // ==========================================
+        private static void MigrateLegacyUserSettings(DocSnapSettingsStore store)
+        {
+            bool adopted = false;
+            adopted |= store.ImportMissing(KeyOutputPath, EditorUserSettings.GetConfigValue(LegacyOutputPath));
+            adopted |= store.ImportMissing(KeyThumbnails, EditorUserSettings.GetConfigValue(LegacyThumbnails));
+            adopted |= store.ImportMissing(KeyDefaultLang, EditorUserSettings.GetConfigValue(LegacyDefaultLang));
+            adopted |= store.ImportMissing(KeyDefaultTheme, EditorUserSettings.GetConfigValue(LegacyDefaultTheme));
+            adopted |= store.ImportMissing(KeyExcludes, EditorUserSettings.GetConfigValue(LegacyExcludes));
+            adopted |= store.ImportMissing(KeyAiBundle, EditorUserSettings.GetConfigValue(LegacyAiBundle));
+            adopted |= store.ImportMissing(KeyVendorFolders, EditorUserSettings.GetConfigValue(LegacyVendorFolders));
+            adopted |= store.ImportMissing(KeySiteSkin, EditorUserSettings.GetConfigValue(LegacySiteSkin));
+            if (adopted) { store.Save(); }
+        }
+
+        // ==========================================
+        // ProjectRoot — the folder that holds Assets/
+        // and ProjectSettings/.
+        // ==========================================
+        private static string ProjectRoot()
+        {
+            return Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+        }
+
+        private static string GetProject(string key, string fallback)
+        {
+            string raw = Store.Get(key);
+            return string.IsNullOrEmpty(raw) ? fallback : raw;
+        }
+
+        private static bool GetProjectBool(string key, bool fallback)
+        {
+            string raw = Store.Get(key);
+            if (string.IsNullOrEmpty(raw)) { return fallback; }
+            return raw == "1" || raw == "true" || raw == "True";
+        }
 
         // ==========================================
         // OutputRootPath
@@ -33,8 +138,8 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         public static string OutputRootPath
         {
-            get { return EditorUserSettings.GetConfigValue(KeyOutputPath) ?? ""; }
-            set { EditorUserSettings.SetConfigValue(KeyOutputPath, value ?? ""); }
+            get { return Store.Get(KeyOutputPath) ?? ""; }
+            set { Store.Set(KeyOutputPath, value ?? ""); }
         }
 
         // ==========================================
@@ -58,12 +163,31 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         public static bool GenerateThumbnails
         {
-            get
-            {
-                string raw = EditorUserSettings.GetConfigValue(KeyThumbnails);
-                return raw == null ? true : raw == "1";
-            }
-            set { EditorUserSettings.SetConfigValue(KeyThumbnails, value ? "1" : "0"); }
+            get { return GetProjectBool(KeyThumbnails, true); }
+            set { Store.Set(KeyThumbnails, value ? "1" : "0"); }
+        }
+
+        // ==========================================
+        // EmbedFonts
+        // Whether the branded web fonts are embedded in
+        // each version folder's stylesheet.
+        //
+        // They are ~570 KB of base64, and every version
+        // folder gets its own copy so that each export
+        // stays a self-contained thing you can zip and send
+        // - which is the right default, and is why this is
+        // on. It is also 570 KB per export, so a project
+        // that keeps twenty snapshots is carrying 11 MB of
+        // identical font data. Turning this off drops the
+        // embedded faces and lets the site fall back to the
+        // system UI stack, which every machine already has:
+        // the layout is unchanged, the branded rounded face
+        // is not.
+        // ==========================================
+        public static bool EmbedFonts
+        {
+            get { return GetProjectBool(KeyEmbedFonts, true); }
+            set { Store.Set(KeyEmbedFonts, value ? "1" : "0"); }
         }
 
         // ==========================================
@@ -76,12 +200,8 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         public static string DefaultSiteLanguage
         {
-            get
-            {
-                string raw = EditorUserSettings.GetConfigValue(KeyDefaultLang);
-                return string.IsNullOrEmpty(raw) ? "en" : raw;
-            }
-            set { EditorUserSettings.SetConfigValue(KeyDefaultLang, string.IsNullOrEmpty(value) ? "en" : value); }
+            get { return GetProject(KeyDefaultLang, "en"); }
+            set { Store.Set(KeyDefaultLang, string.IsNullOrEmpty(value) ? "en" : value); }
         }
 
         // ==========================================
@@ -93,12 +213,8 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         public static string DefaultSiteTheme
         {
-            get
-            {
-                string raw = EditorUserSettings.GetConfigValue(KeyDefaultTheme);
-                return string.IsNullOrEmpty(raw) ? "light" : raw;
-            }
-            set { EditorUserSettings.SetConfigValue(KeyDefaultTheme, string.IsNullOrEmpty(value) ? "light" : value); }
+            get { return GetProject(KeyDefaultTheme, "light"); }
+            set { Store.Set(KeyDefaultTheme, string.IsNullOrEmpty(value) ? "light" : value); }
         }
 
         // ==========================================
@@ -135,8 +251,8 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         public static string ExcludePatterns
         {
-            get { return EditorUserSettings.GetConfigValue(KeyExcludes) ?? ""; }
-            set { EditorUserSettings.SetConfigValue(KeyExcludes, value ?? ""); }
+            get { return Store.Get(KeyExcludes) ?? ""; }
+            set { Store.Set(KeyExcludes, value ?? ""); }
         }
 
         // ==========================================
@@ -149,12 +265,8 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         public static bool WriteAiBundle
         {
-            get
-            {
-                string raw = EditorUserSettings.GetConfigValue(KeyAiBundle);
-                return raw == null ? true : raw == "1";
-            }
-            set { EditorUserSettings.SetConfigValue(KeyAiBundle, value ? "1" : "0"); }
+            get { return GetProjectBool(KeyAiBundle, true); }
+            set { Store.Set(KeyAiBundle, value ? "1" : "0"); }
         }
 
         // ==========================================
@@ -172,10 +284,10 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         public static string VendorFolders
         {
-            get { return EditorUserSettings.GetConfigValue(KeyVendorFolders) ?? ""; }
+            get { return Store.Get(KeyVendorFolders) ?? ""; }
             set
             {
-                EditorUserSettings.SetConfigValue(KeyVendorFolders, value ?? "");
+                Store.Set(KeyVendorFolders, value ?? "");
                 DocSnapVendorPaths.InvalidateCache();
             }
         }
@@ -195,12 +307,8 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         public static string SiteSkin
         {
-            get
-            {
-                string raw = EditorUserSettings.GetConfigValue(KeySiteSkin);
-                return string.IsNullOrEmpty(raw) ? "auto" : raw;
-            }
-            set { EditorUserSettings.SetConfigValue(KeySiteSkin, string.IsNullOrEmpty(value) ? "auto" : value); }
+            get { return GetProject(KeySiteSkin, "auto"); }
+            set { Store.Set(KeySiteSkin, string.IsNullOrEmpty(value) ? "auto" : value); }
         }
 
         // ==========================================

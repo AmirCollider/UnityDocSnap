@@ -31,6 +31,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         public static void ExportScene(string scenePath)
         {
+            DocSnapRunResult.Begin();
+            DocSnapLogGuard.ResetCount();
             if (!EditorIsReady()) { return; }
 
             string version;
@@ -45,12 +47,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             }
             catch (Exception ex)
             {
-                EditorUtility.DisplayDialog(DocSnapConstants.ToolName, "Could not export scene:\n" + scenePath + "\n\n" + ex.Message, "OK");
+                DocSnapRunResult.Fail("Could not export scene \"" + scenePath + "\": " + ex.Message);
+                DocSnapInteraction.Alert("Could not export scene:\n" + scenePath + "\n\n" + ex.Message);
                 return;
             }
             finally
             {
                 DocSnapLogGuard.ForceRestore();
+                ReportSuppressedLogs();
             }
 
             string sceneName = Path.GetFileNameWithoutExtension(scenePath);
@@ -131,6 +135,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         public static void ExportFolder(string folderPath)
         {
+            DocSnapRunResult.Begin();
+            DocSnapLogGuard.ResetCount();
             if (!EditorIsReady()) { return; }
 
             string version;
@@ -161,7 +167,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 // did not, so the same class of problem was a friendly
                 // message in one place and a raw stack trace in the
                 // other.
-                EditorUtility.DisplayDialog(DocSnapConstants.ToolName, "Could not export folder:\n" + folderPath + "\n\n" + ex.Message, "OK");
+                DocSnapRunResult.Fail("Could not export folder \"" + folderPath + "\": " + ex.Message);
+                DocSnapInteraction.Alert("Could not export folder:\n" + folderPath + "\n\n" + ex.Message);
                 return;
             }
             finally
@@ -169,6 +176,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 ThumbnailGenerator.EndExport();
                 EditorUtility.ClearProgressBar();
                 DocSnapLogGuard.ForceRestore();
+                ReportSuppressedLogs();
             }
 
             string htmlFile = DocSnapConstants.AssetsSubFolder + "/" + folderKey + ".html";
@@ -277,6 +285,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         private static void ExportProject(DocSnapExportOptions options)
         {
+            DocSnapRunResult.Begin();
+            DocSnapLogGuard.ResetCount();
             if (!EditorIsReady()) { return; }
 
             try
@@ -293,9 +303,32 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 ThumbnailGenerator.EndExport();
                 EditorUtility.ClearProgressBar();
                 // Whatever happened, the user's console must not be
-                // left muted by a guard that never got to unwind.
+                // left filtered by a guard that never got to unwind.
                 DocSnapLogGuard.ForceRestore();
+                ReportSuppressedLogs();
             }
+        }
+
+        // ==========================================
+        // ReportSuppressedLogs
+        // Says how much console noise the export hid.
+        //
+        // The guard used to silence the console outright and
+        // report nothing, so there was no way to tell a quiet
+        // export from one that had swallowed something. Now
+        // that it filters by message, an unexpectedly large
+        // count is the signal that the noise list has gone
+        // stale and is catching more than it should - which is
+        // exactly the failure that would otherwise be
+        // invisible. Silence when nothing was hidden, which is
+        // the normal case.
+        // ==========================================
+        private static void ReportSuppressedLogs()
+        {
+            int suppressed = DocSnapLogGuard.SuppressedCount;
+            if (suppressed <= 0) { return; }
+            Debug.Log("[Unity DocSnap] Hid " + suppressed
+                + " known-noisy console message(s) during this export (URP light warnings, unsupported-property notices).");
         }
 
         private static void ExportProjectCore(DocSnapExportOptions options)
@@ -352,7 +385,32 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
             int reusedScenes = 0;
             int exportedScenes = 0;
-            var scenePages = new List<KeyValuePair<string, JsonValue>>();
+            // Page path -> the data/*.json it renders from, NOT the
+            // parsed tree.
+            //
+            // This list used to hold every Scene's fully parsed
+            // JsonValue, because pages can only be rendered once the
+            // manifest is complete (a sidebar and every cross-link
+            // depend on Scenes exported later in the same pass) and
+            // holding them was the obvious way to have them at the
+            // end. The cost is that peak memory is the whole
+            // project's field data at once: every GameObject, every
+            // component, every serialized value of every Scene,
+            // parsed and live, for as long as the export runs. On a
+            // project with a few dozen large Scenes that is gigabytes
+            // of managed heap, and the failure mode is the Editor
+            // dying partway through a long export - the worst
+            // possible moment.
+            //
+            // Every one of those trees has already been written to
+            // data/*.json by this point, in either branch below, and
+            // JsonValue round-trips exactly. So the render pass reads
+            // them back one at a time instead: peak memory becomes one
+            // Scene rather than all of them, at the cost of re-parsing
+            // a file that is almost certainly still in the OS page
+            // cache. The export got slightly slower and stopped having
+            // a size limit.
+            var scenePages = new List<KeyValuePair<string, string>>();
 
             List<string> scenePaths = ResolveScenePaths(options, filter);
 
@@ -423,7 +481,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 });
                 DocSnapManifest.ReplaceSearchRecordsForScope(manifest, sceneKey, DocSnapSearchIndex.BuildSceneRecords(sceneData, sceneKey, sceneName, htmlFile));
                 RecordSceneHealth(manifest, sceneData, sceneKey, sceneName, htmlFile);
-                scenePages.Add(new KeyValuePair<string, JsonValue>(htmlFile, sceneData));
+                scenePages.Add(new KeyValuePair<string, string>(htmlFile, jsonFile));
+
+                // The last reference to this Scene's tree. Dropping it
+                // here rather than letting it fall out of scope at the
+                // end of the iteration is the entire point of the
+                // change above - without it the local would keep the
+                // most recent Scene alive across the next Scene's walk.
+                sceneData = null;
             }
             EditorUtility.ClearProgressBar();
 
@@ -498,11 +563,34 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
             // Render every page now that the manifest (and therefore every
             // sidebar + cross-link) reflects this complete pass.
-            foreach (KeyValuePair<string, JsonValue> page in scenePages)
+            //
+            // One Scene is read back, rendered and released before the
+            // next is touched, so this loop's peak cost is the largest
+            // single Scene rather than the sum of all of them.
+            foreach (KeyValuePair<string, string> page in scenePages)
             {
-                WriteText(outputRoot, page.Key, ScenePageRenderer.Render(page.Value, manifest, page.Key));
+                JsonValue pageData = TryLoadJson(outputRoot, page.Value);
+                if (pageData == null)
+                {
+                    // The file was written moments ago by this same
+                    // export, so this means something outside the tool
+                    // removed or truncated it. Skipping costs one page;
+                    // failing the whole export would cost all of them.
+                    Debug.LogWarning("[Unity DocSnap] Could not read back \"" + page.Value
+                        + "\", so \"" + page.Key + "\" was not rendered. The data file is still on disk.");
+                    continue;
+                }
+                WriteText(outputRoot, page.Key, ScenePageRenderer.Render(pageData, manifest, page.Key));
             }
             WriteText(outputRoot, assetHtmlFile, AssetPageRenderer.Render(folderData, manifest, assetHtmlFile));
+
+            // Last use of the whole-Assets tree, and FinalizeVersion
+            // below is the heaviest part of the export - it may write
+            // a .unitypackage backup of the entire project. Releasing
+            // the tree first rather than letting the local hold it to
+            // the end of the method keeps the two peaks from
+            // overlapping.
+            folderData = null;
 
             // Build this version's snapshot, optional backup +
             // Changes page, export-info files, dashboard, and the
@@ -557,8 +645,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isPlaying)
             {
-                EditorUtility.DisplayDialog(
-                    DocSnapConstants.ToolName,
+                DocSnapRunResult.Fail("Cannot export while the Editor is in Play Mode.");
+                DocSnapInteraction.Alert(
                     "Unity DocSnap can't export while the Editor is in Play Mode.\n\n"
                     + "Exporting opens every Scene, which in Play Mode would run their scripts inside your running game "
                     + "and would document the live simulation instead of your project.\n\n"
@@ -566,23 +654,21 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                     + "─────\n"
                     + "再生モード中はエクスポートできません。再生を停止してからもう一度お試しください。\n\n"
                     + "─────\n"
-                    + "توی حالت Play نمی‌شه خروجی گرفت. اول بازی رو متوقف کن، بعد دوباره امتحان کن.",
-                    "OK");
+                    + "توی حالت Play نمی‌شه خروجی گرفت. اول بازی رو متوقف کن، بعد دوباره امتحان کن.");
                 return false;
             }
 
             if (EditorApplication.isCompiling || EditorApplication.isUpdating)
             {
-                EditorUtility.DisplayDialog(
-                    DocSnapConstants.ToolName,
+                DocSnapRunResult.Fail("Unity is still compiling or importing.");
+                DocSnapInteraction.Alert(
                     "Unity is still compiling scripts or importing assets.\n\n"
                     + "Please wait for that to finish, then export - otherwise the export would describe a project that is "
                     + "still changing underneath it.\n\n"
                     + "─────\n"
                     + "スクリプトのコンパイル / アセットのインポート中です。完了してからエクスポートしてください。\n\n"
                     + "─────\n"
-                    + "یونیتی هنوز داره کامپایل / ایمپورت می‌کنه. صبر کن تموم بشه، بعد خروجی بگیر.",
-                    "OK");
+                    + "یونیتی هنوز داره کامپایل / ایمپورت می‌کنه. صبر کن تموم بشه، بعد خروجی بگیر.");
                 return false;
             }
 
@@ -964,12 +1050,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         private static void ShowCancelled()
         {
             EditorUtility.ClearProgressBar();
-            EditorUtility.DisplayDialog(
-                DocSnapConstants.ToolName,
+            DocSnapRunResult.Cancel("Export cancelled by the user.");
+            DocSnapInteraction.Notice(
                 "Export cancelled. Anything already written is still in the output folder.\n\n"
                 + "エクスポートをキャンセルしました。すでに書き出された内容は出力フォルダに残っています。\n\n"
-                + "خروجی‌گیری لغو شد. هرچه تا اینجا نوشته شده، توی پوشه‌ی خروجی باقی می‌مونه.",
-                "OK");
+                + "خروجی‌گیری لغو شد. هرچه تا اینجا نوشته شده، توی پوشه‌ی خروجی باقی می‌مونه.");
         }
 
         // ==========================================
@@ -1397,13 +1482,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         private static void ShowExportComplete(string outputRoot, string messageEn, string messageJa, string messageFa)
         {
+            // Recorded before it is shown: an automated caller reads
+            // the result and never sees the dialog at all.
+            DocSnapRunResult.Succeed(messageEn, outputRoot);
+
             string message =
                 messageEn + "\n\n" +
                 messageJa + "\n\n" +
                 messageFa + "\n\n" +
                 "index.html \u2192 full site   \u00B7   summary.md \u2192 simple / AI-friendly";
 
-            bool reveal = EditorUtility.DisplayDialog(
+            bool reveal = DocSnapInteraction.Confirm(
                 DocSnapConstants.ToolName + "  \u2705",
                 message,
                 "Open Output Folder",

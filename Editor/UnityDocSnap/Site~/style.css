@@ -43,27 +43,42 @@
   --border: #e4e3ec;
   --border-strong: #d3d1de;
 
-  --text: #1d1b26;
-  --text-dim: #64616f;
-  --text-faint: #97949f;
+  /* Contrast, not fashion. --text-faint labels a key in
+     every kv-line on the site, so it has to clear 4.5:1
+     against --surface rather than merely look calm; the
+     old #97949f sat at 2.9:1 and was the single biggest
+     reason the pages read as washed out. */
+  --text: #17151f;
+  --text-dim: #55525f;
+  --text-faint: #6f6c7b;
 
-  --accent: #7c5cd6;
-  --accent-hover: #6a4bc4;
+  --accent: #6d4ccc;
+  --accent-hover: #5c3bb8;
   --accent-soft: #f1ecfd;
   --accent-border: #d9ccf7;
   --accent-contrast: #ffffff;
 
-  --danger: #d64545;
+  --danger: #c53232;
   --danger-soft: #fdeded;
   --danger-border: #f4c9c9;
 
-  --ok: #2f8f5b;
+  --ok: #217a48;
   --ok-soft: #e9f7ef;
   --ok-border: #bfe6cf;
 
-  --info: #2f6fbf;
+  --info: #1f5faf;
   --info-soft: #eaf2fd;
   --info-border: #c5daf6;
+
+  /* The stat-tile palette. Four hues that stay distinct
+     from one another at a glance, which is the whole job
+     of a tile row: "pink" and "lavender" both resolving to
+     --accent meant two of the four tiles were the same
+     colour and the row read as monochrome. */
+  --tile-pink: #cf3f7d;
+  --tile-lav: var(--accent);
+  --tile-mint: var(--ok);
+  --tile-warn: var(--danger);
 
   --radius-lg: 12px;
   --radius-md: 9px;
@@ -86,7 +101,16 @@
   --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', 'Space Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
   --sidebar-w: 272px;
-  --content-max: 1320px;
+
+  /* A hard 1320px cap left a 1920px window with roughly
+     330px of dead margin beside every page - on an RTL
+     export that strip sat on the left and read as "the
+     site failed to load the other half". The content here
+     is tables, hierarchies and file paths, all of which
+     want width, so the page now fills the window and the
+     cap only engages on genuinely ultrawide screens,
+     where an unbroken 3000px line really is unreadable. */
+  --content-max: 1760px;
 }
 
 :root[data-theme=dark] {
@@ -99,9 +123,14 @@
   --border: #2e2c3a;
   --border-strong: #3d3a4c;
 
-  --text: #eceaf3;
-  --text-dim: #a5a1b3;
-  --text-faint: #797588;
+  --text: #f2f0f8;
+  --text-dim: #b5b1c3;
+  --text-faint: #948fa3;
+
+  --tile-pink: #f78bb4;
+  --tile-lav: var(--accent);
+  --tile-mint: var(--ok);
+  --tile-warn: var(--danger);
 
   --accent: #a78bfa;
   --accent-hover: #b9a3fc;
@@ -236,7 +265,16 @@ body.ds-sidebar-collapsed .ds-sidebar-reopen { display: inline-flex; }
   min-width: 0;
   padding: 22px 30px 72px;
 }
-.ds-main > * { max-width: var(--content-max); }
+
+/* min() rather than a bare cap, and auto side margins:
+   below the cap every block is genuinely full width, and
+   above it the remaining space is split evenly instead of
+   piling up on whichever side the writing direction
+   leaves over. */
+.ds-main > * {
+  max-width: min(100%, var(--content-max));
+  margin-inline: auto;
+}
 
 /* ==========================================
    Sidebar — brand + controls
@@ -620,10 +658,10 @@ a.ds-badge.warn:hover { color: var(--danger); border-color: var(--danger); }
 .ds-stat-num { font-size: 24px; font-weight: 650; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .ds-stat-label { font-size: 11.5px; color: var(--text-dim); margin-top: 3px; font-weight: 500; }
 
-.ds-stat-tile.ds-tile-mint .ds-stat-num { color: var(--ok); }
-.ds-stat-tile.ds-tile-warn .ds-stat-num { color: var(--danger); }
-.ds-stat-tile.ds-tile-lav .ds-stat-num { color: var(--accent); }
-.ds-stat-tile.ds-tile-pink .ds-stat-num { color: var(--accent); }
+.ds-stat-tile.ds-tile-mint .ds-stat-num { color: var(--tile-mint); }
+.ds-stat-tile.ds-tile-warn .ds-stat-num { color: var(--tile-warn); }
+.ds-stat-tile.ds-tile-lav .ds-stat-num { color: var(--tile-lav); }
+.ds-stat-tile.ds-tile-pink .ds-stat-num { color: var(--tile-pink); }
 
 /* ==========================================
    Rows (dashboard lists)
@@ -1574,27 +1612,41 @@ code, kbd, samp, pre { direction: ltr; unicode-bidi: isolate; }
   --border: #f3e2ea;
   --border-strong: #f0c8dc;
 
-  --text: #4a3b52;
-  --text-dim: #8a7a92;
-  --text-faint: #b9adc2;
+  /* Cozy is the pastel skin, and pastel is a property of
+     the SURFACES. Letting it bleed into the ink is what
+     made this skin the hard one to read: #4a3b52 body text
+     with #b9adc2 labels is a page you squint at. The ink
+     is now darker than the lite skin's, not lighter - the
+     warmth stays in the backgrounds, the borders and the
+     accents, where it costs nothing to read. */
+  --text: #2b1d35;
+  --text-dim: #5f4c6c;
+  --text-faint: #7a6787;
 
-  --accent: #9678c2;
-  --accent-hover: #ff8fa3;
+  --accent: #7a52b8;
+  --accent-hover: #ff7593;
   --accent-soft: #f3ecfd;
   --accent-border: #cdb9ec;
   --accent-contrast: #ffffff;
 
-  --danger: #c9524f;
+  --danger: #c33f3c;
   --danger-soft: #fff0ee;
   --danger-border: #ffc4bd;
 
-  --ok: #3f7d4b;
+  --ok: #2b7a3c;
   --ok-soft: #eafce9;
   --ok-border: #a8e2a4;
 
-  --info: #6b73c8;
+  --info: #4a53b6;
   --info-soft: #eef0fd;
   --info-border: #c9cef3;
+
+  /* Saturated on purpose. A dashboard of pastel numbers is
+     a dashboard nobody reads twice. */
+  --tile-pink: #e03d80;
+  --tile-lav: #7a52b8;
+  --tile-mint: #22874a;
+  --tile-warn: #e0553f;
 
   --radius-lg: 20px;
   --radius-md: 14px;
@@ -1619,9 +1671,14 @@ code, kbd, samp, pre { direction: ltr; unicode-bidi: isolate; }
   --border: #38313f;
   --border-strong: #4b4155;
 
-  --text: #ece7f2;
-  --text-dim: #b3a8c2;
-  --text-faint: #8b8098;
+  --text: #f4f0f9;
+  --text-dim: #c0b5cf;
+  --text-faint: #a096ae;
+
+  --tile-pink: #ff8fb8;
+  --tile-lav: #c9b8f0;
+  --tile-mint: #8fd98c;
+  --tile-warn: #ff9d9d;
 
   --accent: #c9b8f0;
   --accent-hover: #ff9db0;
@@ -1657,15 +1714,34 @@ code, kbd, samp, pre { direction: ltr; unicode-bidi: isolate; }
 /* ---------- Decoration ---------- */
 
 /* The pastel wash behind the nav, which is the single
-   most recognisable thing about the original look. */
+   most recognisable thing about the original look.
+
+   Deeper at the top than it was: the previous ramp started
+   at #ffe6f1 and reached the page background by 46%, so on
+   a tall window most of the sidebar was simply cream and
+   the "wash" only existed above the fold. Starting warmer
+   and holding the pink for longer keeps the panel reading
+   as a distinct, coloured surface all the way down. */
 :root[data-skin=cozy] .ds-sidebar {
-  background: linear-gradient(180deg, #ffe6f1 0%, #fff3e6 46%, #fffaf3 100%);
+  background: linear-gradient(180deg, #ffd3e6 0%, #ffdcec 34%, #ffe9f0 68%, #fff3e6 100%);
+  border-inline-end-color: #f6bdd6;
 }
 :root[data-skin=cozy][data-theme=dark] .ds-sidebar {
-  background: linear-gradient(180deg, #2f2438 0%, #262030 48%, #1c1922 100%);
+  background: linear-gradient(180deg, #3a2a45 0%, #322640 42%, #282133 74%, #1c1922 100%);
 }
 
-:root[data-skin=cozy] .ds-brand-text h1 { font-size: 17px; }
+/* The brand lockup carries the personality, so it gets the
+   room to: a mark you can actually see the mascot in, and
+   a wordmark in the rounded display face. */
+/* 36px, not 42: the mark, the wordmark and the collapse
+   button share a 272px sidebar, and at 42 the wordmark
+   wrapped onto two lines. */
+:root[data-skin=cozy] .ds-brand { gap: 10px; padding-block: 4px 2px; }
+:root[data-skin=cozy] .ds-brand svg,
+:root[data-skin=cozy] .ds-brand img { width: 36px; height: 36px; }
+:root[data-skin=cozy] .ds-brand-text { min-width: 0; }
+:root[data-skin=cozy] .ds-brand-text h1 { font-size: 18px; letter-spacing: -.01em; white-space: nowrap; }
+:root[data-skin=cozy] .ds-brand-text span { color: var(--text-dim); font-weight: 600; }
 
 /* Gradient card heads, back where they were. */
 :root[data-skin=cozy] .ds-go-card-head,
@@ -1695,19 +1771,104 @@ code, kbd, samp, pre { direction: ltr; unicode-bidi: isolate; }
   box-shadow: var(--shadow-pop);
 }
 
-:root[data-skin=cozy] .ds-stat-num { font-family: var(--font-display); font-size: 27px; }
-:root[data-skin=cozy] .ds-page-header h1 { font-size: 27px; }
-:root[data-skin=cozy] .ds-nav-title { text-transform: none; letter-spacing: .02em; font-size: 12.5px; color: var(--accent); }
+/* Bigger and heavier than the lite skin, because the
+   headline number IS the dashboard - at 27px in a pastel
+   hue it was competing with its own caption. */
+:root[data-skin=cozy] .ds-stat-num { font-family: var(--font-display); font-size: 33px; font-weight: 700; }
+:root[data-skin=cozy] .ds-stat-label { color: var(--text-dim); font-weight: 600; }
+:root[data-skin=cozy] .ds-page-header h1 { font-size: 30px; font-weight: 700; }
+:root[data-skin=cozy] .ds-nav-title { text-transform: none; letter-spacing: .02em; font-size: 12.5px; color: var(--accent); font-weight: 700; }
 
-:root[data-skin=cozy] .ds-badge { border-radius: 999px; padding: 4px 12px; }
+/* Section headings get the display face too. Cozy was
+   applying it to exactly two elements, so every card title
+   on the page was still rendering in the same system UI
+   font the lite skin uses - which is most of why the two
+   skins felt like the same page with rounder corners. */
+:root[data-skin=cozy] .ds-card > h3,
+:root[data-skin=cozy] .ds-card-head h3 { font-family: var(--font-display); font-size: 15px; font-weight: 700; }
+
+:root[data-skin=cozy] .ds-badge { border-radius: 999px; padding: 4px 12px; font-weight: 650; }
 :root[data-skin=cozy] .ds-lang-btn,
 :root[data-skin=cozy] .ds-mode-btn,
-:root[data-skin=cozy] .ds-seg-btn { border-radius: 999px; }
+:root[data-skin=cozy] .ds-seg-btn,
+:root[data-skin=cozy] .ds-skin-btn { border-radius: 999px; }
 :root[data-skin=cozy] .ds-langbar,
 :root[data-skin=cozy] .ds-modebar,
-:root[data-skin=cozy] .ds-segmented { border-radius: 999px; }
+:root[data-skin=cozy] .ds-segmented,
+:root[data-skin=cozy] .ds-skinbar { border-radius: 999px; }
 :root[data-skin=cozy] .ds-search-input,
 :root[data-skin=cozy] .ds-inline-filter { border-radius: 999px; }
+
+/* The selected control is FILLED here, not merely a paler
+   shade of the bar it sits in. A white-on-white active
+   state is legible only by its shadow, which is what made
+   this skin read as flat and machine-made next to the
+   original: you could not tell at a glance which language
+   or which mode you were in. Coral for language, violet
+   for the view mode - two different questions, two
+   different answers, both visible from across the room.
+
+   The extra parent class on each selector is not
+   decoration: the dark-theme `.is-active` rules are
+   equally specific and some of them are declared LATER in
+   this file, so without it the skin button reverted to a
+   pale surface in dark mode while its neighbours stayed
+   filled. Winning on specificity rather than on source
+   order keeps these independent of where the blocks
+   happen to sit. */
+:root[data-skin=cozy] .ds-langbar .ds-lang-btn.is-active,
+:root[data-skin=cozy] .ds-skinbar .ds-skin-btn.is-active {
+  background: linear-gradient(135deg, #ff7593, #ff9fb4);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(255, 117, 147, .40);
+}
+:root[data-skin=cozy] .ds-modebar .ds-mode-btn.is-active,
+:root[data-skin=cozy] .ds-segmented .ds-seg-btn.is-active {
+  background: linear-gradient(135deg, #7a52b8, #9c78d8);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(122, 82, 184, .34);
+}
+:root[data-skin=cozy] .ds-langbar .ds-lang-btn.is-active:hover,
+:root[data-skin=cozy] .ds-modebar .ds-mode-btn.is-active:hover,
+:root[data-skin=cozy] .ds-segmented .ds-seg-btn.is-active:hover,
+:root[data-skin=cozy] .ds-skinbar .ds-skin-btn.is-active:hover { color: #fff; }
+:root[data-skin=cozy] .ds-segmented .ds-seg-btn.is-active .ds-seg-count {
+  background: rgba(255, 255, 255, .24);
+  color: #fff;
+}
+
+/* The bars themselves get a little more presence so the
+   filled pill has something to sit in. */
+:root[data-skin=cozy] .ds-langbar,
+:root[data-skin=cozy] .ds-modebar,
+:root[data-skin=cozy] .ds-skinbar {
+  background: rgba(255, 255, 255, .72);
+  border-color: var(--border-strong);
+}
+:root[data-skin=cozy][data-theme=dark] .ds-langbar,
+:root[data-skin=cozy][data-theme=dark] .ds-modebar,
+:root[data-skin=cozy][data-theme=dark] .ds-skinbar { background: rgba(255, 255, 255, .06); }
+
+/* Sidebar nav: the current page is marked with a coloured
+   rail and a tinted row rather than a slightly different
+   grey, which is the other place the old skin lost its
+   sense of "you are here".
+
+   The rail is a logical border rather than an inset
+   box-shadow so it lands on the leading edge in both
+   writing directions without a second RTL rule - `dir`
+   and `data-skin` sit on the same <html> element, so a
+   descendant selector could not have reached it anyway. */
+:root[data-skin=cozy] .ds-nav-link.is-current {
+  background: var(--accent-soft);
+  border-inline-start: 3px solid var(--accent-hover);
+  padding-inline-start: 7px;
+  /* Square off the two corners the rail runs along, or the
+     3px border follows the 9px radius and reads as a stray
+     curl beside the row rather than a marker on it. */
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
 
 :root[data-skin=cozy] .ds-back-top {
   background: var(--accent-hover);

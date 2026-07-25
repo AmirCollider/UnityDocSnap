@@ -33,7 +33,23 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         public static string StyleCss
         {
-            get { return DocSnapFontAssets.FontFaceCss + DocSnapSiteFiles.Read(DocSnapSiteFiles.StyleCssFile); }
+            get
+            {
+                string sheet = DocSnapSiteFiles.Read(DocSnapSiteFiles.StyleCssFile);
+                if (!DocSnapSettings.EmbedFonts)
+                {
+                    // The stylesheet already names the system stack
+                    // after every embedded family, so dropping the
+                    // @font-face block changes which face renders and
+                    // nothing else - no layout shift, no missing
+                    // glyphs. See DocSnapSettings.EmbedFonts for why
+                    // anyone would want the ~570 KB back.
+                    return "/* Embedded web fonts were disabled for this export"
+                        + " (Project Settings > Unity DocSnap). The site uses the"
+                        + " system font stack instead. */\n" + sheet;
+                }
+                return DocSnapFontAssets.FontFaceCss + sheet;
+            }
         }
 
         // ==========================================

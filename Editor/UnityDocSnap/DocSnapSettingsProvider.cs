@@ -107,10 +107,30 @@ namespace AmirCollider.UnityDocSnap.Editor
 
             EditorGUILayout.Space(6);
             EditorGUI.BeginChangeCheck();
+            bool embedFonts = EditorGUILayout.Toggle(
+                new GUIContent("Embed web fonts",
+                    "On by default: each version folder carries its own ~570 KB of branded fonts, so an export is a self-contained thing you can zip and send. Turn this off to save that per export; the site falls back to the system font stack and the layout is unchanged."),
+                DocSnapSettings.EmbedFonts);
+            if (EditorGUI.EndChangeCheck()) { DocSnapSettings.EmbedFonts = embedFonts; }
+
+            EditorGUILayout.Space(6);
+            EditorGUI.BeginChangeCheck();
             bool thumbs = EditorGUILayout.Toggle(
                 new GUIContent("Generate Image Thumbnails", "On by default so image assets get real preview thumbnails. Turn this off if you need DocSnap's stricter mode where pixels never leave your project."),
                 DocSnapSettings.GenerateThumbnails);
             if (EditorGUI.EndChangeCheck()) { DocSnapSettings.GenerateThumbnails = thumbs; }
+
+            // Thumbnails write real pixel data, and the difference
+            // matters enough to say out loud rather than leave in a
+            // tooltip: a reader who believes the export contains no
+            // imagery may hand it to someone outside the team.
+            if (thumbs)
+            {
+                EditorGUILayout.HelpBox(
+                    "Thumbnails are ON: downscaled PNG previews of your image assets are written into theme/thumbs/, "
+                    + "so the export contains actual pixels. Turn this off if the export must carry metadata only.",
+                    MessageType.Info);
+            }
 
             EditorGUILayout.Space(6);
             EditorGUILayout.BeginHorizontal();
@@ -130,6 +150,27 @@ namespace AmirCollider.UnityDocSnap.Editor
             EditorGUILayout.HelpBox(
                 "These settings only change how the next export looks. Run any Unity DocSnap export again afterwards to see them take effect.",
                 MessageType.None);
+
+            // Where these live, said plainly. Everything above
+            // except the logo path describes the PROJECT, so it is
+            // written to a file meant to be committed - and a team
+            // that does not know the file exists cannot commit it.
+            EditorGUILayout.Space(8);
+            EditorGUILayout.LabelField("Where these are stored", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(
+                DocSnapSettings.ProjectSettingsRelativePath + "  —  commit this file to share it with your team and your CI.",
+                EditorStyles.miniLabel);
+            EditorGUILayout.LabelField(
+                "The Custom Logo Path is an absolute path on this machine, so it stays per-user and is not written there.",
+                EditorStyles.miniLabel);
+
+            string storeError = DocSnapSettings.Store.LastError;
+            if (!string.IsNullOrEmpty(storeError))
+            {
+                EditorGUILayout.HelpBox(
+                    DocSnapSettings.ProjectSettingsRelativePath + " " + storeError,
+                    MessageType.Warning);
+            }
         }
     }
 }
