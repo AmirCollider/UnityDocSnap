@@ -354,6 +354,109 @@ check(
     "ValidateOutputRoot()" in editor_sources.get("Editor/UnityDocSnap/Export/DocSnapExportService.cs", ""),
 )
 
+# --- The edition gate.
+#
+#     Every one of these is a line that could be deleted
+#     during an unrelated refactor without any test noticing
+#     inside Unity - the EditMode suite needs a licence CI
+#     usually does not have, so it is skipped far more often
+#     than it runs. Each check below is a paid feature quietly
+#     becoming free, which is not a failure anybody reports.
+export_service = editor_sources.get("Editor/UnityDocSnap/Export/DocSnapExportService.cs", "")
+docsnap_api = editor_sources.get("Editor/UnityDocSnap/DocSnapAPI.cs", "")
+page_builder = editor_sources.get("Editor/UnityDocSnap/Html/HtmlPageBuilder.cs", "")
+edition_matrix = editor_sources.get("Editor/UnityDocSnap/Licensing/DocSnapEdition.cs", "")
+token_source = editor_sources.get("Editor/UnityDocSnap/Licensing/DocSnapLicenseToken.cs", "")
+
+check(
+    "the summary/ writers check the edition",
+    export_service.count("DocSnapEditionGate.WritesAiSummaries") >= 3,
+    "expected the gate in WriteSceneSummaries, WriteFolderSummaries and WriteAiBundle",
+)
+
+check(
+    "export options are clamped to the licensed edition",
+    "DocSnapEditionGate.ClampOptions" in export_service,
+)
+
+check(
+    "the free version-shelf cap is applied",
+    "DocSnapEditionGate.ResolveVersionCap" in export_service,
+)
+
+check(
+    "scripted exports check the Automation feature",
+    "DocSnapFeature.Automation" in docsnap_api,
+)
+
+check(
+    "a custom logo stays gated",
+    "DocSnapFeature.CustomLogo" in page_builder,
+)
+
+# --- The free-edition footer line and the custom logo are two
+#     different rules, and collapsing them into one is the
+#     mistake worth catching. A Plus customer has paid; a page
+#     telling them on every export that they are running the
+#     free edition would simply be false.
+check(
+    "the free-edition badge is driven by the tier, not by a feature flag",
+    "ShowsFreeEditionBadge" in page_builder,
+)
+
+# --- The tier of each paid feature. These two lines ARE the
+#     price list, and a feature sliding between them moves real
+#     money without any test inside Unity noticing - the EditMode
+#     suite needs a licence CI usually does not have.
+def priced_at(feature, tier):
+    return re.search(
+        r"\{\s*DocSnapFeature\." + feature + r"\s*,\s*DocSnapEdition\." + tier + r"\s*\}",
+        edition_matrix,
+    ) is not None
+
+
+check("AI summaries are priced at Plus", priced_at("AiSummaries", "Plus"))
+check("the Changes page is priced at Plus", priced_at("ChangesPage", "Plus"))
+
+for feature in ("UnlimitedVersions", "IncrementalUpdate", "IncludeFiles",
+                "ProjectBackup", "Automation", "CustomLogo"):
+    check("{} is priced at Pro".format(feature), priced_at(feature, "Pro"))
+
+# --- Allows() is a >= comparison over the enum's numeric order,
+#     so the order is load-bearing rather than cosmetic:
+#     renumbering it hands Plus everything Pro has.
+check(
+    "the tier ladder is ordered Free < Plus < Pro",
+    re.search(r"Free\s*=\s*0", edition_matrix) is not None
+    and re.search(r"Plus\s*=\s*1", edition_matrix) is not None
+    and re.search(r"Pro\s*=\s*2", edition_matrix) is not None,
+)
+
+# --- The licence server's public key.
+#
+#     A 2048-bit RSA modulus is 256 bytes, which is 342
+#     characters of unpadded base64url. A placeholder, a
+#     truncated paste or a key swapped for a different one all
+#     produce a package whose every activation succeeds on the
+#     server and is then rejected by the Editor that asked for
+#     it - the single worst failure this system has, because it
+#     only appears after somebody has paid.
+modulus_match = re.search(
+    r"PublicModulus\s*=\s*((?:\s*\"[^\"]*\"\s*\+?)+)\s*;", token_source
+)
+modulus = "".join(re.findall(r'"([^"]*)"', modulus_match.group(1))) if modulus_match else ""
+
+check(
+    "the embedded licence public key is a full RSA-2048 modulus",
+    len(modulus) == 342 and re.fullmatch(r"[A-Za-z0-9_-]+", modulus) is not None,
+    "got {} base64url chars, expected 342".format(len(modulus)),
+)
+
+check(
+    "the licence public key is not a placeholder",
+    "REPLACE" not in modulus and "XXXX" not in modulus,
+)
+
 # ==========================================
 # 7. No stray absolute paths or leftover scratch
 #    files in the shipped package
