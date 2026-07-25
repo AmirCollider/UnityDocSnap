@@ -37,7 +37,7 @@ It's an Editor extension that walks every Scene in your project — every GameOb
 - 🌳 **Full Hierarchy snapshot** — every GameObject in a scene, nested exactly as it sits in the Hierarchy window, with its tag, layer, active state, and static flags.
 - 🔍 **Complete Inspector export** — every Component on every GameObject, every serialized field, and its live value, exactly as the Inspector shows it.
 - 🔗 **Real connections, not just names** — when a script references another GameObject, a Prefab, or a ScriptableObject, that reference becomes a clickable link in the output, so you can trace exactly how a scene is wired together.
-- 🖼️ **Asset *info*, not asset files** — point DocSnap at a folder, say `Assets/Images/Backgrounds`, and it exports the metadata for every file inside: import settings, compression, max size, dimensions, format — never a copy of the file itself.
+- 🖼️ **Asset *info*, not asset files** — point DocSnap at a folder, say `Assets/Images/Backgrounds`, and it exports the metadata for every file inside: import settings, compression, max size, dimensions, format. The original file is never copied. Two opt-ins do put real content in the export and both say so: **thumbnails** (on by default) write small PNG previews of your images, and **Export Full Project With Files** copies the asset bytes themselves. Turn thumbnails off in Project Settings for a strictly metadata-only export.
 - 📁 **One menu entry per Scene** — DocSnap scans your project and lists every Scene as its own menu item, so exporting one Scene is a single click.
 - 🖱️ **Right-click, anywhere** — every menu action is also available from the Project window's right-click context menu on any folder or asset.
 - 🌐 **An actual local website** — everything bakes into a self-contained `index.html` plus a handful of linked pages, complete with a sidebar and cross-links between objects and the assets they reference.
@@ -97,7 +97,9 @@ The generated site also has a **search box** in the sidebar (All / Scenes / Asse
 `Unity DocSnap → Export Scene → [YourSceneName]` walks that Scene's entire Hierarchy and writes a full snapshot of every GameObject and Component into the output folder.
 
 **Exporting asset info**
-`Unity DocSnap → Export Asset Info → Selected Folder…` lets you pick a folder — for example `Assets/Images/Backgrounds` — and DocSnap exports the Inspector info for every file inside it. For an image like `bakery_street.png`, that means Texture Type, sRGB, Compression, Max Size, Filter Mode, Wrap Mode, generated mip maps, and every other import setting, captured exactly as Unity has it configured. The pixels themselves never leave your project.
+`Unity DocSnap → Export Asset Info → Selected Folder…` lets you pick a folder — for example `Assets/Images/Backgrounds` — and DocSnap exports the Inspector info for every file inside it. For an image like `bakery_street.png`, that means Texture Type, sRGB, Compression, Max Size, Filter Mode, Wrap Mode, generated mip maps, and every other import setting, captured exactly as Unity has it configured.
+
+> **About the pixels.** The original `bakery_street.png` is never copied. With **Generate Image Thumbnails** on — which is the default — DocSnap does write a downscaled PNG preview of it into `theme/thumbs/`, so the exported page can show you what the texture actually looks like. That preview is real image data. If the export has to carry metadata and nothing else, turn thumbnails off in **Project Settings → Unity DocSnap** before exporting.
 
 **Opening the result**
 By default, output lands in `<ProjectRoot>/UnityDocSnap_Output/`. Use `Unity DocSnap → Open Output Folder` to jump straight there, then open `index.html` in any browser.
@@ -148,6 +150,72 @@ V1.1.0/
 Version names run `V1.0.0 → V1.0.9 → V1.1.0 → … → V9.9.9 → V10.0.0`, or you can type your own name in the export window. **Update Previous Export** re-exports *into* the newest folder instead of making a new one, reusing whatever has not changed.
 
 The site itself has a **Simple / Advanced** toggle in the sidebar: *Simple* shows a clean skim (hierarchy, custom-script configuration, key asset facts), *Advanced* shows every serialized field. It opens in Simple by default and remembers your choice.
+
+### 🤖 Automation & CI
+
+Every export is available from C# and from the command line, so documentation can be regenerated on merge instead of by remembering to click a menu item.
+
+```csharp
+using AmirCollider.UnityDocSnap.Editor;
+
+DocSnapResult result = DocSnapAPI.ExportFullProject();
+if (!result.Succeeded) { Debug.LogError(result.Message); }
+```
+
+```bash
+Unity -batchmode -quit -projectPath . \
+      -executeMethod AmirCollider.UnityDocSnap.Editor.DocSnapAPI.RunFromCommandLine \
+      -docsnapOutput Build/Docs \
+      -docsnapExclude "Assets/Plugins;Assets/ThirdParty"
+```
+
+In `-batchmode` the process exits non-zero when the export fails, so a red build means a real problem. No dialog is ever shown from an API-driven or batch export.
+
+| Argument | Effect |
+| --- | --- |
+| `-docsnapUpdate` | Refresh the newest version folder in place (incremental — the one to run on a schedule) |
+| `-docsnapScene <path>` | Export one Scene; repeatable |
+| `-docsnapFolder <path>` | Export one folder under `Assets/`; repeatable |
+| `-docsnapWithFiles` | Also copy the real asset bytes into `source-files/` |
+| `-docsnapOutput <path>` | Output root, absolute or project-relative |
+| `-docsnapExclude "a;b"` | Exclude patterns, `;` separated |
+| `-docsnapLanguage en\|ja\|fa` | Language the site opens in |
+| `-docsnapTheme light\|dark` | Theme the site opens in |
+| `-docsnapSkin auto\|cozy\|lite` | Skin the site opens in |
+| `-docsnapNoThumbnails` | Metadata only — no pixel previews |
+| `-docsnapNoFonts` | Skip the ~570 KB of embedded web fonts |
+
+With no action argument it runs a full project export.
+
+`DocSnapAPI` is the **only** public type in the package. Everything else is `internal` on purpose, so the rest of the tool stays free to change.
+
+### ⚙️ Settings, and where they live
+
+Settings that describe the **project** — exclude patterns, not-my-code folders, output path, the site's default language / theme / skin, thumbnails, embedded fonts — are written to:
+
+```
+ProjectSettings/UnityDocSnapSettings.json
+```
+
+**Commit that file.** It is plain, ordered JSON meant to be read in a pull request, and it is what makes one team and its CI agent produce the same export instead of one per machine. Settings that describe *you* rather than the project — the export window's own language, and the absolute path to a custom logo — stay in `EditorUserSettings` and are not written there.
+
+Upgrading from 0.9.x migrates your existing settings into the new file automatically, once, without overwriting anything the repository already had.
+
+### 📏 What an export leaves out
+
+DocSnap documents a project; it is not a serialiser you could rebuild one from. A handful of caps keep a single pathological object from producing an export nobody can open, and every one of them is marked in the output (`"truncated": true` in the JSON, a note on the page) rather than silently applied:
+
+| Cap | Limit |
+| --- | --- |
+| Array elements per field | 50 (10 for a nested array) |
+| Fields per object | 1,000 |
+| Nesting depth | 14 |
+| Assets rendered per folder node | 300 |
+| Health findings | 400 per Scene/folder, 2,000 rendered |
+| Search index records | 20,000 |
+| `ai-bundle.md` | 600,000 characters |
+
+Also outside the walk by design: anything Unity itself ignores (hidden folders, `Foo~` folders, `CVS`), and anything your exclude patterns remove.
 
 ### 🧠 Built for Humans *and* AI
 
@@ -215,7 +283,7 @@ If Unity DocSnap saves you some digging around later, a ⭐ on the repo goes a l
 - 🌳 **完全なHierarchyスナップショット** — シーン内のすべてのGameObjectを、Hierarchyウィンドウそのままの入れ子構造で。タグ、レイヤー、アクティブ状態、Staticフラグも含めて。
 - 🔍 **完全なInspectorエクスポート** — すべてのGameObjectのすべてのComponent、すべてのシリアライズされたフィールドとその現在値を、Inspectorに表示されている通りに。
 - 🔗 **名前だけでなく、本当のつながり** — あるスクリプトが別のGameObject・Prefab・ScriptableObjectを参照している場合、出力内でクリック可能なリンクになります。シーンがどう組み立てられているか、たどることができます。
-- 🖼️ **ファイルの中身ではなく、ファイルの情報** — `Assets/Images/Backgrounds` のようなフォルダを指定すると、中の全ファイルの *メタデータ*(インポート設定、圧縮方式、最大サイズ、解像度、フォーマットなど)をエクスポートします。ファイル本体はコピーしません。
+- 🖼️ **ファイルの中身ではなく、ファイルの情報** — `Assets/Images/Backgrounds` のようなフォルダを指定すると、中の全ファイルの *メタデータ*(インポート設定、圧縮方式、最大サイズ、解像度、フォーマットなど)をエクスポートします。元ファイル自体はコピーしません。ただし実際の中身が出力に入るオプションが2つあり、どちらも明示されています:**サムネイル**(既定でオン)は画像の縮小PNGプレビューを書き出し、**Export Full Project With Files** はアセットのバイト列そのものをコピーします。メタデータだけの出力にしたい場合は Project Settings でサムネイルをオフにしてください。
 - 📁 **Sceneごとにメニュー項目を自動生成** — DocSnapがプロジェクトをスキャンし、すべてのSceneをそれぞれ独立したメニュー項目として表示します。
 - 🖱️ **どこでも右クリック** — すべてのメニュー操作は、Projectウィンドウでフォルダやアセットを右クリックしたコンテキストメニューからも実行できます。
 - 🌐 **本物のローカルWebサイト** — すべてが `index.html` と数枚のリンクされたページにまとめられ、サイドバーと、オブジェクト同士・参照アセット間の相互リンク付きです。
@@ -327,6 +395,40 @@ V1.1.0/
 
 サイトにはサイドバーに **Simple / Advanced** の切り替えがあります。*Simple* はすっきりした概要(ヒエラルキー、カスタムスクリプトの設定、アセットの要点)を、*Advanced* はすべてのシリアライズ済みフィールドを表示します。初期状態は Simple で、選択は記憶されます。
 
+### 🤖 自動化とCI
+
+すべてのエクスポートはC#とコマンドラインから実行できるので、メニューを押し忘れることなくマージのたびにドキュメントを再生成できます。
+
+```bash
+Unity -batchmode -quit -projectPath . \
+      -executeMethod AmirCollider.UnityDocSnap.Editor.DocSnapAPI.RunFromCommandLine \
+      -docsnapOutput Build/Docs
+```
+
+`-batchmode` ではエクスポート失敗時にプロセスが非ゼロで終了するので、ビルドが赤くなるのは本当に問題があるときだけです。API経由・バッチ経由のエクスポートではダイアログは一切表示されません。主な引数: `-docsnapUpdate`(最新バージョンを差分更新)、`-docsnapScene <path>`、`-docsnapFolder <path>`、`-docsnapWithFiles`、`-docsnapOutput <path>`、`-docsnapExclude "a;b"`、`-docsnapLanguage`、`-docsnapTheme`、`-docsnapSkin`、`-docsnapNoThumbnails`、`-docsnapNoFonts`。引数なしならプロジェクト全体をエクスポートします。
+
+公開型は `DocSnapAPI` **だけ**です。それ以外はすべて意図的に `internal` のままにしてあります。
+
+### ⚙️ 設定の保存先
+
+**プロジェクト**に関する設定(除外パターン、他人のコードのフォルダ、出力先、サイトの既定言語・テーマ・スキン、サムネイル、埋め込みフォント)は次のファイルに書き込まれます:
+
+```
+ProjectSettings/UnityDocSnapSettings.json
+```
+
+**このファイルはコミットしてください。** プルリクエストで読める、順序が安定したプレーンなJSONです。これがあるからチーム全員とCIが同じ出力を得られます。**あなた個人**に関する設定(エクスポートウィンドウの言語、カスタムロゴの絶対パス)は従来どおり `EditorUserSettings` に残り、このファイルには書かれません。
+
+0.9.x からのアップグレード時には、既存の設定が一度だけ自動で移行されます。
+
+### 📏 エクスポートに含まれないもの
+
+DocSnapはプロジェクトを「記録」するツールであって、そこから復元できるシリアライザではありません。極端なオブジェクト1つのせいで開けない出力ができてしまわないよう、いくつか上限があります。いずれも出力側に明示されます(JSONの `"truncated": true`、ページ上の注記)。
+
+配列の要素は1フィールドあたり50個(ネストした配列は10個)、1オブジェクトあたりのフィールドは1,000個、ネストの深さは14、フォルダノードあたりの表示アセットは300件、健康状態の指摘はシーン/フォルダあたり400件・表示2,000件、検索インデックスは20,000件、`ai-bundle.md` は600,000文字まで。
+
+またUnity自身が無視するもの(隠しフォルダ、`Foo~` フォルダ、`CVS`)と、除外パターンで外したものは最初から対象外です。
+
 ### 🧠 人にもAIにもやさしい理由
 
 すべてのエクスポートページは、きちんとした見出し・ラベル付きのフィールド・一貫したIDという、わかりやすい構造に従っています。人間はブラウザで1分もあれば全体を把握できますし、AIアシスタントには `data/` フォルダ(または1つのJSONファイル)を渡すだけで、Hierarchy・Component・アセット設定を、いちいち手で説明しなくても理解してもらえます。
@@ -371,7 +473,7 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 - 🌳 **اسنپ‌شات کامل از Hierarchy** — همه‌ی GameObject های یه سین، دقیقاً با همون تودرتویی که توی پنجره‌ی Hierarchy می‌بینی، همراه با Tag، Layer، وضعیت فعال/غیرفعال و Static Flag.
 - 🔍 **خروجی کامل از Inspector** — همه‌ی کامپوننت‌های روی هر GameObject، همه‌ی فیلدهای سریالایز شده و مقدار فعلی‌شون، دقیقاً همون‌طور که توی Inspector می‌بینی.
 - 🔗 **اتصالات واقعی، نه فقط اسم** — اگه یه اسکریپت به یه GameObject دیگه، یه Prefab یا یه ScriptableObject رفرنس داشته باشه، توی خروجی یه لینک قابل‌کلیک میشه؛ اینجوری می‌تونی ببینی سین دقیقاً چطور به هم وصله.
-- 🖼️ **اطلاعات فایل، نه خود فایل** — یه مسیر بهش بده، مثلاً `Assets/Images/Backgrounds`، اون هم *اطلاعات* همه‌ی فایل‌های اون مسیر رو خروجی می‌گیره: تنظیمات ایمپورت، فشرده‌سازی، حداکثر سایز، ابعاد، فرمت — بدون این‌که خود فایل کپی بشه.
+- 🖼️ **اطلاعات فایل، نه خود فایل** — یه مسیر بهش بده، مثلاً `Assets/Images/Backgrounds`، اون هم *اطلاعات* همه‌ی فایل‌های اون مسیر رو خروجی می‌گیره: تنظیمات ایمپورت، فشرده‌سازی، حداکثر سایز، ابعاد، فرمت — بدون این‌که خود فایل کپی بشه. دو تا گزینه هست که واقعاً محتوا رو وارد خروجی می‌کنن و هر دوش هم اعلام می‌شه: **تصاویر بندانگشتی** (پیش‌فرض روشن) یک پیش‌نمایش PNG کوچیک از عکس‌هات می‌نویسه، و **Export Full Project With Files** خود بایت‌های فایل‌ها رو کپی می‌کنه. برای خروجی‌ای که فقط متادیتا داشته باشه، توی Project Settings تصاویر بندانگشتی رو خاموش کن.
 - 📁 **یه گزینه‌ی منو برای هر سین** — DocSnap پروژه رو اسکن می‌کنه و همه‌ی سین‌ها رو جدا جدا توی منو میاره.
 - 🖱️ **راست‌کلیک، هرجا که باشی** — همه‌ی گزینه‌های منو از راست‌کلیک روی هر فولدر یا فایل توی پنجره‌ی Project هم در دسترسن.
 - 🌐 **یه وب‌سایت لوکال واقعی** — همه چی توی یه `index.html` و چندتا صفحه‌ی به‌هم‌وصل جمع میشه، با سایدبار و لینک‌های داخلی بین آبجکت‌ها و فایل‌هایی که بهشون رفرنس دارن.
@@ -431,7 +533,9 @@ Unity DocSnap
 با زدن `Unity DocSnap → Export Scene → [اسم سین]`، کل Hierarchy همون سین رو قدم می‌زنه و اسنپ‌شات کامل همه‌ی GameObject ها و کامپوننت‌هاشون رو توی پوشه‌ی خروجی می‌نویسه.
 
 **اکسپورت گرفتن اطلاعات فایل‌ها**
-با `Unity DocSnap → Export Asset Info → Selected Folder…` می‌تونی یه پوشه انتخاب کنی — مثلاً `Assets/Images/Backgrounds` — و DocSnap اطلاعات Inspector همه‌ی فایل‌های اون پوشه رو اکسپورت می‌کنه. برای یه عکس مثل `bakery_street.png`، یعنی Texture Type، sRGB، Compression، Max Size، Filter Mode، Wrap Mode، Generate Mip Maps و بقیه‌ی تنظیمات ایمپورتش، دقیقاً همون‌طور که توی یونیتی تنظیم شده. خود پیکسل‌های عکس هیچ‌وقت از پروژه بیرون نمیره.
+با `Unity DocSnap → Export Asset Info → Selected Folder…` می‌تونی یه پوشه انتخاب کنی — مثلاً `Assets/Images/Backgrounds` — و DocSnap اطلاعات Inspector همه‌ی فایل‌های اون پوشه رو اکسپورت می‌کنه. برای یه عکس مثل `bakery_street.png`، یعنی Texture Type، sRGB، Compression، Max Size، Filter Mode، Wrap Mode، Generate Mip Maps و بقیه‌ی تنظیمات ایمپورتش، دقیقاً همون‌طور که توی یونیتی تنظیم شده.
+
+> **درباره‌ی پیکسل‌ها.** خود فایل `bakery_street.png` هیچ‌وقت کپی نمی‌شه. اما وقتی **Generate Image Thumbnails** روشنه — که پیش‌فرضه — یک پیش‌نمایش کوچیک‌شده‌ی PNG ازش داخل `theme/thumbs/` نوشته می‌شه تا صفحه‌ی خروجی نشون بده تکسچر واقعاً چه شکلیه. اون پیش‌نمایش، داده‌ی تصویری واقعیه. اگه خروجی باید فقط متادیتا داشته باشه، قبل از اکسپورت از **Project Settings → Unity DocSnap** تصاویر بندانگشتی رو خاموش کن.
 
 **باز کردن نتیجه**
 به‌صورت پیش‌فرض، خروجی توی مسیر `<ریشه‌ی پروژه>/UnityDocSnap_Output/` قرار می‌گیره. با `Unity DocSnap → Open Output Folder` مستقیم می‌ری اونجا، بعد `index.html` رو با هر مرورگری باز کن.
@@ -482,6 +586,43 @@ V1.1.0/
 نام نسخه‌ها این‌طور جلو می‌ره: `V1.0.0 → V1.0.9 → V1.1.0 → … → V9.9.9 → V10.0.0`. توی پنجره‌ی اکسپورت می‌تونی اسم دلخواه خودت رو هم بذاری. گزینه‌ی **Update Previous Export** به‌جای ساختن پوشه‌ی جدید، **روی** جدیدترین پوشه دوباره اکسپورت می‌کنه و هرچی تغییر نکرده رو دوباره استفاده می‌کنه.
 
 خود سایت توی سایدبار یه کلید **Simple / Advanced** داره: حالت *Simple* یه نمای تمیز و سریع نشون می‌ده (Hierarchy، تنظیمات اسکریپت‌های خودت، نکات کلیدی فایل‌ها) و حالت *Advanced* همه‌ی فیلدهای سریالایز‌شده رو. به‌صورت پیش‌فرض روی Simple باز میشه و انتخابت رو یادش می‌مونه.
+
+### 🤖 اتوماسیون و CI
+
+هر اکسپورت از C# و از خط فرمان هم قابل اجراست، پس می‌شه مستندات رو روی هر merge دوباره ساخت به‌جای اینکه یادت بمونه یه منو رو کلیک کنی.
+
+```bash
+Unity -batchmode -quit -projectPath . \
+      -executeMethod AmirCollider.UnityDocSnap.Editor.DocSnapAPI.RunFromCommandLine \
+      -docsnapOutput Build/Docs \
+      -docsnapExclude "Assets/Plugins;Assets/ThirdParty"
+```
+
+توی `-batchmode` اگه اکسپورت شکست بخوره پروسه با کد غیرصفر خارج می‌شه، پس بیلد قرمز یعنی یه مشکل واقعی. توی اکسپورتی که از API یا از batch اجرا شده هیچ دیالوگی نشون داده نمی‌شه.
+
+آرگومان‌ها: `-docsnapUpdate` (به‌روزرسانی افزایشی آخرین نسخه)، `-docsnapScene <path>`، `-docsnapFolder <path>`، `-docsnapWithFiles`، `-docsnapOutput <path>`، `-docsnapExclude "a;b"`، `-docsnapLanguage`، `-docsnapTheme`، `-docsnapSkin`، `-docsnapNoThumbnails`، `-docsnapNoFonts`. بدون هیچ آرگومانی، اکسپورت کامل پروژه اجرا می‌شه.
+
+`DocSnapAPI` **تنها** تایپ public پکیجه؛ بقیه عمداً `internal` موندن.
+
+### ⚙️ تنظیمات کجا ذخیره می‌شن
+
+تنظیماتی که **پروژه** رو توصیف می‌کنن — الگوهای exclude، پوشه‌های «مال من نیست»، مسیر خروجی، زبان/تم/اسکین پیش‌فرض سایت، تصاویر بندانگشتی، فونت‌های embed — اینجا نوشته می‌شن:
+
+```
+ProjectSettings/UnityDocSnapSettings.json
+```
+
+**این فایل رو commit کن.** یه JSON ساده و مرتبه که توی pull request خونده می‌شه، و همینه که باعث می‌شه کل تیم و CI یک خروجی یکسان بگیرن نه هر نفر یکی. تنظیماتی که **خودت** رو توصیف می‌کنن — زبان پنجره‌ی اکسپورت و مسیر مطلق لوگوی سفارشی — همچنان توی `EditorUserSettings` می‌مونن و اینجا نوشته نمی‌شن.
+
+موقع آپدیت از 0.9.x، تنظیمات فعلی‌ت یک بار به‌صورت خودکار منتقل می‌شن، بدون اینکه چیزی که از قبل توی مخزن بوده بازنویسی بشه.
+
+### 📏 چیزهایی که توی خروجی نمیان
+
+DocSnap پروژه رو مستند می‌کنه؛ یه serializer نیست که بشه پروژه رو ازش بازسازی کرد. چند تا سقف وجود داره تا یک آبجکت غیرعادی باعث نشه خروجی‌ای ساخته بشه که اصلاً باز نمی‌شه — و همه‌شون توی خروجی علامت‌گذاری می‌شن (`"truncated": true` توی JSON، و یادداشت روی صفحه) نه اینکه بی‌صدا اعمال بشن:
+
+عناصر آرایه در هر فیلد ۵۰ تا (آرایه‌ی تودرتو ۱۰ تا)، فیلد در هر آبجکت ۱۰۰۰ تا، عمق تودرتویی ۱۴، اسست نمایش‌داده‌شده در هر نود پوشه ۳۰۰ تا، ایرادهای سلامت ۴۰۰ در هر سین/پوشه و ۲۰۰۰ نمایش‌داده‌شده، رکوردهای ایندکس جستجو ۲۰٬۰۰۰ تا، و `ai-bundle.md` تا ۶۰۰٬۰۰۰ کاراکتر.
+
+اینها هم عمداً بیرونن: هرچیزی که خود یونیتی نادیده می‌گیره (پوشه‌های مخفی، پوشه‌های `Foo~`، `CVS`) و هرچیزی که الگوهای exclude خودت حذف کردن.
 
 ### 🧠 چرا هم برای آدم‌ها هم برای هوش مصنوعی؟
 
