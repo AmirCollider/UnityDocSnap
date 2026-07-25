@@ -41,6 +41,27 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         public string path;       // "Assets/…" project-relative
         public long size;         // bytes
         public string signature;  // size + last-write ticks (cheap "changed?" fingerprint)
+
+        // A hash of the file's actual bytes, and the authority on
+        // whether the file really changed.
+        //
+        // signature alone answered "did the filesystem touch this?",
+        // which is not the same question. Unity re-stamps assets it
+        // manages on its own schedule - the clearest case being
+        // "TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF
+        // - Fallback.asset", which the dynamic font atlas rewrites
+        // whenever a glyph is rendered - so a file nobody had opened
+        // showed up under "Modified" on nearly every Changes page.
+        // Reporting a change that did not happen is the same class of
+        // bug as missing one that did.
+        //
+        // Computed only when the cheap signature says something may
+        // have moved: an unchanged size+timestamp reuses the hash
+        // already recorded, so a repeat export reads no file bytes at
+        // all. Empty on snapshots written before 0.8.1, and the diff
+        // falls back to signature for those rather than calling every
+        // file modified during the upgrade.
+        public string contentHash;
     }
 
     [Serializable]
@@ -126,6 +147,39 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string path = RegistryAbsolutePath();
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             File.WriteAllText(path, JsonUtility.ToJson(state, true));
+        }
+
+        // ==========================================
+        // HasFileChanged
+        // Whether a file present in both versions actually
+        // changed.
+        //
+        // The size + last-write signature answers "did the
+        // filesystem touch this?", which is a different question,
+        // and Unity touches assets it manages on its own schedule.
+        // The clearest case is
+        // "Assets/TextMesh Pro/Resources/Fonts & Materials/
+        // LiberationSans SDF - Fallback.asset", which the dynamic
+        // font atlas rewrites whenever a glyph is rendered - so it
+        // turned up under "Modified" on nearly every Changes page of
+        // a project nobody had edited. Reporting a change that did
+        // not happen is the same class of bug as missing one that
+        // did: either way the page stops being trustworthy.
+        //
+        // The content hash is the authority whenever both sides have
+        // one. A snapshot written before hashes existed has none, and
+        // falling back to the signature there is better than calling
+        // every file in the project modified once, during the upgrade.
+        // ==========================================
+        public static bool HasFileChanged(VersionFileEntry old, VersionFileEntry current)
+        {
+            if (old == null || current == null) { return old != current; }
+
+            if (!string.IsNullOrEmpty(old.contentHash) && !string.IsNullOrEmpty(current.contentHash))
+            {
+                return !string.Equals(old.contentHash, current.contentHash, StringComparison.OrdinalIgnoreCase);
+            }
+            return old.signature != current.signature;
         }
 
         // ==========================================

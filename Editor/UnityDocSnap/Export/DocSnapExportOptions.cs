@@ -15,6 +15,8 @@
 // export, on the Editor's single thread, right
 // before any page is rendered.
 // ==========================================
+using AmirCollider.UnityDocSnap.Editor.Manifest;
+
 namespace AmirCollider.UnityDocSnap.Editor.Export
 {
     // ==========================================
@@ -109,6 +111,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // language/theme buttons.
         public static string ExportStamp = "";
 
+        // Which visual skin the generated site opens with ("cozy" or
+        // "lite") and the measurement behind that choice. Measured
+        // once per export from the exporting machine plus the weight
+        // of this project (see DocSnapCapability), then re-checked in
+        // the browser against whatever machine is actually reading
+        // the page. Null until the first page is rendered.
+        public static DocSnapCapabilityReport Capability;
+
         public static void Reset()
         {
             DefaultLanguage = "en";
@@ -117,6 +127,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             ChangesBaseVersion = "";
             VersionLabel = "";
             ExportStamp = "";
+            Capability = null;
         }
 
         public static void Apply(DocSnapExportOptions options, string versionLabel)
@@ -127,6 +138,52 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             ChangesBaseVersion = options.recordChanges ? options.changesBaseVersion : "";
             VersionLabel = versionLabel ?? "";
             ExportStamp = System.DateTime.UtcNow.Ticks.ToString("x");
+            Capability = null;
+        }
+
+        // ==========================================
+        // ResolveCapability
+        // The skin verdict for this export, measured on first use
+        // and reused for every page in the run so all of them agree.
+        //
+        // A project setting can force the answer: someone who wants
+        // the cozy look on a machine we judged tight, or the lite
+        // look on a machine we judged fine, should not have to fight
+        // a heuristic - and either way the reader can still switch in
+        // the site itself.
+        // ==========================================
+        public static DocSnapCapabilityReport ResolveCapability(ManifestState manifest)
+        {
+            if (Capability != null) { return Capability; }
+
+            int gameObjects = 0;
+            int files = 0;
+            if (manifest != null)
+            {
+                foreach (ManifestSceneEntry scene in manifest.scenes) { gameObjects += scene.gameObjectCount; }
+                foreach (ManifestFolderEntry folder in manifest.assetFolders) { files += folder.fileCount; }
+            }
+
+            DocSnapCapabilityReport report = DocSnapCapability.Measure(gameObjects, files);
+
+            string forced = DocSnapSettings.SiteSkin;
+            if (forced == DocSnapCapability.SkinCozy || forced == DocSnapCapability.SkinLite)
+            {
+                report.Skin = forced;
+                // The measured reasons are kept even when overridden: the
+                // site still shows them if the reader ends up on cozy
+                // against them, which is the honest thing to do.
+                if (forced == DocSnapCapability.SkinLite) { report.Reasons.Clear(); }
+            }
+
+            Capability = report;
+            return Capability;
+        }
+
+        // The skin every page in this run is rendered with.
+        public static string Skin
+        {
+            get { return Capability != null ? DocSnapCapability.Normalize(Capability.Skin) : DocSnapCapability.SkinLite; }
         }
 
         public static string NormalizeLang(string lang)

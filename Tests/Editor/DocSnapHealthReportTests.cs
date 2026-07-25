@@ -275,6 +275,96 @@ namespace AmirCollider.UnityDocSnap.Editor.Tests
             Assert.IsTrue(entry.issuesTruncated);
         }
 
+        // ==========================================
+        // The report is only useful if it can say which of the
+        // findings are the author's. A project whose eight findings
+        // are seven Unity template assets and one TextMesh Pro
+        // fallback has nothing for its author to do.
+        // ==========================================
+        [Test]
+        public void FindingsInUnityInstalledFolders_AreNotCountedAsMine()
+        {
+            var folder = JsonValue.Obj();
+            folder.Set("fileCount", 2);
+            folder.Set("files", JsonValue.Arr()
+                .Add(JsonValue.Obj()
+                    .Set("mainType", "Unknown")
+                    .Set("path", "Assets/TextMesh Pro/Resources/thing.asset")
+                    .Set("fileName", "thing.asset")
+                    .Set("guid", "tmp01"))
+                .Add(JsonValue.Obj()
+                    .Set("mainType", "Unknown")
+                    .Set("path", "Assets/Art/mine.dat")
+                    .Set("fileName", "mine.dat")
+                    .Set("guid", "mine01")));
+
+            var issues = new List<ManifestIssueEntry>();
+            ManifestHealthEntry entry = DocSnapHealthReport.BuildFolderEntry(folder, "Assets", "Assets", "folders/Assets.html", issues);
+
+            Assert.AreEqual(2, entry.unresolvedAssets);
+            Assert.AreEqual(1, entry.unresolvedAssetsMine);
+
+            var byPath = new Dictionary<string, ManifestIssueEntry>();
+            foreach (ManifestIssueEntry i in issues) { byPath[i.location] = i; }
+            Assert.AreEqual(DocSnapVendorPaths.OwnerVendor, byPath["Assets/TextMesh Pro/Resources/thing.asset"].owner);
+            Assert.AreEqual("Assets/TextMesh Pro", byPath["Assets/TextMesh Pro/Resources/thing.asset"].ownerNote);
+            Assert.AreEqual(DocSnapVendorPaths.OwnerMine, byPath["Assets/Art/mine.dat"].owner);
+        }
+
+        [Test]
+        public void AVendorOnlyProject_ReadsAsCleanForItsAuthor()
+        {
+            var state = new ManifestState();
+            state.health.Add(new ManifestHealthEntry
+            {
+                scope = "Assets",
+                missingReferences = 8,
+                missingReferencesMine = 0
+            });
+
+            HealthTotals totals = DocSnapHealthReport.Totals(state);
+            Assert.AreEqual(8, totals.TotalFindings);
+            Assert.AreEqual(0, totals.MineFindings);
+            Assert.AreEqual(8, totals.VendorFindings);
+            Assert.IsTrue(totals.MineIsClean);
+            // Still not "clean" outright - the findings are real, they are
+            // just not the author's to act on.
+            Assert.IsFalse(totals.IsClean);
+        }
+
+        [Test]
+        public void WorstMine_SkipsScopesWhoseFindingsAreAllVendor()
+        {
+            var state = new ManifestState();
+            state.health.Add(new ManifestHealthEntry { scope = "vendorOnly", label = "vendorOnly", missingReferences = 8, missingReferencesMine = 0 });
+            state.health.Add(new ManifestHealthEntry { scope = "mine", label = "mine", missingReferences = 1, missingReferencesMine = 1 });
+
+            var worst = DocSnapHealthReport.WorstMine(state, 10);
+            Assert.AreEqual(1, worst.Count);
+            Assert.AreEqual("mine", worst[0].label);
+        }
+
+        [Test]
+        public void SortedIssues_PutTheAuthorsOwnFindingsFirst()
+        {
+            var state = new ManifestState();
+            state.issues.Add(new ManifestIssueEntry
+            {
+                kind = DocSnapHealthReport.KindMissingScript,
+                owner = DocSnapVendorPaths.OwnerVendor, scopeLabel = "Assets", location = "vendor"
+            });
+            state.issues.Add(new ManifestIssueEntry
+            {
+                kind = DocSnapHealthReport.KindUnresolvedAsset,
+                owner = DocSnapVendorPaths.OwnerMine, scopeLabel = "Assets", location = "mine"
+            });
+
+            List<ManifestIssueEntry> sorted = DocSnapHealthReport.SortedIssues(state);
+            // Own content wins even against a harder failure kind: the
+            // "All" view must not open on a screenful of TextMesh Pro.
+            Assert.AreEqual("mine", sorted[0].location);
+        }
+
         [Test]
         public void SortedIssues_PutTheHardestFailuresFirst()
         {

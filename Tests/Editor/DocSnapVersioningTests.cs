@@ -169,6 +169,54 @@ namespace AmirCollider.UnityDocSnap.Editor.Tests
             Assert.IsTrue(DocSnapVersioning.IsValidCustomName("COM10"));
         }
 
+        // ==========================================
+        // Unity rewrites assets it manages on its own schedule -
+        // LiberationSans SDF - Fallback.asset every time the dynamic
+        // font atlas renders a glyph - so a size+timestamp signature
+        // reported files nobody had opened as modified on nearly every
+        // Changes page.
+        // ==========================================
+        [Test]
+        public void HasFileChanged_SameBytes_NewTimestamp_IsNotAChange()
+        {
+            var before = new VersionFileEntry { path = "Assets/TextMesh Pro/x.asset", size = 100, signature = "100:111", contentHash = "abc" };
+            var after = new VersionFileEntry { path = "Assets/TextMesh Pro/x.asset", size = 100, signature = "100:999", contentHash = "abc" };
+
+            Assert.IsFalse(DocSnapVersioning.HasFileChanged(before, after));
+        }
+
+        [Test]
+        public void HasFileChanged_DifferentBytes_IsAChange()
+        {
+            var before = new VersionFileEntry { path = "Assets/a.png", size = 100, signature = "100:111", contentHash = "abc" };
+            var after = new VersionFileEntry { path = "Assets/a.png", size = 140, signature = "140:999", contentHash = "def" };
+
+            Assert.IsTrue(DocSnapVersioning.HasFileChanged(before, after));
+        }
+
+        [Test]
+        public void HasFileChanged_WithoutHashes_FallsBackToTheSignature()
+        {
+            // A snapshot recorded before hashes existed. Falling back is
+            // better than declaring every file in the project modified
+            // once, during the upgrade.
+            var before = new VersionFileEntry { path = "Assets/a.png", size = 100, signature = "100:111" };
+            var after = new VersionFileEntry { path = "Assets/a.png", size = 100, signature = "100:111" };
+            Assert.IsFalse(DocSnapVersioning.HasFileChanged(before, after));
+
+            after.signature = "100:222";
+            Assert.IsTrue(DocSnapVersioning.HasFileChanged(before, after));
+        }
+
+        [Test]
+        public void HasFileChanged_OneSideMissingAHash_StillUsesTheSignature()
+        {
+            var before = new VersionFileEntry { path = "Assets/a.png", size = 100, signature = "100:111" };
+            var after = new VersionFileEntry { path = "Assets/a.png", size = 100, signature = "100:111", contentHash = "abc" };
+
+            Assert.IsFalse(DocSnapVersioning.HasFileChanged(before, after));
+        }
+
         [Test]
         public void FindSnapshot_MissingVersion_IsNullNotAnException()
         {

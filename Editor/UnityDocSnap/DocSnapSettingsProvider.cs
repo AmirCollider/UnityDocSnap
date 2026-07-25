@@ -57,6 +57,19 @@ namespace AmirCollider.UnityDocSnap.Editor
                 EditorStyles.miniLabel);
 
             EditorGUILayout.Space(12);
+            EditorGUILayout.LabelField("Health report", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(
+                new GUIContent("Not-my-code folders",
+                    "One folder per line. These are still fully documented — they are only separated out in the health report, so \"8 broken references\" can say how many are actually yours to fix."),
+                EditorStyles.label);
+            EditorGUI.BeginChangeCheck();
+            string vendors = EditorGUILayout.TextArea(DocSnapSettings.VendorFolders, GUILayout.MinHeight(48));
+            if (EditorGUI.EndChangeCheck()) { DocSnapSettings.VendorFolders = vendors; }
+            EditorGUILayout.LabelField(
+                "Always included: " + string.Join(" · ", DocSnapVendorPaths.VendorFolders().ToArray()),
+                EditorStyles.miniLabel);
+
+            EditorGUILayout.Space(12);
             EditorGUILayout.LabelField("Output extras", EditorStyles.boldLabel);
             EditorGUI.BeginChangeCheck();
             bool aiBundle = EditorGUILayout.Toggle(
@@ -66,6 +79,33 @@ namespace AmirCollider.UnityDocSnap.Editor
 
             EditorGUILayout.Space(12);
             EditorGUILayout.LabelField("Visuals", EditorStyles.boldLabel);
+
+            // Which skin the site OPENS with. "Auto" measures the
+            // machine (RAM / cores / GPU) and how heavy the project is:
+            // the cozy skin is the nicer thing to look at and strictly
+            // more paint work per row, so on a big project or a tight
+            // machine it opens light instead. A reader can always
+            // switch inside the site; this is only the starting point.
+            string[] skinLabels = { "Auto (measure this machine + project)", "Cozy — gradients, shadows, animation", "Lite — flat and fast" };
+            string[] skinValues = { "auto", DocSnapCapability.SkinCozy, DocSnapCapability.SkinLite };
+            int skinIndex = System.Array.IndexOf(skinValues, DocSnapSettings.SiteSkin);
+            if (skinIndex < 0) { skinIndex = 0; }
+            EditorGUI.BeginChangeCheck();
+            int pickedSkin = EditorGUILayout.Popup(
+                new GUIContent("Site skin", "Auto picks the cozy skin when there is room for it and the lite skin when there is not. Readers can switch either way inside the site."),
+                skinIndex, skinLabels);
+            if (EditorGUI.EndChangeCheck()) { DocSnapSettings.SiteSkin = skinValues[pickedSkin]; }
+
+            if (skinValues[skinIndex] == "auto")
+            {
+                DocSnapCapabilityReport probe = DocSnapCapability.Measure(0, 0);
+                EditorGUILayout.LabelField(" ",
+                    "This machine: " + probe.SystemMemoryMb + " MB RAM · " + probe.ProcessorCount + " cores · "
+                        + (string.IsNullOrEmpty(probe.GraphicsDeviceName) ? "unknown GPU" : probe.GraphicsDeviceName),
+                    EditorStyles.miniLabel);
+            }
+
+            EditorGUILayout.Space(6);
             EditorGUI.BeginChangeCheck();
             bool thumbs = EditorGUILayout.Toggle(
                 new GUIContent("Generate Image Thumbnails", "On by default so image assets get real preview thumbnails. Turn this off if you need DocSnap's stricter mode where pixels never leave your project."),

@@ -722,9 +722,21 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                 return sb.ToString();
             }
 
-            if (totals.missingScripts > 0) { sb.Append("- **").Append(totals.missingScripts).Append(" missing script(s)** — a component whose script asset is gone.\n"); }
-            if (totals.missingReferences > 0) { sb.Append("- **").Append(totals.missingReferences).Append(" broken reference(s)** — a field pointing at an object that no longer exists.\n"); }
-            if (totals.unresolvedAssets > 0) { sb.Append("- ").Append(totals.unresolvedAssets).Append(" asset(s) Unity could not resolve a type for (usually a failed import).\n"); }
+            // The author's own content first and separately. An assistant
+            // told a project has "8 broken references" will try to fix
+            // eight things; seven of them may live in folders Unity
+            // installed, where editing anything is the wrong move.
+            if (totals.missingScriptsMine > 0) { sb.Append("- **").Append(totals.missingScriptsMine).Append(" missing script(s)** — a component whose script asset is gone.\n"); }
+            if (totals.missingReferencesMine > 0) { sb.Append("- **").Append(totals.missingReferencesMine).Append(" broken reference(s)** — a field pointing at an object that no longer exists.\n"); }
+            if (totals.unresolvedAssetsMine > 0) { sb.Append("- ").Append(totals.unresolvedAssetsMine).Append(" asset(s) Unity could not resolve a type for (usually a failed import).\n"); }
+            if (totals.MineFindings == 0) { sb.Append("- Nothing in this project's own files.\n"); }
+            if (totals.VendorFindings > 0)
+            {
+                sb.Append("- ").Append(totals.VendorFindings)
+                  .Append(" further finding(s) are in folders Unity or a package installed into `Assets/` ")
+                  .Append("(TextMesh Pro, the render-pipeline `Settings` a template creates, package Samples). ")
+                  .Append("Those are not editable or removable — do not try to fix them.\n");
+            }
             if (totals.duplicateSceneNames.Count > 0)
             {
                 sb.Append("- Scene name(s) used more than once: ")
@@ -732,7 +744,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
             }
             sb.Append('\n');
 
-            List<ManifestHealthEntry> worst = DocSnapHealthReport.Worst(manifest, 12);
+            List<ManifestHealthEntry> worst = DocSnapHealthReport.WorstMine(manifest, 12);
             if (worst.Count > 0)
             {
                 sb.Append("Where:\n\n");
@@ -740,9 +752,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                 {
                     sb.Append("- **").Append(Clean(e.label)).Append("** — ");
                     var parts = new List<string>();
-                    if (e.missingScripts > 0) { parts.Add(e.missingScripts + " missing script(s)"); }
-                    if (e.missingReferences > 0) { parts.Add(e.missingReferences + " broken reference(s)"); }
-                    if (e.unresolvedAssets > 0) { parts.Add(e.unresolvedAssets + " unresolved asset(s)"); }
+                    if (e.missingScriptsMine > 0) { parts.Add(e.missingScriptsMine + " missing script(s)"); }
+                    if (e.missingReferencesMine > 0) { parts.Add(e.missingReferencesMine + " broken reference(s)"); }
+                    if (e.unresolvedAssetsMine > 0) { parts.Add(e.unresolvedAssetsMine + " unresolved asset(s)"); }
                     sb.Append(string.Join(", ", parts.ToArray())).Append('\n');
                 }
                 sb.Append('\n');
@@ -756,12 +768,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
             List<ManifestIssueEntry> issues = DocSnapHealthReport.SortedIssues(manifest);
             if (issues.Count > 0)
             {
-                sb.Append("Exactly where:\n\n");
+                sb.Append("Exactly where (findings in this project's own files first):\n\n");
                 int shown = 0;
                 foreach (ManifestIssueEntry issue in issues)
                 {
                     if (shown >= MaxIssuesInSummary) { break; }
-                    sb.Append("- `").Append(Clean(issue.scopeLabel)).Append("` ")
+                    // Findings outside the project's own content are marked
+                    // rather than dropped: an assistant reading this should
+                    // know they exist and know not to touch them.
+                    bool vendor = issue.owner == DocSnapVendorPaths.OwnerVendor;
+                    sb.Append("- ").Append(vendor ? "_(not yours)_ " : "").Append('`')
+                      .Append(Clean(issue.scopeLabel)).Append("` ")
                       .Append(KindWord(issue.kind)).Append(" — **").Append(Clean(issue.location)).Append("**");
                     if (!string.IsNullOrEmpty(issue.detail))
                     {

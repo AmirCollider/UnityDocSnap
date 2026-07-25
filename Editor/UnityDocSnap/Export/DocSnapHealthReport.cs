@@ -59,6 +59,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         public static ManifestHealthEntry BuildSceneEntry(
             JsonValue sceneData, string scope, string label, string htmlFile, List<ManifestIssueEntry> issues)
         {
+            // Everything found inside one Scene belongs to whoever owns
+            // the Scene file, so the attribution is decided once here
+            // rather than per finding.
+            string scenePath = sceneData.Get("scenePath").AsString("");
             var entry = new ManifestHealthEntry
             {
                 scope = scope,
@@ -69,6 +73,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             };
 
             var sink = new IssueSink(scope, "scene", label, htmlFile, issues);
+            sink.SetOwnerPath(string.IsNullOrEmpty(scenePath) ? label : scenePath);
             ScanGameObjects(sceneData.Get("rootObjects"), entry, sink);
             entry.issuesTruncated = sink.Truncated;
             return entry;
@@ -102,9 +107,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 string guid = file.Get("guid").AsString("");
                 string anchor = string.IsNullOrEmpty(guid) ? "" : "asset-" + guid;
 
+                // Per file, not per folder: an exported folder routinely
+                // mixes the author's own art with a package's installed
+                // assets, and only the file's own path can tell them apart.
+                sink.SetOwnerPath(path);
+
                 if (string.Equals(file.Get("mainType").AsString(""), "Unknown", StringComparison.Ordinal))
                 {
-                    entry.unresolvedAssets++;
+                    Bump(entry, KindUnresolvedAsset, sink.OwnerIsMine);
                     sink.Add(KindUnresolvedAsset, path, ImporterLabel(file), anchor);
                 }
 
@@ -158,7 +168,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
                     if (comp.Get("isMissing").AsBool())
                     {
-                        entry.missingScripts++;
+                        Bump(entry, KindMissingScript, sink.OwnerIsMine);
                         sink.Add(KindMissingScript, path, "Missing Script", anchor);
                         continue;
                     }
@@ -221,7 +231,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 {
                     if (field.Get("isMissing").AsBool())
                     {
-                        entry.missingReferences++;
+                        Bump(entry, KindMissingReference, sink.OwnerIsMine);
                         sink.Add(KindMissingReference, location, Describe(owner, level.Path), anchor);
                     }
                     continue;
@@ -273,6 +283,33 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             return string.IsNullOrEmpty(owner) ? fieldPath : owner + " › " + fieldPath;
         }
 
+        // ==========================================
+        // Bump
+        // One finding, counted against both the scope total and -
+        // when it is the project's own content - the "mine"
+        // total. Two counters instead of one so the report can
+        // answer "eight findings, but how many are actually
+        // mine?" exactly, rather than from a capped list.
+        // ==========================================
+        private static void Bump(ManifestHealthEntry entry, string kind, bool mine)
+        {
+            if (kind == KindMissingScript)
+            {
+                entry.missingScripts++;
+                if (mine) { entry.missingScriptsMine++; }
+            }
+            else if (kind == KindMissingReference)
+            {
+                entry.missingReferences++;
+                if (mine) { entry.missingReferencesMine++; }
+            }
+            else
+            {
+                entry.unresolvedAssets++;
+                if (mine) { entry.unresolvedAssetsMine++; }
+            }
+        }
+
         private static string ImporterLabel(JsonValue file)
         {
             string importer = file.Get("importerType").AsString("");
@@ -296,9 +333,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 totals.missingScripts += e.missingScripts;
                 totals.missingReferences += e.missingReferences;
                 totals.unresolvedAssets += e.unresolvedAssets;
+                totals.missingScriptsMine += e.missingScriptsMine;
+                totals.missingReferencesMine += e.missingReferencesMine;
+                totals.unresolvedAssetsMine += e.unresolvedAssetsMine;
                 if (e.missingScripts > 0 || e.missingReferences > 0 || e.unresolvedAssets > 0)
                 {
                     totals.affectedScopes++;
+                }
+                if (e.missingScriptsMine > 0 || e.missingReferencesMine > 0 || e.unresolvedAssetsMine > 0)
+                {
+                    totals.affectedScopesMine++;
                 }
             }
             totals.duplicateSceneNames = DuplicateSceneNames(state);
@@ -360,6 +404,37 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         }
 
         // ==========================================
+        // WorstMine
+        // The same ranking as Worst, restricted to scopes with
+        // findings in the project's OWN content. The dashboard
+        // uses this: a row reading "Assets — 8 🔗 ref" that leads
+        // to eight things inside TextMesh Pro is worse than no row.
+        // ==========================================
+        public static List<ManifestHealthEntry> WorstMine(ManifestState state, int limit)
+        {
+            var list = new List<ManifestHealthEntry>();
+            if (state == null || state.health == null) { return list; }
+
+            foreach (ManifestHealthEntry e in state.health)
+            {
+                if (e.missingScriptsMine > 0 || e.missingReferencesMine > 0 || e.unresolvedAssetsMine > 0) { list.Add(e); }
+            }
+            list.Sort((a, b) =>
+            {
+                int byScore = ScoreMine(b).CompareTo(ScoreMine(a));
+                if (byScore != 0) { return byScore; }
+                return string.Compare(a.label, b.label, StringComparison.OrdinalIgnoreCase);
+            });
+            if (limit > 0 && list.Count > limit) { list.RemoveRange(limit, list.Count - limit); }
+            return list;
+        }
+
+        private static int ScoreMine(ManifestHealthEntry e)
+        {
+            return (e.missingScriptsMine * 100) + (e.missingReferencesMine * 10) + e.unresolvedAssetsMine;
+        }
+
+        // ==========================================
         // SortedIssues
         // Every recorded finding, hardest failure first, then
         // by scope and location, so the issues page reads the
@@ -373,6 +448,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             list.AddRange(state.issues);
             list.Sort((a, b) =>
             {
+                // The author's own findings first, always. Even with the
+                // Mine tab active by default, the "All" view should not
+                // open on a screenful of TextMesh Pro.
+                int byOwner = OwnerRank(a.owner).CompareTo(OwnerRank(b.owner));
+                if (byOwner != 0) { return byOwner; }
                 int byKind = KindRank(a.kind).CompareTo(KindRank(b.kind));
                 if (byKind != 0) { return byKind; }
                 int byScope = string.Compare(a.scopeLabel, b.scopeLabel, StringComparison.OrdinalIgnoreCase);
@@ -382,6 +462,11 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 return string.Compare(a.detail, b.detail, StringComparison.OrdinalIgnoreCase);
             });
             return list;
+        }
+
+        private static int OwnerRank(string owner)
+        {
+            return string.Equals(owner, DocSnapVendorPaths.OwnerVendor, StringComparison.Ordinal) ? 1 : 0;
         }
 
         public static int KindRank(string kind)
@@ -422,6 +507,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             private readonly string _locationPrefix;
             private readonly string _forcedAnchor;
 
+            // Whose content the findings currently being scanned
+            // belong to. Set once per Scene, or once per file inside a
+            // folder pass.
+            private string _owner = DocSnapVendorPaths.OwnerMine;
+            private string _ownerNote = "";
+
             public IssueSink(string scope, string group, string scopeLabel, string htmlFile, List<ManifestIssueEntry> target)
             {
                 _state = new ScopeState
@@ -446,7 +537,21 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             // same Truncated flag.
             public IssueSink ForPrefab(string fileName, string anchor)
             {
-                return new IssueSink(_state, fileName, anchor);
+                var view = new IssueSink(_state, fileName, anchor);
+                view._owner = _owner;
+                view._ownerNote = _ownerNote;
+                return view;
+            }
+
+            public void SetOwnerPath(string projectRelativePath)
+            {
+                _owner = DocSnapVendorPaths.Classify(projectRelativePath);
+                _ownerNote = DocSnapVendorPaths.Describe(projectRelativePath);
+            }
+
+            public bool OwnerIsMine
+            {
+                get { return _owner == DocSnapVendorPaths.OwnerMine; }
             }
 
             public bool Truncated { get { return _state.Truncated; } }
@@ -471,7 +576,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                     location = where,
                     detail = detail ?? "",
                     htmlFile = _state.HtmlFile,
-                    anchor = (_forcedAnchor ?? anchor) ?? ""
+                    anchor = (_forcedAnchor ?? anchor) ?? "",
+                    owner = _owner,
+                    ownerNote = _ownerNote
                 });
                 _state.Added++;
             }
@@ -525,11 +632,49 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         public int missingReferences;
         public int unresolvedAssets;
         public int affectedScopes;
+
+        // The same counts restricted to the project's own content
+        // (see DocSnapVendorPaths). This is the number that answers
+        // the reader's real question; the unqualified totals answer
+        // "and what else is in here?".
+        public int missingScriptsMine;
+        public int missingReferencesMine;
+        public int unresolvedAssetsMine;
+        public int affectedScopesMine;
+
         public List<string> duplicateSceneNames = new List<string>();
 
         public int TotalFindings
         {
             get { return missingScripts + missingReferences + unresolvedAssets; }
+        }
+
+        public int MineFindings
+        {
+            get { return missingScriptsMine + missingReferencesMine + unresolvedAssetsMine; }
+        }
+
+        public int VendorFindings
+        {
+            get { return TotalFindings - MineFindings; }
+        }
+
+        // ==========================================
+        // MineIsClean
+        // Nothing left for the AUTHOR to fix, even though the
+        // export may still be reporting findings in Unity's own
+        // installed folders. This is the state most real projects
+        // are actually in, and calling it "not clean" because
+        // TextMesh Pro ships a broken reference is how a health
+        // report loses a reader's trust.
+        // ==========================================
+        public bool MineIsClean
+        {
+            get
+            {
+                return MineFindings == 0
+                    && (duplicateSceneNames == null || duplicateSceneNames.Count == 0);
+            }
         }
 
         public bool IsClean

@@ -20,7 +20,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // reported a version the package had not been on for two
         // releases). PackageVersionTests now fails the build if
         // the two ever disagree again.
-        public const string Version = "0.8.0";
+        public const string Version = "0.9.0";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
 
@@ -254,5 +254,12 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         public const int MaxAssetsRenderedPerFolderNode = 300;
         public const int AssetPreviewTimeoutMs = 400;
+
+        // The largest file whose bytes are read to fingerprint it for
+        // the Changes diff. Above this, size + last-write time is used
+        // instead: reading a multi-gigabyte asset to answer "did it
+        // change?" costs more than the answer is worth, and a file that
+        // large changing size is the normal case anyway.
+        public const long MaxHashedFileBytes = 128L * 1024L * 1024L;
     }
 }

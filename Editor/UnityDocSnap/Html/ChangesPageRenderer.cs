@@ -192,7 +192,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             {
                 VersionFileEntry old;
                 if (!baseMap.TryGetValue(f.path, out old)) { added.Add(new FileDiff { path = f.path, newSize = f.size }); }
-                else if (old.signature != f.signature) { modified.Add(new FileDiff { path = f.path, oldSize = old.size, newSize = f.size }); }
+                else if (DocSnapVersioning.HasFileChanged(old, f)) { modified.Add(new FileDiff { path = f.path, oldSize = old.size, newSize = f.size }); }
             }
             foreach (VersionFileEntry f in baseSnap.files)
             {

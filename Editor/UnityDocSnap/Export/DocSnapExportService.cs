@@ -1066,7 +1066,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string baseRoot, string siteRoot, string version, ManifestState manifest,
             DocSnapExportOptions options, VersionsState registry, VersionSnapshot changesBase)
         {
-            VersionSnapshot snap = DocSnapExportInfo.BuildSnapshot(version, manifest, options);
+            // The snapshot to lift already-computed content hashes from:
+            // this version's own previous snapshot when re-exporting onto
+            // it, otherwise the newest one on the shelf. Any file whose
+            // size and timestamp are unchanged since then keeps its
+            // recorded hash, so a repeat export reads no bytes at all.
+            VersionSnapshot previous = DocSnapVersioning.FindSnapshot(registry, version);
+            VersionSnapshot hashSource = previous
+                ?? DocSnapVersioning.FindSnapshot(registry, DocSnapVersioning.NewestVersion(registry));
+
+            VersionSnapshot snap = DocSnapExportInfo.BuildSnapshot(version, manifest, options, hashSource);
 
             // Facts about the version folder that this run did not
             // re-establish are carried across from what is already
@@ -1074,7 +1083,6 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             // and a source-files/ mirror written by an earlier export
             // are still physically there; a later single-Scene export
             // has no business declaring they are not.
-            VersionSnapshot previous = DocSnapVersioning.FindSnapshot(registry, version);
             if (previous != null)
             {
                 if (!options.makeBackup) { snap.hasBackup = previous.hasBackup; }

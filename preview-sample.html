@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" dir="ltr" data-theme="light" data-export="preview">
+<html lang="en" dir="ltr" data-theme="light" data-skin="cozy" data-export="preview">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1210,6 +1210,48 @@ html[dir=rtl] .ds-detail[open] > summary::before { transform: rotate(90deg) scal
 .ds-issue-tile:hover { border-color: var(--border-strong); background: var(--surface-2); }
 .ds-issue-tile.is-active { border-color: var(--accent); background: var(--accent-soft); }
 
+/* ==========================================
+   Segmented control (issues ownership tabs)
+   ========================================== */
+.ds-segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  flex: none;
+}
+.ds-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ds-seg-btn:hover { color: var(--text); background: var(--surface-3); }
+.ds-seg-btn.is-active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+:root[data-theme=dark] .ds-seg-btn.is-active { background: var(--surface-3); }
+.ds-seg-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  background: var(--surface-3);
+  border-radius: 999px;
+  padding: 0 5px;
+}
+.ds-seg-btn.is-active .ds-seg-count { background: var(--accent-soft); color: var(--accent); }
+
+.ds-stat-aside { display: block; font-size: 10.5px; color: var(--text-faint); margin-top: 3px; }
+.ds-callout.ok { background: var(--ok-soft); border-color: var(--ok-border); }
+
 .ds-issue-list { list-style: none; margin: 0; padding: 0; }
 .ds-issue-row { border-bottom: 1px solid var(--border); content-visibility: auto; contain-intrinsic-size: auto 46px; }
 .ds-issue-row:last-child { border-bottom: none; }
@@ -1273,7 +1315,14 @@ html[dir=rtl] .ds-issue-side { align-items: flex-start; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: isolate;
 }
+/* A finding in a folder Unity or a package installed. Dimmed on
+   purpose: it is shown for completeness, not for action. */
+.ds-issue-scope.is-vendor { border-style: dashed; }
+.ds-issue-row[data-issue-owner=vendor] .ds-issue-icon { opacity: .55; }
+.ds-issue-row[data-issue-owner=vendor] .ds-issue-where { font-weight: 500; color: var(--text-dim); }
 
 .ds-allclear { text-align: center; padding: 34px 20px; }
 .ds-allclear-mark {
@@ -1522,21 +1571,310 @@ code, kbd, samp, pre { direction: ltr; unicode-bidi: isolate; }
   details > *:not(summary) { display: block !important; }
 }
 
+/* ==========================================
+   THE COZY SKIN
+   ==========================================
+   The original Unity DocSnap look, kept as a
+   first-class option rather than deleted: pastel
+   gradients, generous radii, soft shadows, the
+   rounded display face, and a mascot that bobs.
+   It is the signature of the tool and the nicer
+   thing to sit in front of.
+
+   It is also strictly more paint work per row,
+   which stops being free somewhere between a demo
+   Scene and a project with forty thousand
+   GameObjects on one page. So which skin an export
+   OPENS with is measured at export time
+   (DocSnapCapability: RAM, cores, GPU, plus how
+   heavy the project is) and re-checked in the
+   browser against the machine actually reading the
+   page. The reader can always switch, and is shown
+   the numbers when they override a "lite" verdict.
+
+   Everything below is a token override plus the
+   handful of surfaces that carry actual decoration.
+   The layout, the markup and the
+   content-visibility performance work are shared
+   with the lite skin, so cozy is a change of
+   clothes rather than a second stylesheet.
+   ========================================== */
+:root[data-skin=cozy] {
+  --bg: #fffaf3;
+  --surface: #ffffff;
+  --surface-2: #fff3e6;
+  --surface-3: #ffe6f1;
+  --border: #f3e2ea;
+  --border-strong: #f0c8dc;
+
+  --text: #4a3b52;
+  --text-dim: #8a7a92;
+  --text-faint: #b9adc2;
+
+  --accent: #9678c2;
+  --accent-hover: #ff8fa3;
+  --accent-soft: #f3ecfd;
+  --accent-border: #cdb9ec;
+  --accent-contrast: #ffffff;
+
+  --danger: #c9524f;
+  --danger-soft: #fff0ee;
+  --danger-border: #ffc4bd;
+
+  --ok: #3f7d4b;
+  --ok-soft: #eafce9;
+  --ok-border: #a8e2a4;
+
+  --info: #6b73c8;
+  --info-soft: #eef0fd;
+  --info-border: #c9cef3;
+
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 9px;
+
+  --shadow: 0 4px 14px rgba(177, 156, 217, .13);
+  --shadow-pop: 0 12px 34px rgba(255, 143, 163, .26);
+
+  /* The embedded faces come FIRST here — this skin is the
+     branded one, and the rounded display face is most of
+     what makes it read as itself. */
+  --font-body: 'Quicksand', 'Vazirmatn', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Baloo 2', 'Vazirmatn', 'Quicksand', system-ui, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+:root[data-skin=cozy][data-theme=dark] {
+  --bg: #1c1922;
+  --surface: #241f2d;
+  --surface-2: #2a2533;
+  --surface-3: #362e42;
+  --border: #38313f;
+  --border-strong: #4b4155;
+
+  --text: #ece7f2;
+  --text-dim: #b3a8c2;
+  --text-faint: #8b8098;
+
+  --accent: #c9b8f0;
+  --accent-hover: #ff9db0;
+  --accent-soft: #2c2740;
+  --accent-border: #453a5e;
+  --accent-contrast: #241f2d;
+
+  --danger: #ff9d9d;
+  --danger-soft: #3a2626;
+  --danger-border: #573535;
+
+  --ok: #8fd98c;
+  --ok-soft: #24331f;
+  --ok-border: #3a5233;
+
+  --info: #a9b0f0;
+  --info-soft: #232840;
+  --info-border: #383f63;
+
+  --shadow: 0 4px 14px rgba(0, 0, 0, .4);
+  --shadow-pop: 0 12px 34px rgba(0, 0, 0, .55);
+}
+
+:root[data-skin=cozy]:lang(ja) {
+  --font-body: 'Hiragino Maru Gothic ProN', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Meiryo', system-ui, sans-serif;
+  --font-display: 'Hiragino Maru Gothic ProN', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Meiryo', system-ui, sans-serif;
+}
+:root[data-skin=cozy]:lang(fa) {
+  --font-body: 'Vazirmatn', 'Quicksand', system-ui, sans-serif;
+  --font-display: 'Vazirmatn', 'Baloo 2', system-ui, sans-serif;
+}
+
+/* ---------- Decoration ---------- */
+
+/* The pastel wash behind the nav, which is the single
+   most recognisable thing about the original look. */
+:root[data-skin=cozy] .ds-sidebar {
+  background: linear-gradient(180deg, #ffe6f1 0%, #fff3e6 46%, #fffaf3 100%);
+}
+:root[data-skin=cozy][data-theme=dark] .ds-sidebar {
+  background: linear-gradient(180deg, #2f2438 0%, #262030 48%, #1c1922 100%);
+}
+
+:root[data-skin=cozy] .ds-brand-text h1 { font-size: 17px; }
+
+/* Gradient card heads, back where they were. */
+:root[data-skin=cozy] .ds-go-card-head,
+:root[data-skin=cozy] .ds-asset-card-head,
+:root[data-skin=cozy] .ds-pkg-head,
+:root[data-skin=cozy] details.ds-asset-card[open] > summary.ds-asset-card-head {
+  background: linear-gradient(120deg, var(--surface-3), var(--surface-2));
+}
+
+:root[data-skin=cozy] .ds-card,
+:root[data-skin=cozy] .ds-stat-tile { box-shadow: var(--shadow); }
+
+/* Lift on hover. Confined to things a reader points at
+   deliberately — rows, tiles, cards — and never applied to
+   a tree node, because there are tens of thousands of those
+   and a transform on each is exactly the cost this skin has
+   to stay honest about. */
+:root[data-skin=cozy] .ds-stat-tile,
+:root[data-skin=cozy] .ds-folder-row,
+:root[data-skin=cozy] .ds-version-row {
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+}
+:root[data-skin=cozy] .ds-stat-tile:hover,
+:root[data-skin=cozy] .ds-folder-row:hover,
+:root[data-skin=cozy] .ds-version-row:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-pop);
+}
+
+:root[data-skin=cozy] .ds-stat-num { font-family: var(--font-display); font-size: 27px; }
+:root[data-skin=cozy] .ds-page-header h1 { font-size: 27px; }
+:root[data-skin=cozy] .ds-nav-title { text-transform: none; letter-spacing: .02em; font-size: 12.5px; color: var(--accent); }
+
+:root[data-skin=cozy] .ds-badge { border-radius: 999px; padding: 4px 12px; }
+:root[data-skin=cozy] .ds-lang-btn,
+:root[data-skin=cozy] .ds-mode-btn,
+:root[data-skin=cozy] .ds-seg-btn { border-radius: 999px; }
+:root[data-skin=cozy] .ds-langbar,
+:root[data-skin=cozy] .ds-modebar,
+:root[data-skin=cozy] .ds-segmented { border-radius: 999px; }
+:root[data-skin=cozy] .ds-search-input,
+:root[data-skin=cozy] .ds-inline-filter { border-radius: 999px; }
+
+:root[data-skin=cozy] .ds-back-top {
+  background: var(--accent-hover);
+  color: #fff;
+  border-color: transparent;
+  width: 42px;
+  height: 42px;
+  font-size: 17px;
+}
+
+/* Dashed dividers, which is how the original separated
+   things that were only loosely related.
+   Per-SIDE on purpose: `border-style: dashed` on its own
+   also activates the other three sides, whose width is the
+   `medium` default the moment their style stops being
+   `none` - which drew a full 3px box around the sidebar
+   footer instead of a rule above it. */
+:root[data-skin=cozy] .ds-footer,
+:root[data-skin=cozy] .ds-sidebar-footer { border-top-color: var(--border-strong); border-top-style: dashed; }
+:root[data-skin=cozy] .ds-kv-line,
+:root[data-skin=cozy] .ds-info-line { border-bottom-color: var(--border-strong); border-bottom-style: dashed; }
+:root[data-skin=cozy] .ds-kv-line:last-child,
+:root[data-skin=cozy] .ds-info-line:last-child { border-bottom-style: none; }
+:root[data-skin=cozy] .ds-tree ul { border-inline-start-style: dashed; }
+:root[data-skin=cozy] .ds-detail { border-top-color: var(--border-strong); border-top-style: dashed; }
+
+:root[data-skin=cozy] .ds-empty-note { font-style: italic; }
+
+/* ---------- The mascot ---------- */
+/* A slow bob, the boba pearls drifting inside the cup, and
+   a sparkle that twinkles. One element each, all transform
+   and opacity only, so the whole thing is a compositor job
+   that never touches layout. Sat still in the lite skin. */
+@keyframes ds-bob {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50%      { transform: translateY(-3px) rotate(1.5deg); }
+}
+@keyframes ds-boba-drift {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2.5px); }
+}
+@keyframes ds-twinkle {
+  0%, 100% { opacity: .45; transform: scale(.9) rotate(0deg); }
+  50%      { opacity: 1;   transform: scale(1.12) rotate(18deg); }
+}
+
+:root[data-skin=cozy] .ds-logo {
+  animation: ds-bob 4.5s ease-in-out infinite;
+  transform-origin: 50% 70%;
+  will-change: transform;
+}
+:root[data-skin=cozy] .ds-logo .ds-boba {
+  animation: ds-boba-drift 3.2s ease-in-out infinite;
+  transform-origin: 50% 78%;
+}
+:root[data-skin=cozy] .ds-logo .ds-sparkle {
+  animation: ds-twinkle 2.6s ease-in-out infinite;
+  transform-origin: 16px 74px;
+}
+
+/* Someone who has asked their OS for less motion has already
+   answered this question. */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-skin=cozy] .ds-logo,
+  :root[data-skin=cozy] .ds-logo .ds-boba,
+  :root[data-skin=cozy] .ds-logo .ds-sparkle { animation: none; }
+}
+
+/* ==========================================
+   Skin switch + the override warning
+   ========================================== */
+.ds-skinbar { display: flex; gap: 2px; padding: 2px; margin: 0 4px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.ds-skin-btn {
+  flex: 1;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ds-skin-btn:hover { color: var(--text); background: var(--surface-3); }
+.ds-skin-btn.is-active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+:root[data-theme=dark] .ds-skin-btn.is-active { background: var(--surface-3); }
+:root[data-skin=cozy] .ds-skinbar,
+:root[data-skin=cozy] .ds-skin-btn { border-radius: 999px; }
+
+/* Shown only when the reader turns the cozy skin ON against
+   a lite verdict. It carries the actual measurements rather
+   than a vague "this may be slow", because a warning without
+   numbers is a shrug. */
+.ds-skin-warning {
+  margin: 0 4px 12px;
+  padding: 9px 11px;
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  font-size: 11.5px;
+  color: var(--text);
+}
+.ds-skin-warning[hidden] { display: none; }
+.ds-skin-warning strong { display: block; margin-bottom: 3px; color: var(--danger); }
+.ds-skin-warning ul { margin: 4px 0 0; padding-inline-start: 16px; }
+.ds-skin-warning li { margin: 1px 0; }
+.ds-skin-specs {
+  margin-top: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  direction: ltr;
+  unicode-bidi: isolate;
+  overflow-wrap: anywhere;
+}
+
 </style>
 </head>
 <body class="ds-mode-simple">
 <div class="ds-shell">
   <aside class="ds-sidebar">
     <div class="ds-brand">
-      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Unity DocSnap mascot">
+      <svg class="ds-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Unity DocSnap mascot">
   <polygon points="62,10 84,32 68,30 66,15" fill="#ffe08a" stroke="#4a3b52" stroke-width="2.5" stroke-linejoin="round"/>
   <line x1="59" y1="34" x2="72" y2="12" stroke="#4a3b52" stroke-width="4.5" stroke-linecap="round"/>
   <line x1="59" y1="34" x2="72" y2="12" stroke="#ff8fa3" stroke-width="3" stroke-linecap="round"/>
   <rect x="53" y="30" width="7" height="7" rx="2" transform="rotate(45 56.5 33.5)" fill="#fff"/>
   <polygon points="30,38 70,38 62,86 38,86" fill="#ffdbeb" stroke="#4a3b52" stroke-width="3.2" stroke-linejoin="round"/>
-  <circle cx="42" cy="74" r="4" fill="#563a42" stroke="#4a3b52" stroke-width="1.4"/>
-  <circle cx="52" cy="78" r="4.4" fill="#563a42" stroke="#4a3b52" stroke-width="1.4"/>
-  <circle cx="61" cy="73" r="3.8" fill="#563a42" stroke="#4a3b52" stroke-width="1.4"/>
+  <g class="ds-boba">
+    <circle cx="42" cy="74" r="4" fill="#563a42" stroke="#4a3b52" stroke-width="1.4"/>
+    <circle cx="52" cy="78" r="4.4" fill="#563a42" stroke="#4a3b52" stroke-width="1.4"/>
+    <circle cx="61" cy="73" r="3.8" fill="#563a42" stroke="#4a3b52" stroke-width="1.4"/>
+  </g>
   <rect x="26" y="26" width="48" height="14" rx="7" fill="#ffb6c1" stroke="#4a3b52" stroke-width="3.2"/>
   <ellipse cx="50" cy="32" rx="4" ry="3" fill="#4a3b52"/>
   <circle cx="39" cy="52" r="3.4" fill="#4a3b52"/>
@@ -1546,7 +1884,7 @@ code, kbd, samp, pre { direction: ltr; unicode-bidi: isolate; }
   <ellipse cx="33" cy="58" rx="4.5" ry="3.2" fill="#ff8fa3" opacity=".55"/>
   <ellipse cx="67" cy="58" rx="4.5" ry="3.2" fill="#ff8fa3" opacity=".55"/>
   <path d="M45 58 Q50 63 55 58" stroke="#4a3b52" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-  <polygon points="16,64 19,71 26,72 19,76 18,83 13,78 6,79 10,72 8,65 15,68" fill="#b19cd9" stroke="#4a3b52" stroke-width="1.6" stroke-linejoin="round"/>
+  <polygon class="ds-sparkle" points="16,64 19,71 26,72 19,76 18,83 13,78 6,79 10,72 8,65 15,68" fill="#b19cd9" stroke="#4a3b52" stroke-width="1.6" stroke-linejoin="round"/>
 </svg>
       <div class="ds-brand-text">
         <h1>Unity DocSnap</h1>
@@ -1564,6 +1902,12 @@ code, kbd, samp, pre { direction: ltr; unicode-bidi: isolate; }
       </div>
       <button class="ds-theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Light / Dark"><span class="ds-theme-icon">☾</span></button>
     </div>
+
+    <div class="ds-skinbar" role="group" aria-label="Visual style">
+      <button class="ds-skin-btn is-active" data-skin="cozy"><span data-en="✨ Cozy" data-ja="✨ コージー" data-fa="✨ دنج">✨ Cozy</span></button>
+      <button class="ds-skin-btn" data-skin="lite"><span data-en="⚡ Lite" data-ja="⚡ ライト" data-fa="⚡ سبک">⚡ Lite</span></button>
+    </div>
+    <div class="ds-skin-warning" data-skin-warning hidden></div>
 
     <div class="ds-modebar" role="group" aria-label="Detail level">
       <button class="ds-mode-btn is-active" data-mode="simple"><span data-en="Simple" data-ja="シンプル" data-fa="ساده">Simple</span></button>
@@ -1629,7 +1973,7 @@ code, kbd, samp, pre { direction: ltr; unicode-bidi: isolate; }
       </div>
       <div class="ds-badge-row">
         <span class="ds-badge lav">Unity 6000.0.31f1</span>
-        <span class="ds-badge pink">Unity DocSnap v0.8.0</span>
+        <span class="ds-badge pink">Unity DocSnap v0.9.0</span>
       </div>
     </div>
 
@@ -1958,6 +2302,11 @@ code, kbd, samp, pre { direction: ltr; unicode-bidi: isolate; }
 window.__DOCSNAP_PREFIX__ = '';
 window.__DOCSNAP_LANG__ = 'en';
 window.__DOCSNAP_THEME__ = 'light';
+window.__DOCSNAP_SKIN__ = 'cozy';
+window.__DOCSNAP_CAPS__ = {
+  skin: 'cozy', ramMb: 32768, cores: 12, cpu: 'Demo CPU', gpu: 'Demo GPU', gpuMb: 8192,
+  gameObjects: 169, assetFiles: 61, reasons: []
+};
 window.__DOCSNAP_EXPORT__ = 'preview';
 window.__DOCSNAP_SEARCH__ = [
   { c: 'Scene',      n: 'MainMenu',      s: 'Assets/Scenes/MainMenu.unity',        u: '#hierarchy', g: 'scene' },
@@ -2000,6 +2349,7 @@ window.__DOCSNAP_SEARCH_TRUNCATED__ = false;
   var MODE_KEY = 'unityDocSnapMode';
   var THEME_KEY = 'unityDocSnapTheme';
   var SIDEBAR_KEY = 'unityDocSnapSidebar';
+  var SKIN_KEY = 'unityDocSnapSkin';
   var DEFAULTS_KEY = 'unityDocSnapDefaults';
 
   // ==========================================
@@ -2048,6 +2398,10 @@ window.__DOCSNAP_SEARCH_TRUNCATED__ = false;
     if (safeStorage.get(DEFAULTS_KEY) !== current) {
       safeStorage.set(LANG_KEY, lang);
       safeStorage.set(THEME_KEY, theme);
+      // The skin verdict is measured per export, so a new export's
+      // measurement must win over a choice made while reading an
+      // older one - the project may have doubled in size since.
+      safeStorage.set(SKIN_KEY, '');
       safeStorage.set(DEFAULTS_KEY, current);
     }
   }
@@ -2077,6 +2431,13 @@ window.__DOCSNAP_SEARCH_TRUNCATED__ = false;
     });
 
     safeStorage.set(LANG_KEY, lang);
+
+    // The skin warning is built in JS rather than markup, so it has
+    // no data-en/ja/fa attributes for the sweep above to swap.
+    var warning = document.querySelector('[data-skin-warning]');
+    if (warning && !warning.hidden) {
+      updateSkinWarning(root.getAttribute('data-skin') === 'cozy');
+    }
 
     // The <head> boot script hides the body while a language
     // swap is pending; the swap just happened, so reveal it.
@@ -2137,6 +2498,129 @@ window.__DOCSNAP_SEARCH_TRUNCATED__ = false;
     each('[data-theme-toggle]', function (btn) {
       btn.addEventListener('click', function () {
         applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+      });
+    });
+  }
+
+  // ==========================================
+  // Visual skin — cozy vs lite
+  //
+  // Cozy is the original look (pastel gradients, soft
+  // shadows, a bobbing mascot) and the one people want; it
+  // is also strictly more paint work per row. Which skin an
+  // export OPENS with was measured at export time from the
+  // exporting machine and the project's weight
+  // (window.__DOCSNAP_CAPS__), and is re-checked here
+  // against the machine actually reading the page - which
+  // may be a completely different one.
+  //
+  // A reader's own choice always wins. When it wins against
+  // a lite verdict, the reasons are shown with the numbers
+  // attached, because "this might be slow" without them is
+  // not a warning.
+  // ==========================================
+  function capsReport() {
+    var caps = window.__DOCSNAP_CAPS__;
+    return (caps && typeof caps === 'object') ? caps : {};
+  }
+
+  // What the browser can tell us about the machine in front of
+  // the page, as opposed to the one that produced it. Both
+  // hints are advisory and widely unimplemented, so only a
+  // definite low reading counts against the reader.
+  function viewerReasons() {
+    var reasons = [];
+    var mem = navigator.deviceMemory;
+    if (typeof mem === 'number' && mem > 0 && mem < 4) {
+      reasons.push('This device reports ' + mem + ' GB of RAM');
+    }
+    var cores = navigator.hardwareConcurrency;
+    if (typeof cores === 'number' && cores > 0 && cores < 4) {
+      reasons.push('This device reports ' + cores + ' CPU core' + (cores === 1 ? '' : 's'));
+    }
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        reasons.push('Your system asks for reduced motion');
+      }
+    } catch (e) { /* matchMedia unavailable */ }
+    return reasons;
+  }
+
+  // Every reason the cozy skin was not the default, from both
+  // sides of the export.
+  function skinReasons() {
+    var caps = capsReport();
+    var reasons = [];
+    if (caps.reasons && caps.reasons.length) {
+      for (var i = 0; i < caps.reasons.length; i++) { reasons.push(caps.reasons[i]); }
+    }
+    var viewer = viewerReasons();
+    for (var j = 0; j < viewer.length; j++) { reasons.push(viewer[j]); }
+    return reasons;
+  }
+
+  function recommendedSkin() {
+    var baked = window.__DOCSNAP_SKIN__ === 'cozy' ? 'cozy' : 'lite';
+    // The exporter said cozy, but this browser may still be the
+    // constrained one. A downgrade here is allowed; an upgrade is
+    // not, since the exporter measured things the browser cannot.
+    if (baked === 'cozy' && viewerReasons().length > 0) { return 'lite'; }
+    return baked;
+  }
+
+  function applySkin(skin, remember) {
+    var cozy = skin === 'cozy';
+    document.documentElement.setAttribute('data-skin', cozy ? 'cozy' : 'lite');
+    each('.ds-skin-btn', function (btn) {
+      var isActive = (btn.getAttribute('data-skin') === 'cozy') === cozy;
+      btn.classList.toggle('is-active', isActive);
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+    if (remember) { safeStorage.set(SKIN_KEY, cozy ? 'cozy' : 'lite'); }
+    updateSkinWarning(cozy);
+  }
+
+  function updateSkinWarning(cozy) {
+    var panel = document.querySelector('[data-skin-warning]');
+    if (!panel) { return; }
+
+    var reasons = skinReasons();
+    // Only ever shown for the combination that warrants it: the
+    // reader has turned cozy on and something measured says lite.
+    if (!cozy || reasons.length === 0) { panel.hidden = true; return; }
+
+    var caps = capsReport();
+    var html = '<strong>' + esc(t(
+      'Cozy skin on a machine we measured as tight',
+      '負荷が高めと判定された環境でコージースキンを使用中',
+      'اسکین Cozy روی سیستمی که سنگین تشخیص داده شد')) + '</strong>';
+    html += '<ul>';
+    for (var i = 0; i < reasons.length; i++) { html += '<li>' + esc(reasons[i]) + '</li>'; }
+    html += '</ul>';
+
+    var specs = [];
+    if (caps.ramMb) { specs.push('RAM ' + caps.ramMb + ' MB'); }
+    if (caps.cores) { specs.push(caps.cores + ' cores'); }
+    if (caps.gpu) { specs.push(caps.gpu + (caps.gpuMb ? ' / ' + caps.gpuMb + ' MB' : '')); }
+    if (caps.gameObjects) { specs.push(caps.gameObjects + ' GameObjects'); }
+    if (caps.assetFiles) { specs.push(caps.assetFiles + ' files'); }
+    if (specs.length) {
+      html += '<div class="ds-skin-specs">' + esc(specs.join('  ·  ')) + '</div>';
+    }
+
+    panel.innerHTML = html;
+    panel.hidden = false;
+  }
+
+  function restoreSkin() {
+    var stored = safeStorage.get(SKIN_KEY);
+    applySkin(stored === 'cozy' || stored === 'lite' ? stored : recommendedSkin(), false);
+  }
+
+  function wireSkinButtons() {
+    each('.ds-skin-btn', function (btn) {
+      btn.addEventListener('click', function (evt) {
+        applySkin(evt.currentTarget.getAttribute('data-skin'), true);
       });
     });
   }
@@ -2325,12 +2809,22 @@ window.__DOCSNAP_SEARCH_TRUNCATED__ = false;
     var search = document.querySelector('[data-issue-search]');
     var empty = document.querySelector('[data-issue-empty]');
     var kind = 'all';
+
+    // 'mine' by default, and that is the whole point of the tab.
+    // A project whose eight findings are seven render-pipeline
+    // assets from a Unity template and one TextMesh Pro fallback
+    // has nothing for its author to do; opening on a list of eight
+    // things they can neither edit nor delete is how a health
+    // report teaches someone to stop reading it.
+    var owner = 'mine';
     var timer = null;
 
     var params = new URLSearchParams(window.location.search || '');
     var wantedKind = params.get('kind');
     var wantedScope = params.get('scope');
+    var wantedOwner = params.get('owner');
     if (wantedKind) { kind = wantedKind; }
+    if (wantedOwner) { owner = wantedOwner; }
     if (wantedScope && search) { search.value = wantedScope; }
 
     function apply() {
@@ -2339,8 +2833,9 @@ window.__DOCSNAP_SEARCH_TRUNCATED__ = false;
       for (var i = 0; i < rows.length; i++) {
         var row = rows[i];
         var okKind = kind === 'all' || row.getAttribute('data-issue-kind') === kind;
+        var okOwner = owner === 'any' || (row.getAttribute('data-issue-owner') || 'mine') === owner;
         var okText = !q || (row.getAttribute('data-issue-text') || '').indexOf(q) >= 0;
-        var visible = okKind && okText;
+        var visible = okKind && okOwner && okText;
         row.classList.toggle('ds-filtered-out', !visible);
         if (visible) { shown++; }
       }
@@ -2351,12 +2846,24 @@ window.__DOCSNAP_SEARCH_TRUNCATED__ = false;
         tile.classList.toggle('is-active', isActive);
         tile.setAttribute('aria-pressed', isActive ? 'true' : 'false');
       });
+      each('[data-issue-owner]', function (tab) {
+        var isActive = tab.getAttribute('data-issue-owner') === owner;
+        tab.classList.toggle('is-active', isActive);
+        tab.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
     }
 
     each('[data-issue-filter]', function (tile) {
       tile.addEventListener('click', function (evt) {
         var next = evt.currentTarget.getAttribute('data-issue-filter');
         kind = (kind === next && next !== 'all') ? 'all' : next;
+        apply();
+      });
+    });
+
+    each('[data-issue-owner]', function (tab) {
+      tab.addEventListener('click', function (evt) {
+        owner = evt.currentTarget.getAttribute('data-issue-owner');
         apply();
       });
     });
@@ -2661,6 +3168,8 @@ window.__DOCSNAP_SEARCH_TRUNCATED__ = false;
     wireLanguageButtons();
     restoreTheme();
     wireThemeToggle();
+    restoreSkin();
+    wireSkinButtons();
     restoreMode();
     wireModeButtons();
     wireSidebarToggle();

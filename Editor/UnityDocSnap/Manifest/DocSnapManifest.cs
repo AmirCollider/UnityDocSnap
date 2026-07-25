@@ -131,6 +131,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
         public int missingReferences;
         public int unresolvedAssets;
 
+        // The same three counts restricted to the project's OWN
+        // content. Kept as separate totals rather than derived from
+        // the issue list, because that list is capped per scope
+        // while these are exact - and "how many of these are
+        // actually mine?" is the first thing a reader asks.
+        public int missingScriptsMine;
+        public int missingReferencesMine;
+        public int unresolvedAssetsMine;
+
         // True when this scope produced more findings than
         // MaxIssuesPerScope, so the issues page can say the list
         // is partial instead of quietly disagreeing with the
@@ -164,6 +173,24 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
         public string detail;      // "PlayerController › targetTransform"
         public string htmlFile;    // "scenes/MainMenu.html"
         public string anchor;      // "go-12345" / "asset-<guid>"
+
+        // "mine" | "vendor" — whether this is the author's own
+        // content or something Unity / a package installed into
+        // Assets/ (see DocSnapVendorPaths).
+        //
+        // Without this the report was honest but unusable: a
+        // project would say eight findings, seven in
+        // Assets/Settings and one in Assets/TextMesh Pro, none of
+        // them the author's to fix and none of them removable -
+        // and they sat at the top of the list on every export,
+        // burying anything that actually was. A count you are
+        // expected to ignore teaches you to ignore the count.
+        public string owner;
+
+        // The vendor folder this finding fell under, so the page
+        // can answer "why is this not mine?" without the reader
+        // having to guess. "" for the project's own files.
+        public string ownerNote;
     }
 
     [Serializable]
@@ -523,6 +550,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
                     .Set("scope", i.scopeLabel)
                     .Set("location", i.location)
                     .Set("detail", i.detail)
+                    .Set("owner", string.IsNullOrEmpty(i.owner) ? DocSnapVendorPaths.OwnerMine : i.owner)
                     .Set("page", string.IsNullOrEmpty(i.anchor) ? i.htmlFile : i.htmlFile + "#" + i.anchor));
             }
             root.Set("issues", issuesArr);

@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using AmirCollider.UnityDocSnap.Editor.Html;
 using AmirCollider.UnityDocSnap.Editor.Json;
@@ -31,7 +32,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // the scene / asset / package / updatable-package
         // counts, and a flat inventory used for diffs later.
         // ==========================================
-        public static VersionSnapshot BuildSnapshot(string version, ManifestState manifest, DocSnapExportOptions options)
+        public static VersionSnapshot BuildSnapshot(string version, ManifestState manifest, DocSnapExportOptions options, VersionSnapshot hashSource = null)
         {
             var snap = new VersionSnapshot
             {
@@ -68,7 +69,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
             // Flat file inventory of Assets/ (non-.meta, non-hidden),
             // each with a cheap size + last-write fingerprint.
-            snap.files = CollectAssetFiles();
+            snap.files = CollectAssetFiles(hashSource);
             snap.assetCount = snap.files.Count;
 
             return snap;
@@ -82,9 +83,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ~ excluded folders are skipped so the count and
         // the diff both track the assets a person means.
         // ==========================================
-        public static List<VersionFileEntry> CollectAssetFiles()
+        public static List<VersionFileEntry> CollectAssetFiles(VersionSnapshot hashSource = null)
         {
             var list = new List<VersionFileEntry>();
+            var knownHashes = BuildHashLookup(hashSource);
+            int hashed = 0;
+            int skippedTooLarge = 0;
+
             try
             {
                 string projectRoot = DocSnapFileScan.ProjectRootAbsolute();
@@ -98,21 +103,51 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 // heard of as additions and deletions.
                 foreach (string relative in DocSnapFileScan.EnumerateProjectRelativeFiles("Assets", DocSnapExcludeFilter.FromSettings()))
                 {
+                    string absolute = Path.Combine(projectRoot, relative);
                     long size;
                     long ticks;
                     try
                     {
-                        var fi = new FileInfo(Path.Combine(projectRoot, relative));
+                        var fi = new FileInfo(absolute);
                         size = fi.Length;
                         ticks = fi.LastWriteTimeUtc.Ticks;
                     }
                     catch { size = 0; ticks = 0; }
 
+                    string signature = size + ":" + ticks;
+
+                    // The whole point of keeping the cheap signature: when
+                    // it matches what was recorded last time, the bytes
+                    // cannot have changed and the recorded hash is reused
+                    // without touching the disk. Only a file the filesystem
+                    // says moved is actually read - which on a normal
+                    // re-export is a handful of files, not the project.
+                    string hash;
+                    if (!knownHashes.TryGetValue(SignatureKey(relative, signature), out hash) || string.IsNullOrEmpty(hash))
+                    {
+                        if (size > DocSnapConstants.MaxHashedFileBytes)
+                        {
+                            // Reading a multi-gigabyte file to answer "did it
+                            // change?" costs more than the answer is worth, and
+                            // a file that large changing size is the normal
+                            // case anyway. Left empty so the diff falls back
+                            // to the signature for this one file.
+                            hash = "";
+                            skippedTooLarge++;
+                        }
+                        else
+                        {
+                            hash = ComputeContentHash(absolute);
+                            if (!string.IsNullOrEmpty(hash)) { hashed++; }
+                        }
+                    }
+
                     list.Add(new VersionFileEntry
                     {
                         path = relative,
                         size = size,
-                        signature = size + ":" + ticks
+                        signature = signature,
+                        contentHash = hash
                     });
                 }
                 list.Sort((a, b) => string.Compare(a.path, b.path, StringComparison.OrdinalIgnoreCase));
@@ -121,7 +156,75 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             {
                 Debug.LogWarning("[Unity DocSnap] Could not collect asset file list: " + ex.Message);
             }
+
+            if (skippedTooLarge > 0)
+            {
+                Debug.Log("[Unity DocSnap] " + skippedTooLarge + " file(s) larger than "
+                    + (DocSnapConstants.MaxHashedFileBytes / (1024 * 1024)) + " MB were fingerprinted by size and timestamp instead of content.");
+            }
+            _lastHashedCount = hashed;
             return list;
+        }
+
+        // How many files the last CollectAssetFiles call actually read
+        // from disk. Exposed for diagnostics only.
+        private static int _lastHashedCount;
+        public static int LastHashedCount { get { return _lastHashedCount; } }
+
+        // ==========================================
+        // BuildHashLookup
+        // path + signature -> recorded content hash, so an
+        // unchanged file's hash comes back for free.
+        //
+        // Keyed on the signature as well as the path on purpose: if
+        // the signature moved, the recorded hash may be stale and must
+        // not be trusted - a miss here is what triggers the re-read.
+        // ==========================================
+        private static Dictionary<string, string> BuildHashLookup(VersionSnapshot source)
+        {
+            var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (source == null || source.files == null) { return map; }
+            foreach (VersionFileEntry f in source.files)
+            {
+                if (string.IsNullOrEmpty(f.path) || string.IsNullOrEmpty(f.contentHash)) { continue; }
+                map[SignatureKey(f.path, f.signature)] = f.contentHash;
+            }
+            return map;
+        }
+
+        private static string SignatureKey(string path, string signature)
+        {
+            return (path ?? "").Replace('\\', '/').ToLowerInvariant() + "|" + (signature ?? "");
+        }
+
+        // ==========================================
+        // ComputeContentHash
+        // A streaming MD5 of the file's bytes, hex-encoded.
+        //
+        // Not a security hash and not used as one - this only has to
+        // answer "are these the same bytes as last time?", where MD5 is
+        // both fast and far more than sufficient. Streamed in chunks so
+        // a large asset never has to fit in memory at once.
+        // ==========================================
+        public static string ComputeContentHash(string absolutePath)
+        {
+            try
+            {
+                using (var stream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 65536))
+                using (var md5 = MD5.Create())
+                {
+                    byte[] digest = md5.ComputeHash(stream);
+                    var sb = new StringBuilder(digest.Length * 2);
+                    foreach (byte b in digest) { sb.Append(b.ToString("x2", CultureInfo.InvariantCulture)); }
+                    return sb.ToString();
+                }
+            }
+            catch
+            {
+                // A locked or unreadable file falls back to the signature,
+                // exactly as it did before hashing existed.
+                return "";
+            }
         }
 
         // ==========================================

@@ -161,9 +161,18 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             string dir = defLang == "fa" ? "rtl" : "ltr";
             string stamp = DocSnapRenderContext.ExportStamp;
 
+            // Which visual skin this export opens with, measured from the
+            // exporting machine and the weight of this project. Baked onto
+            // <html> like the theme so the very first paint is already
+            // right; app.js re-checks it against the machine actually
+            // reading the page and lets a reader override either way.
+            DocSnapCapabilityReport caps = DocSnapRenderContext.ResolveCapability(manifest);
+            string defSkin = DocSnapCapability.Normalize(caps.Skin);
+
             var sb = new StringBuilder(4096);
             sb.Append("<!doctype html>\n<html lang=\"").Append(defLang).Append("\" dir=\"").Append(dir)
-              .Append("\" data-theme=\"").Append(defTheme).Append("\" data-export=\"").Append(Escape(stamp))
+              .Append("\" data-theme=\"").Append(defTheme).Append("\" data-skin=\"").Append(defSkin)
+              .Append("\" data-export=\"").Append(Escape(stamp))
               .Append("\">\n<head>\n<meta charset=\"utf-8\">\n");
             sb.Append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
             sb.Append("<title>").Append(Escape(titleEn)).Append(" - Unity DocSnap</title>\n");
@@ -184,9 +193,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // invisible; a 1.5s timeout guarantees the page can
             // never stay hidden even if app.js fails to load.
             sb.Append("<script>(function(){var d=document.documentElement;var bakedLang=d.getAttribute('lang')||'en';var lang=bakedLang;var theme=d.getAttribute('data-theme')||'light';var stamp=d.getAttribute('data-export')||'';")
-              .Append("try{if(localStorage.getItem('unityDocSnapDefaults')===stamp+'|'+bakedLang+'|'+theme){var L=localStorage.getItem('unityDocSnapLang');var T=localStorage.getItem('unityDocSnapTheme');if(L){lang=L;}if(T){theme=T;}}}catch(e){}")
+              .Append("var skin=d.getAttribute('data-skin')||'lite';")
+              .Append("try{if(localStorage.getItem('unityDocSnapDefaults')===stamp+'|'+bakedLang+'|'+theme){var L=localStorage.getItem('unityDocSnapLang');var T=localStorage.getItem('unityDocSnapTheme');var S=localStorage.getItem('unityDocSnapSkin');if(L){lang=L;}if(T){theme=T;}if(S==='cozy'||S==='lite'){skin=S;}}}catch(e){}")
               .Append("if(lang!==bakedLang){d.classList.add('ds-lang-pending');setTimeout(function(){d.classList.remove('ds-lang-pending');},1500);}")
-              .Append("d.setAttribute('lang',lang);d.setAttribute('dir',lang==='fa'?'rtl':'ltr');d.setAttribute('data-theme',theme);})();</script>\n");
+              .Append("d.setAttribute('lang',lang);d.setAttribute('dir',lang==='fa'?'rtl':'ltr');d.setAttribute('data-theme',theme);d.setAttribute('data-skin',skin);})();</script>\n");
             sb.Append("<link rel=\"stylesheet\" href=\"").Append(prefix).Append(themeDir).Append(DocSnapConstants.StyleFileName).Append("\">\n</head>\n");
             // Default to the calmer Simple view; app.js restores whichever
             // view the reader last chose. Advanced-only detail is present
@@ -211,6 +221,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             sb.Append("<script>window.__DOCSNAP_PREFIX__=").Append(JsString(prefix)).Append(";")
               .Append("window.__DOCSNAP_LANG__=").Append(JsString(defLang)).Append(";")
               .Append("window.__DOCSNAP_THEME__=").Append(JsString(defTheme)).Append(";")
+              .Append("window.__DOCSNAP_SKIN__=").Append(JsString(defSkin)).Append(";")
+              .Append("window.__DOCSNAP_CAPS__=").Append(CapabilityJson(caps)).Append(";")
               .Append("window.__DOCSNAP_EXPORT__=").Append(JsString(stamp)).Append(";</script>\n");
             // defer: the (potentially large) search index never blocks
             // HTML parsing; execution order is still guaranteed, so the
@@ -264,6 +276,21 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // detail (engine-component fields, GUIDs, import settings)
             // for a quick read; Advanced shows everything. app.js flips
             // the body class and remembers the choice.
+            // Visual skin. The cozy look is the tool's signature and the
+            // nicer thing to sit in front of; it is also more paint work
+            // per row, which is why the default is measured rather than
+            // assumed. Switching is always allowed - the machine reading
+            // the page is often not the one that produced it.
+            sb.Append("<div class=\"ds-skinbar\" role=\"group\" aria-label=\"Visual style\">");
+            sb.Append("<button class=\"ds-skin-btn").Append(defSkin == DocSnapCapability.SkinCozy ? " is-active" : "").Append("\" data-skin=\"cozy\">")
+              .Append(I18n("span", null, "\u2728 Cozy", "\u2728 \u30B3\u30FC\u30B8\u30FC", "\u2728 \u062F\u0646\u062C")).Append("</button>");
+            sb.Append("<button class=\"ds-skin-btn").Append(defSkin == DocSnapCapability.SkinLite ? " is-active" : "").Append("\" data-skin=\"lite\">")
+              .Append(I18n("span", null, "\u26A1 Lite", "\u26A1 \u30E9\u30A4\u30C8", "\u26A1 \u0633\u0628\u06A9")).Append("</button>");
+            sb.Append("</div>\n");
+            // Filled in by app.js, and only when the reader has turned the
+            // cozy skin on against a measurement that said otherwise.
+            sb.Append("<div class=\"ds-skin-warning\" data-skin-warning hidden></div>\n");
+
             sb.Append("<div class=\"ds-modebar\" role=\"group\" aria-label=\"Detail level\">");
             sb.Append("<button class=\"ds-mode-btn is-active\" data-mode=\"simple\">")
               .Append(I18n("span", null, "🌤 Simple", "🌤 シンプル", "🌤 ساده")).Append("</button>");
@@ -440,6 +467,35 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 sb.Append("</div>");
             }
             sb.Append("</div>\n");
+            return sb.ToString();
+        }
+
+        // ==========================================
+        // CapabilityJson
+        // The skin measurement as a small JS object literal, so the
+        // site can quote real numbers back at a reader who overrides
+        // the verdict. A warning with no numbers attached is a shrug.
+        // ==========================================
+        private static string CapabilityJson(DocSnapCapabilityReport caps)
+        {
+            if (caps == null) { return "{}"; }
+
+            var sb = new StringBuilder(512);
+            sb.Append("{\"skin\":").Append(JsString(DocSnapCapability.Normalize(caps.Skin)));
+            sb.Append(",\"ramMb\":").Append(caps.SystemMemoryMb.ToString(CultureInfo.InvariantCulture));
+            sb.Append(",\"cores\":").Append(caps.ProcessorCount.ToString(CultureInfo.InvariantCulture));
+            sb.Append(",\"cpu\":").Append(JsString(caps.ProcessorType));
+            sb.Append(",\"gpu\":").Append(JsString(caps.GraphicsDeviceName));
+            sb.Append(",\"gpuMb\":").Append(caps.GraphicsMemoryMb.ToString(CultureInfo.InvariantCulture));
+            sb.Append(",\"gameObjects\":").Append(caps.GameObjectCount.ToString(CultureInfo.InvariantCulture));
+            sb.Append(",\"assetFiles\":").Append(caps.AssetFileCount.ToString(CultureInfo.InvariantCulture));
+            sb.Append(",\"reasons\":[");
+            for (int i = 0; i < caps.Reasons.Count; i++)
+            {
+                if (i > 0) { sb.Append(','); }
+                sb.Append(JsString(caps.Reasons[i]));
+            }
+            sb.Append("]}");
             return sb.ToString();
         }
 

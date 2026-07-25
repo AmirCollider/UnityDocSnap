@@ -22,6 +22,8 @@ namespace AmirCollider.UnityDocSnap.Editor
         private const string KeyWindowLang = "UnityDocSnap.WindowLanguage";
         private const string KeyExcludes = "UnityDocSnap.ExcludePatterns";
         private const string KeyAiBundle = "UnityDocSnap.WriteAiBundle";
+        private const string KeyVendorFolders = "UnityDocSnap.VendorFolders";
+        private const string KeySiteSkin = "UnityDocSnap.SiteSkin";
 
         // ==========================================
         // OutputRootPath
@@ -153,6 +155,52 @@ namespace AmirCollider.UnityDocSnap.Editor
                 return raw == null ? true : raw == "1";
             }
             set { EditorUserSettings.SetConfigValue(KeyAiBundle, value ? "1" : "0"); }
+        }
+
+        // ==========================================
+        // VendorFolders
+        // Extra folders under Assets/ that hold content this
+        // project RECEIVED rather than wrote, one per line -
+        // an Asset Store vendor folder, a shared submodule.
+        //
+        // Unlike ExcludePatterns these are still fully
+        // documented; they are only separated out in the health
+        // report, so "8 broken references" can say how many are
+        // actually yours to fix. Unity's own install locations
+        // (TextMesh Pro, Settings, Samples, XR, Plugins, …) are
+        // built into DocSnapVendorPaths and do not need listing.
+        // ==========================================
+        public static string VendorFolders
+        {
+            get { return EditorUserSettings.GetConfigValue(KeyVendorFolders) ?? ""; }
+            set
+            {
+                EditorUserSettings.SetConfigValue(KeyVendorFolders, value ?? "");
+                DocSnapVendorPaths.InvalidateCache();
+            }
+        }
+
+        // ==========================================
+        // SiteSkin
+        // Which visual skin the generated site opens with:
+        // "auto" (default), "cozy" or "lite".
+        //
+        // "auto" measures the exporting machine (RAM, cores, GPU)
+        // and how heavy the project is, and picks accordingly -
+        // cozy when there is room for it, lite when there is not.
+        // The two explicit values skip the measurement for someone
+        // who already knows what they want. Either way a reader can
+        // still switch inside the site itself; this only decides
+        // what it opens with.
+        // ==========================================
+        public static string SiteSkin
+        {
+            get
+            {
+                string raw = EditorUserSettings.GetConfigValue(KeySiteSkin);
+                return string.IsNullOrEmpty(raw) ? "auto" : raw;
+            }
+            set { EditorUserSettings.SetConfigValue(KeySiteSkin, string.IsNullOrEmpty(value) ? "auto" : value); }
         }
 
         // ==========================================

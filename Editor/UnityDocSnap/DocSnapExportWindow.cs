@@ -26,6 +26,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // Site defaults.
         private int _siteLang;   // 0 en, 1 ja, 2 fa
         private int _siteTheme;  // 0 light, 1 dark
+        private int _siteSkin;   // 0 auto, 1 cozy, 2 lite
 
         // Version target.
         private bool _ontoExisting;
@@ -68,6 +69,8 @@ namespace AmirCollider.UnityDocSnap.Editor
             _uiLang = LangIndex(DocSnapSettings.WindowLanguage);
             _siteLang = LangIndex(DocSnapSettings.DefaultSiteLanguage);
             _siteTheme = DocSnapSettings.DefaultSiteTheme == "dark" ? 1 : 0;
+            _siteSkin = DocSnapSettings.SiteSkin == DocSnapCapability.SkinCozy ? 1
+                : DocSnapSettings.SiteSkin == DocSnapCapability.SkinLite ? 2 : 0;
             _excludes = DocSnapSettings.ExcludePatterns;
             Refresh();
         }
@@ -156,6 +159,33 @@ namespace AmirCollider.UnityDocSnap.Editor
                 L("Theme", "テーマ", "تم"),
                 L("Light or dark colour theme the site opens in.", "サイトが開くときの明/暗テーマ。", "تم روشن یا تاریک سایت هنگام باز شدن."),
                 _siteTheme, new[] { L("Light", "ライト", "روشن"), L("Dark", "ダーク", "تاریک") });
+
+            // Which of the two visual skins the site opens with. Auto
+            // measures this machine (RAM / cores / GPU) and how heavy the
+            // project is: the cozy skin is the nicer thing to look at and
+            // strictly more paint work per row, so on a huge project or a
+            // tight machine the site opens light instead. Readers can
+            // switch inside the site either way - this is the start point.
+            _siteSkin = LabeledPopup(
+                L("Visual style", "見た目", "ظاهر سایت"),
+                L("Auto picks the cozy look when this machine and project have room for it, and the light one when they do not.",
+                  "自動: このマシンとプロジェクトに余裕があればコージー、なければライトを選びます。",
+                  "خودکار: اگه این سیستم و پروژه جا داشته باشن ظاهر دنج، وگرنه ظاهر سبک انتخاب می‌شه."),
+                _siteSkin, new[]
+                {
+                    L("Auto (measure this machine)", "自動(この環境を計測)", "خودکار (سنجش این سیستم)"),
+                    L("✨ Cozy — gradients + animation", "✨ コージー(グラデーション+アニメ)", "✨ دنج — گرادیانت و انیمیشن"),
+                    L("⚡ Lite — flat and fast", "⚡ ライト(フラットで軽量)", "⚡ سبک — تخت و سریع")
+                });
+
+            if (_siteSkin == 0)
+            {
+                DocSnapCapabilityReport probe = DocSnapCapability.Measure(0, 0);
+                EditorGUILayout.LabelField(" ",
+                    probe.SystemMemoryMb + " MB RAM \u00B7 " + probe.ProcessorCount + " cores \u00B7 "
+                        + (string.IsNullOrEmpty(probe.GraphicsDeviceName) ? "GPU unknown" : probe.GraphicsDeviceName),
+                    EditorStyles.miniLabel);
+            }
 
             DrawSeparator();
 
@@ -344,6 +374,8 @@ namespace AmirCollider.UnityDocSnap.Editor
 
             DocSnapSettings.DefaultSiteLanguage = LangCodes[_siteLang];
             DocSnapSettings.DefaultSiteTheme = _siteTheme == 1 ? "dark" : "light";
+            DocSnapSettings.SiteSkin = _siteSkin == 1 ? DocSnapCapability.SkinCozy
+                : _siteSkin == 2 ? DocSnapCapability.SkinLite : "auto";
             DocSnapSettings.ExcludePatterns = _excludes ?? "";
 
             var options = new DocSnapExportOptions

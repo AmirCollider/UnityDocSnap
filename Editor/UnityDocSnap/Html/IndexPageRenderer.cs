@@ -140,25 +140,53 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 return sb.ToString();
             }
 
+            // A project whose only findings are in Unity's own installed
+            // folders reads as clean HERE, because that is the truth the
+            // author cares about - with the rest named right below rather
+            // than hidden. Leading with "8 broken references" when none of
+            // the eight is theirs to fix is how the card lost its reader.
+            if (totals.MineIsClean)
+            {
+                sb.Append("<p class=\"ds-empty-note\">").Append(HtmlPageBuilder.I18n("span", null,
+                    "Nothing in your own files. ",
+                    "自分のファイルには問題ありません。",
+                    "توی فایل‌های خودت هیچ ایرادی نیست. "));
+                sb.Append(HtmlPageBuilder.I18n("span", null,
+                    totals.VendorFindings + " finding(s) sit in folders Unity or a package installed into Assets/ (TextMesh Pro, template Settings, package Samples) — not editable, not deletable.",
+                    totals.VendorFindings + " 件は Unity / パッケージが Assets/ にインストールしたフォルダ内(TextMesh Pro、テンプレートの Settings、Samples など)にあり、編集も削除もできません。",
+                    "‏" + totals.VendorFindings + " مورد داخل پوشه‌هایی هستن که Unity یا پکیج‌ها توی Assets/ نصب کردن (TextMesh Pro، پوشه‌ی Settings تمپلیت، Samples) — نه ویرایش می‌شن نه حذف."));
+                sb.Append("</p>");
+                sb.Append(RenderDuplicateNote(totals));
+                sb.Append("</div>\n");
+                return sb.ToString();
+            }
+
             // Every badge is a link into the health report, pre-filtered
             // to its own kind. A count that cannot be clicked is a
             // number the reader then has to go and find by hand, which
             // is most of the work this card was meant to remove.
             sb.Append("<div class=\"ds-badge-row\">");
-            if (totals.missingScripts > 0)
+            if (totals.missingScriptsMine > 0)
             {
-                sb.Append(HealthBadge(DocSnapHealthReport.KindMissingScript, "warn", totals.missingScripts,
+                sb.Append(HealthBadge(DocSnapHealthReport.KindMissingScript, "warn", totals.missingScriptsMine,
                     "missing scripts", "欠落スクリプト", "اسکریپت گم‌شده"));
             }
-            if (totals.missingReferences > 0)
+            if (totals.missingReferencesMine > 0)
             {
-                sb.Append(HealthBadge(DocSnapHealthReport.KindMissingReference, "warn", totals.missingReferences,
+                sb.Append(HealthBadge(DocSnapHealthReport.KindMissingReference, "warn", totals.missingReferencesMine,
                     "broken references", "切れた参照", "ارجاع شکسته"));
             }
-            if (totals.unresolvedAssets > 0)
+            if (totals.unresolvedAssetsMine > 0)
             {
-                sb.Append(HealthBadge(DocSnapHealthReport.KindUnresolvedAsset, "lav", totals.unresolvedAssets,
+                sb.Append(HealthBadge(DocSnapHealthReport.KindUnresolvedAsset, "lav", totals.unresolvedAssetsMine,
                     "unresolved assets", "型不明アセット", "فایل بدون نوع مشخص"));
+            }
+            if (totals.VendorFindings > 0)
+            {
+                sb.Append("<a class=\"ds-badge ghost\" href=\"").Append(DocSnapConstants.IssuesFileName)
+                  .Append("?owner=vendor#findings\">").Append(totals.VendorFindings).Append(" ")
+                  .Append(HtmlPageBuilder.I18n("span", null,
+                      "in Unity / packages", "Unity・パッケージ内", "در Unity و پکیج‌ها")).Append("</a>");
             }
             if (totals.duplicateSceneNames.Count > 0)
             {
@@ -167,7 +195,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             }
             sb.Append("</div>");
 
-            List<ManifestHealthEntry> worst = DocSnapHealthReport.Worst(manifest, 6);
+            List<ManifestHealthEntry> worst = DocSnapHealthReport.WorstMine(manifest, 6);
             if (worst.Count > 0)
             {
                 sb.Append("<ul class=\"ds-folder-list\">\n");
@@ -177,28 +205,31 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                     // that Scene / folder, not to the Scene page itself:
                     // "8 broken references in Assets" used to open the
                     // Assets page and leave the reader to find all eight.
-                    string href = DocSnapConstants.IssuesFileName + "?scope=" + Uri.EscapeDataString(e.label ?? "") + "#findings";
+                    string href = DocSnapConstants.IssuesFileName + "?owner=mine&scope=" + Uri.EscapeDataString(e.label ?? "") + "#findings";
                     sb.Append("<li><a class=\"ds-folder-row\" href=\"").Append(HtmlPageBuilder.Escape(href)).Append("\">")
                       .Append("<span class=\"ds-folder-path\">").Append(HtmlPageBuilder.Escape(e.label)).Append("</span>")
-                      .Append("<span class=\"ds-folder-meta\">").Append(HtmlPageBuilder.Escape(DescribeFindings(e)))
+                      .Append("<span class=\"ds-folder-meta\">").Append(HtmlPageBuilder.Escape(DescribeMineFindings(e)))
                       .Append("</span></a></li>\n");
                 }
                 sb.Append("</ul>\n");
             }
 
-            if (totals.duplicateSceneNames.Count > 0)
-            {
-                sb.Append("<p class=\"ds-empty-note\">")
-                  .Append(HtmlPageBuilder.I18n("span", null,
-                      "Scene names used more than once: ",
-                      "複数回使われているシーン名: ",
-                      "اسم‌های سین که بیش از یک‌بار استفاده شده‌اند: "))
-                  .Append(HtmlPageBuilder.Escape(string.Join(", ", totals.duplicateSceneNames.ToArray())))
-                  .Append("</p>");
-            }
+            sb.Append(RenderDuplicateNote(totals));
 
             sb.Append("</div>\n");
             return sb.ToString();
+        }
+
+        private static string RenderDuplicateNote(HealthTotals totals)
+        {
+            if (totals.duplicateSceneNames == null || totals.duplicateSceneNames.Count == 0) { return ""; }
+            return "<p class=\"ds-empty-note\">"
+                + HtmlPageBuilder.I18n("span", null,
+                    "Scene names used more than once: ",
+                    "複数回使われているシーン名: ",
+                    "اسم‌های سین که بیش از یک‌بار استفاده شده‌اند: ")
+                + HtmlPageBuilder.Escape(string.Join(", ", totals.duplicateSceneNames.ToArray()))
+                + "</p>";
         }
 
         private static string HealthBadge(string kind, string variant, int count, string en, string ja, string fa)
@@ -211,12 +242,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // Plain, language-neutral shorthand so one row stays
         // readable in every one of the three languages without
         // three separate spans inside a link.
-        private static string DescribeFindings(ManifestHealthEntry e)
+        private static string DescribeMineFindings(ManifestHealthEntry e)
         {
             var parts = new List<string>();
-            if (e.missingScripts > 0) { parts.Add(e.missingScripts + " ⚠ script"); }
-            if (e.missingReferences > 0) { parts.Add(e.missingReferences + " 🔗 ref"); }
-            if (e.unresolvedAssets > 0) { parts.Add(e.unresolvedAssets + " ? type"); }
+            if (e.missingScriptsMine > 0) { parts.Add(e.missingScriptsMine + " ⚠ script"); }
+            if (e.missingReferencesMine > 0) { parts.Add(e.missingReferencesMine + " 🔗 ref"); }
+            if (e.unresolvedAssetsMine > 0) { parts.Add(e.unresolvedAssetsMine + " ? type"); }
             return string.Join(" · ", parts.ToArray());
         }
 
