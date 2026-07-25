@@ -22,6 +22,7 @@
 // backs a given property is decided here and
 // nowhere else.
 // ==========================================
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
@@ -42,6 +43,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         private const string KeyVendorFolders = "vendorFolders";
         private const string KeySiteSkin = "siteSkin";
         private const string KeyEmbedFonts = "embedFonts";
+        private const string KeyRegeneratedPaths = "regeneratedPaths";
 
         // --- Per-user keys (EditorUserSettings, as before) ---
         private const string KeyLogoPath = "UnityDocSnap.CustomLogoPath";
@@ -117,15 +119,83 @@ namespace AmirCollider.UnityDocSnap.Editor
             return Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
         }
 
+        // ==========================================
+        // Session overrides
+        // A value that applies to THIS Editor session only
+        // and is never written to the committed settings file.
+        //
+        // The command line needs this. -docsnapOutput and
+        // -docsnapExclude used to go straight through the
+        // normal setters, which write
+        // ProjectSettings/UnityDocSnapSettings.json - a file
+        // that is meant to be committed. So every CI run left
+        // the working tree dirty with a settings change nobody
+        // made, which fails the `git diff --exit-code` step a
+        // lot of pipelines end with, and on a job that commits
+        // its output it quietly rewrote the project's
+        // configuration to whatever that one build passed.
+        //
+        // A build agent asking for a different output folder
+        // for one run is not the same act as a person changing
+        // what the project documents, and the two should not
+        // write to the same place. Passing -docsnapSaveSettings
+        // opts back into persisting them, for the rare job whose
+        // whole purpose is to update the committed file.
+        //
+        // Reads consult this first, so an override wins over
+        // the file without touching it; ClearSessionOverrides
+        // puts everything back.
+        // ==========================================
+        private static readonly Dictionary<string, string> SessionOverrides =
+            new Dictionary<string, string>(System.StringComparer.Ordinal);
+
+        internal static void SetSessionOverride(string key, string value)
+        {
+            SessionOverrides[key] = value ?? "";
+            // The vendor classifier caches its parsed folder list, so a
+            // session override of it has to invalidate that cache the
+            // same way the persisted setter does.
+            if (key == KeyVendorFolders) { DocSnapVendorPaths.InvalidateCache(); }
+            if (key == KeyRegeneratedPaths) { DocSnapRegeneratedPaths.InvalidateCache(); }
+        }
+
+        internal static void ClearSessionOverrides()
+        {
+            if (SessionOverrides.Count == 0) { return; }
+            bool hadVendor = SessionOverrides.ContainsKey(KeyVendorFolders);
+            bool hadRegenerated = SessionOverrides.ContainsKey(KeyRegeneratedPaths);
+            SessionOverrides.Clear();
+            if (hadVendor) { DocSnapVendorPaths.InvalidateCache(); }
+            if (hadRegenerated) { DocSnapRegeneratedPaths.InvalidateCache(); }
+        }
+
+        internal static bool HasSessionOverrides
+        {
+            get { return SessionOverrides.Count > 0; }
+        }
+
+        // ==========================================
+        // RawGet
+        // The single read path for every project-scoped
+        // setting: a session override when one is in force,
+        // otherwise the committed file.
+        // ==========================================
+        private static string RawGet(string key)
+        {
+            string overridden;
+            if (SessionOverrides.TryGetValue(key, out overridden)) { return overridden; }
+            return Store.Get(key);
+        }
+
         private static string GetProject(string key, string fallback)
         {
-            string raw = Store.Get(key);
+            string raw = RawGet(key);
             return string.IsNullOrEmpty(raw) ? fallback : raw;
         }
 
         private static bool GetProjectBool(string key, bool fallback)
         {
-            string raw = Store.Get(key);
+            string raw = RawGet(key);
             if (string.IsNullOrEmpty(raw)) { return fallback; }
             return raw == "1" || raw == "true" || raw == "True";
         }
@@ -138,7 +208,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         public static string OutputRootPath
         {
-            get { return Store.Get(KeyOutputPath) ?? ""; }
+            get { return RawGet(KeyOutputPath) ?? ""; }
             set { Store.Set(KeyOutputPath, value ?? ""); }
         }
 
@@ -251,7 +321,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         public static string ExcludePatterns
         {
-            get { return Store.Get(KeyExcludes) ?? ""; }
+            get { return RawGet(KeyExcludes) ?? ""; }
             set { Store.Set(KeyExcludes, value ?? ""); }
         }
 
@@ -284,11 +354,38 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         public static string VendorFolders
         {
-            get { return Store.Get(KeyVendorFolders) ?? ""; }
+            get { return RawGet(KeyVendorFolders) ?? ""; }
             set
             {
                 Store.Set(KeyVendorFolders, value ?? "");
                 DocSnapVendorPaths.InvalidateCache();
+            }
+        }
+
+        // ==========================================
+        // RegeneratedPaths
+        // Extra files Unity or a package rewrites on its own
+        // schedule, one pattern per line, in the same syntax
+        // as ExcludePatterns.
+        //
+        // These are NOT excluded from the export - they are
+        // documented in full like anything else. They are only
+        // separated on the Changes page, where a file whose
+        // bytes moved without anybody editing it is noise that
+        // buries the changes somebody did make.
+        //
+        // Unity's own known offenders (the TextMesh Pro font
+        // assets, whose dynamic atlas is rewritten whenever a
+        // new glyph is rendered) are built into
+        // DocSnapRegeneratedPaths and do not need listing.
+        // ==========================================
+        public static string RegeneratedPaths
+        {
+            get { return RawGet(KeyRegeneratedPaths) ?? ""; }
+            set
+            {
+                Store.Set(KeyRegeneratedPaths, value ?? "");
+                DocSnapRegeneratedPaths.InvalidateCache();
             }
         }
 

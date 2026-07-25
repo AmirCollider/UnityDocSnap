@@ -184,14 +184,27 @@ In `-batchmode` the process exits non-zero when the export fails, so a red build
 | `-docsnapSkin auto\|cozy\|lite` | Skin the site opens in |
 | `-docsnapNoThumbnails` | Metadata only — no pixel previews |
 | `-docsnapNoFonts` | Skip the ~570 KB of embedded web fonts |
+| `-docsnapSaveSettings` | Also **write** the settings above to the committed settings file |
 
 With no action argument it runs a full project export.
 
+> **These settings apply to the run, not to the repository.** Everything above is applied to that one export and is *not* written to `ProjectSettings/UnityDocSnapSettings.json`, so a build agent leaves the working tree exactly as it found it and a `git diff --exit-code` step still passes. Pass `-docsnapSaveSettings` for the rare job whose whole purpose is to update that committed file.
+>
+> An argument that is missing its value — `-docsnapOutput` followed by another flag, or sitting last on the command line — is **refused**, with the offending argument named on the console and a non-zero exit in `-batchmode`. It is never quietly reinterpreted: an export that silently fell back to the default output folder and reported success is how a pipeline publishes nothing and still goes green.
+
 `DocSnapAPI` is the **only** public type in the package. Everything else is `internal` on purpose, so the rest of the tool stays free to change.
+
+### ♻️ Files Unity rewrites by itself
+
+TextMesh Pro's dynamic font assets keep their glyph table and atlas texture inside the `.asset` file, and TMP re-serialises them whenever it renders a character the atlas does not have yet — including while the Editor draws its own UI at startup. Open Unity, close Unity, and `LiberationSans SDF - Fallback.asset` genuinely has different bytes, without anybody having touched it.
+
+The Changes page keeps these out of the change counts and lists them in their own collapsed **Rewritten by Unity** group, with the pattern that classified each one shown beside it. They are still documented in full like any other asset — separated, never silently dropped. Add your own patterns under **Project Settings → Unity DocSnap → Rewritten-by-Unity paths**, in the same syntax as the exclude list.
+
+Bake output — lightmaps, NavMesh data, occlusion culling — is deliberately *not* on this list. Those files change because somebody pressed Bake, which is exactly the kind of change the page exists to report.
 
 ### ⚙️ Settings, and where they live
 
-Settings that describe the **project** — exclude patterns, not-my-code folders, output path, the site's default language / theme / skin, thumbnails, embedded fonts — are written to:
+Settings that describe the **project** — exclude patterns, not-my-code folders, rewritten-by-Unity paths, output path, the site's default language / theme / skin, thumbnails, embedded fonts — are written to:
 
 ```
 ProjectSettings/UnityDocSnapSettings.json
@@ -252,10 +265,10 @@ Then run the EditMode tests from **Window → General → Test Runner** in any p
 `package.json`, `DocSnapConstants.Version` and the `CHANGELOG.md` heading all carry the version and must agree — CI fails if they do not. To publish, tag the commit and push the tag; the release workflow does the rest:
 
 ```bash
-git tag v0.9.0 && git push origin v0.9.0
+git tag v0.10.1 && git push origin v0.10.1
 ```
 
-Tagging is what lets a user pin a version in the Package Manager (`…UnityDocSnap.git#v0.9.0`) instead of always getting whatever the default branch happens to be.
+Tagging is what lets a user pin a version in the Package Manager (`…UnityDocSnap.git#v0.10.1`) instead of always getting whatever the default branch happens to be.
 
 ### 📜 License
 
@@ -405,9 +418,21 @@ Unity -batchmode -quit -projectPath . \
       -docsnapOutput Build/Docs
 ```
 
-`-batchmode` ではエクスポート失敗時にプロセスが非ゼロで終了するので、ビルドが赤くなるのは本当に問題があるときだけです。API経由・バッチ経由のエクスポートではダイアログは一切表示されません。主な引数: `-docsnapUpdate`(最新バージョンを差分更新)、`-docsnapScene <path>`、`-docsnapFolder <path>`、`-docsnapWithFiles`、`-docsnapOutput <path>`、`-docsnapExclude "a;b"`、`-docsnapLanguage`、`-docsnapTheme`、`-docsnapSkin`、`-docsnapNoThumbnails`、`-docsnapNoFonts`。引数なしならプロジェクト全体をエクスポートします。
+`-batchmode` ではエクスポート失敗時にプロセスが非ゼロで終了するので、ビルドが赤くなるのは本当に問題があるときだけです。API経由・バッチ経由のエクスポートではダイアログは一切表示されません。主な引数: `-docsnapUpdate`(最新バージョンを差分更新)、`-docsnapScene <path>`、`-docsnapFolder <path>`、`-docsnapWithFiles`、`-docsnapOutput <path>`、`-docsnapExclude "a;b"`、`-docsnapLanguage`、`-docsnapTheme`、`-docsnapSkin`、`-docsnapNoThumbnails`、`-docsnapNoFonts`、`-docsnapSaveSettings`。引数なしならプロジェクト全体をエクスポートします。
+
+> **これらの設定はその実行にだけ適用され、リポジトリには書き込まれません。** `ProjectSettings/UnityDocSnapSettings.json` は変更されないので、ビルドエージェントは作業ツリーをそのまま残し、`git diff --exit-code` も通ります。コミット対象のファイル自体を更新したい場合だけ `-docsnapSaveSettings` を付けてください。
+>
+> 値が欠けた引数(`-docsnapOutput` の直後が別のフラグ、あるいはコマンドラインの末尾にある場合)は**拒否**され、該当の引数名がコンソールに出力され、`-batchmode` では非ゼロで終了します。黙って解釈し直すことはありません — 既定の出力先にエクスポートして成功と報告するのは、パイプラインが何も公開しないまま緑になる原因そのものだからです。
 
 公開型は `DocSnapAPI` **だけ**です。それ以外はすべて意図的に `internal` のままにしてあります。
+
+### ♻️ Unity が自分で書き換えるファイル
+
+TextMesh Pro の動的フォントアセットは、グリフテーブルとアトラステクスチャを `.asset` の中に持っています。TMP はアトラスに無い文字を描画するたびにこれを再シリアライズするため — エディタが自身の UI を描画する起動時も含みます — Unity を開いて閉じるだけで `LiberationSans SDF - Fallback.asset` のバイト列は実際に変化します。誰も触っていないのに、です。
+
+変更点ページはこれらを変更件数から外し、**Unityによる自動書き換え**という専用の折りたたみグループに、判定に使われたパターンを添えて表示します。エクスポートには通常どおり含まれています — 分けているだけで、黙って捨ててはいません。独自のパターンは **Project Settings → Unity DocSnap → Rewritten-by-Unity paths** に、除外リストと同じ書式で追加できます。
+
+ベイク結果(ライトマップ、NavMesh、オクルージョンカリング)は意図的にこのリストに入れていません。それらは誰かが Bake を押したから変わるのであり、まさに変更点ページが報告すべき変更だからです。
 
 ### ⚙️ 設定の保存先
 
@@ -600,13 +625,25 @@ Unity -batchmode -quit -projectPath . \
 
 توی `-batchmode` اگه اکسپورت شکست بخوره پروسه با کد غیرصفر خارج می‌شه، پس بیلد قرمز یعنی یه مشکل واقعی. توی اکسپورتی که از API یا از batch اجرا شده هیچ دیالوگی نشون داده نمی‌شه.
 
-آرگومان‌ها: `-docsnapUpdate` (به‌روزرسانی افزایشی آخرین نسخه)، `-docsnapScene <path>`، `-docsnapFolder <path>`، `-docsnapWithFiles`، `-docsnapOutput <path>`، `-docsnapExclude "a;b"`، `-docsnapLanguage`، `-docsnapTheme`، `-docsnapSkin`، `-docsnapNoThumbnails`، `-docsnapNoFonts`. بدون هیچ آرگومانی، اکسپورت کامل پروژه اجرا می‌شه.
+آرگومان‌ها: `-docsnapUpdate` (به‌روزرسانی افزایشی آخرین نسخه)، `-docsnapScene <path>`، `-docsnapFolder <path>`، `-docsnapWithFiles`، `-docsnapOutput <path>`، `-docsnapExclude "a;b"`، `-docsnapLanguage`، `-docsnapTheme`، `-docsnapSkin`، `-docsnapNoThumbnails`، `-docsnapNoFonts`، `-docsnapSaveSettings`. بدون هیچ آرگومانی، اکسپورت کامل پروژه اجرا می‌شه.
+
+> **این تنظیمات فقط روی همون اجرا اعمال می‌شن، نه روی ریپازیتوری.** فایل `ProjectSettings/UnityDocSnapSettings.json` دست‌نخورده می‌مونه، پس بیلد سرور working tree رو همون‌طور که تحویل گرفته باقی می‌ذاره و مرحله‌ی `git diff --exit-code` هم پاس می‌شه. فقط برای اون جاب خاصی که کارش دقیقاً به‌روز کردن همون فایل کامیت‌شده‌ست `-docsnapSaveSettings` رو اضافه کن.
+>
+> آرگومانی که مقدارش جا افتاده باشه — مثلاً `-docsnapOutput` که بعدش یه فلگ دیگه اومده، یا آخرین آرگومان خط فرمان باشه — **رد می‌شه**: اسم همون آرگومان توی کنسول نوشته می‌شه و توی `-batchmode` پروسه با کد غیرصفر خارج می‌شه. هیچ‌وقت بی‌صدا جور دیگه‌ای تفسیر نمی‌شه — چون اکسپورتی که بی‌خبر توی مسیر پیش‌فرض بنویسه و بگه موفق بودم، دقیقاً همون چیزیه که باعث می‌شه یه pipeline هیچی منتشر نکنه و باز هم سبز بشه.
 
 `DocSnapAPI` **تنها** تایپ public پکیجه؛ بقیه عمداً `internal` موندن.
 
+### ♻️ فایل‌هایی که خود یونیتی بازنویسی می‌کنه
+
+فونت‌اَسِت‌های داینامیک TextMesh Pro، جدول گلیف و تکسچر اطلسشون رو داخل خود فایل `.asset` نگه می‌دارن، و TMP هر بار که کاراکتری رندر بشه که توی اطلس نیست اون فایل رو دوباره ذخیره می‌کنه — از جمله موقع بالا اومدن ادیتور که داره رابط کاربری خودش رو می‌کشه. یونیتی رو باز کن و ببند، و بایت‌های `LiberationSans SDF - Fallback.asset` واقعاً فرق کرده. بدون این‌که کسی دستش بهش خورده باشه.
+
+صفحه‌ی تغییرات این‌ها رو از شمارش تغییرات بیرون می‌ذاره و توی یه گروه جمع‌شده‌ی جدا به اسم **بازنویسی‌شده توسط یونیتی** فهرست می‌کنه، با همون الگویی که هر فایل رو تشخیص داده کنارش. این فایل‌ها مثل هر اَسِت دیگه‌ای کامل مستند می‌شن — فقط جدا شدن، بی‌صدا حذف نشدن. الگوهای خودت رو می‌تونی از **Project Settings → Unity DocSnap → Rewritten-by-Unity paths** اضافه کنی، با همون سینتکس لیست exclude.
+
+خروجی Bake — لایت‌مپ، NavMesh، occlusion culling — عمداً توی این لیست نیست. اون فایل‌ها وقتی عوض می‌شن که یکی دکمه‌ی Bake رو زده باشه، و این دقیقاً همون تغییریه که صفحه‌ی تغییرات برای گزارشش ساخته شده.
+
 ### ⚙️ تنظیمات کجا ذخیره می‌شن
 
-تنظیماتی که **پروژه** رو توصیف می‌کنن — الگوهای exclude، پوشه‌های «مال من نیست»، مسیر خروجی، زبان/تم/اسکین پیش‌فرض سایت، تصاویر بندانگشتی، فونت‌های embed — اینجا نوشته می‌شن:
+تنظیماتی که **پروژه** رو توصیف می‌کنن — الگوهای exclude، پوشه‌های «مال من نیست»، مسیرهای بازنویسی‌شده توسط یونیتی، مسیر خروجی، زبان/تم/اسکین پیش‌فرض سایت، تصاویر بندانگشتی، فونت‌های embed — اینجا نوشته می‌شن:
 
 ```
 ProjectSettings/UnityDocSnapSettings.json

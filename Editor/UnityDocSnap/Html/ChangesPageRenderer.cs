@@ -36,8 +36,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // FileDiff
         // One file's before/after entry, so the page can
         // show sizes and size deltas, not just the path.
+        //
+        // internal rather than private, together with DiffFiles
+        // below, purely so the tests can reach them. Which bucket
+        // a changed file lands in is the whole of the fix for
+        // "the Changes page reports a file nobody touched", and a
+        // rule about what NOT to report is exactly the kind that
+        // needs a test holding it in place - it fails silently and
+        // in the direction of looking correct.
         // ==========================================
-        private sealed class FileDiff
+        internal sealed class FileDiff
         {
             public string path;
             public long oldSize;
@@ -77,7 +85,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             var added = new List<FileDiff>();
             var removed = new List<FileDiff>();
             var modified = new List<FileDiff>();
-            DiffFiles(baseSnap, current, added, removed, modified);
+            // Files Unity rewrote on its own schedule, kept apart from
+            // the ones somebody actually edited. See
+            // DocSnapRegeneratedPaths for why this is not simply
+            // folded into "modified".
+            var regenerated = new List<FileDiff>();
+            DiffFiles(baseSnap, current, added, removed, modified, regenerated);
 
             // ----- Copy the actual bytes so each entry is downloadable -----
             var oldLinks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -169,6 +182,43 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 "Removed", "削除", "حذف‌شده",
                 "Changed", "変更", "تغییرکرده"));
 
+            // ----- Regenerated-by-Unity group -----
+            //
+            // Its own card, below the real changes and collapsed,
+            // because the entire point is that a reader does not have
+            // to read it. The pattern that caught each file is shown
+            // beside it so the classification can be checked rather
+            // than trusted, and the note says plainly that these are
+            // still in the export - they are separated here only.
+            if (regenerated.Count > 0)
+            {
+                var regenHtml = new List<string>(regenerated.Count);
+                foreach (FileDiff d in regenerated) { regenHtml.Add(RegeneratedItem(d)); }
+
+                sb.Append("<div class=\"ds-card\">");
+                sb.Append("<h3>♻️ ").Append(HtmlPageBuilder.I18n("span", null,
+                    "Rewritten by Unity", "Unityによる自動書き換え", "بازنویسی‌شده توسط یونیتی")).Append("</h3>");
+                sb.Append("<div class=\"ds-callout\">").Append(HtmlPageBuilder.I18n("span", null,
+                    "These files have different bytes, but nobody edited them: Unity rewrites them on its own schedule. "
+                        + "A TextMesh Pro font asset, for example, re-serialises its glyph atlas whenever a new character is rendered, "
+                        + "so it changes just from opening and closing the Editor. They are documented in the export like everything else "
+                        + "and are only kept out of the change counts above.",
+                    "これらのファイルはバイト列が変化していますが、誰も編集していません。Unity が独自のタイミングで書き換えるためです。"
+                        + "たとえば TextMesh Pro のフォントアセットは、新しい文字が描画されるたびにグリフアトラスを再シリアライズするため、"
+                        + "エディタを開いて閉じるだけで変化します。エクスポートには通常どおり含まれており、上の変更件数から外れているだけです。",
+                    "بایت‌های این فایل‌ها فرق کرده، ولی هیچ‌کس ویرایششان نکرده: یونیتی خودش و سر وقت خودش بازنویسی‌شان می‌کند. "
+                        + "مثلاً فونت‌اَسِت TextMesh Pro هر بار که کاراکتر تازه‌ای رندر شود اطلس گلیفش را دوباره ذخیره می‌کند، "
+                        + "پس صرفاً با باز و بسته کردن ادیتور تغییر می‌کند. اینها مثل بقیه در خروجی مستند شده‌اند و فقط از شمارش تغییرات بالا کنار گذاشته شده‌اند."))
+                  .Append("</div>");
+                sb.Append(DiffList("regenerated", regenHtml,
+                    "Rewritten, not edited", "自動書き換え(編集なし)", "بازنویسی‌شده، نه ویرایش‌شده"));
+                sb.Append("</div>\n");
+            }
+
+            // A diff whose only entries are Unity's own churn is a diff
+            // with nothing in it, and has to say so - otherwise the
+            // "no differences" line would be missing on a page that
+            // shows no differences.
             bool nothing = added.Count == 0 && removed.Count == 0 && modified.Count == 0
                 && pkgChangeCount == 0 && sceneChangeCount == 0;
             if (nothing)
@@ -185,7 +235,29 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // ==========================================
         // DiffFiles / DiffPackages / DiffScenes
         // ==========================================
-        private static void DiffFiles(VersionSnapshot baseSnap, VersionSnapshot current, List<FileDiff> added, List<FileDiff> removed, List<FileDiff> modified)
+        // ==========================================
+        // DiffFiles
+        // A changed file lands in one of two buckets.
+        //
+        // "modified" is the answer to the question the page
+        // exists to ask: what did somebody do here? A file
+        // Unity rewrites by itself is not an answer to that,
+        // and it is not a rare curiosity either - TextMesh
+        // Pro's dynamic font atlas puts the same entry on
+        // every single diff of a project nobody has edited.
+        // Those go to "regenerated", which the page shows in
+        // its own collapsed group rather than hiding: a diff
+        // that silently omits a real byte change would be a
+        // worse bug than the noise it set out to fix.
+        //
+        // Only files present in BOTH versions are classified.
+        // An added or removed file is somebody's doing whatever
+        // its path - a TMP font asset appearing for the first
+        // time means the package was just installed, which is
+        // exactly the kind of thing to report.
+        // ==========================================
+        internal static void DiffFiles(VersionSnapshot baseSnap, VersionSnapshot current,
+            List<FileDiff> added, List<FileDiff> removed, List<FileDiff> modified, List<FileDiff> regenerated)
         {
             var baseMap = new Dictionary<string, VersionFileEntry>(StringComparer.OrdinalIgnoreCase);
             foreach (VersionFileEntry f in baseSnap.files) { baseMap[f.path] = f; }
@@ -195,8 +267,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             foreach (VersionFileEntry f in current.files)
             {
                 VersionFileEntry old;
-                if (!baseMap.TryGetValue(f.path, out old)) { added.Add(new FileDiff { path = f.path, newSize = f.size }); }
-                else if (DocSnapVersioning.HasFileChanged(old, f)) { modified.Add(new FileDiff { path = f.path, oldSize = old.size, newSize = f.size }); }
+                if (!baseMap.TryGetValue(f.path, out old))
+                {
+                    added.Add(new FileDiff { path = f.path, newSize = f.size });
+                }
+                else if (DocSnapVersioning.HasFileChanged(old, f))
+                {
+                    var diff = new FileDiff { path = f.path, oldSize = old.size, newSize = f.size };
+                    if (regenerated != null && DocSnapRegeneratedPaths.IsRegenerated(f.path)) { regenerated.Add(diff); }
+                    else { modified.Add(diff); }
+                }
             }
             foreach (VersionFileEntry f in baseSnap.files)
             {
@@ -206,6 +286,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             added.Sort(byPath);
             removed.Sort(byPath);
             modified.Sort(byPath);
+            if (regenerated != null) { regenerated.Sort(byPath); }
         }
 
         private static void DiffPackages(VersionSnapshot baseSnap, VersionSnapshot current, List<string> added, List<string> removed, List<string> changed)
@@ -404,6 +485,35 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 links[normalized] = relative;
             }
             catch { /* best-effort: no chip for this file */ }
+        }
+
+        // ==========================================
+        // RegeneratedItem
+        // One row in the "Rewritten by Unity" group: the same
+        // path treatment as a normal diff row, with the size
+        // delta replaced by the pattern that classified it.
+        //
+        // No download chips: CopyChangeFiles deliberately does
+        // not mirror these bytes. A TMP font atlas is several
+        // megabytes, it lands in the diff on essentially every
+        // export, and copying it each time to let somebody
+        // review a change nobody made is the same waste in a
+        // different folder.
+        // ==========================================
+        private static string RegeneratedItem(FileDiff d)
+        {
+            string normalized = (d.path ?? "").Replace('\\', '/');
+            int slash = normalized.LastIndexOf('/');
+            string dir = slash >= 0 ? normalized.Substring(0, slash + 1) : "";
+            string name = slash >= 0 ? normalized.Substring(slash + 1) : normalized;
+
+            string pattern = DocSnapRegeneratedPaths.Describe(d.path);
+            string detail = string.IsNullOrEmpty(pattern) ? FormatBytes(d.newSize) : pattern;
+
+            return "<li class=\"ds-diff-item ds-diff-regenerated\">"
+                + "<span class=\"ds-diff-pathwrap\"><span class=\"ds-diff-dir\">" + HtmlPageBuilder.Escape(dir)
+                + "</span><span class=\"ds-diff-file\">" + HtmlPageBuilder.Escape(name) + "</span></span>"
+                + "<span class=\"ds-diff-size ds-diff-pattern\">" + HtmlPageBuilder.Escape(detail) + "</span></li>";
         }
 
         private static string NamedItem(string variant, string name, string detail)

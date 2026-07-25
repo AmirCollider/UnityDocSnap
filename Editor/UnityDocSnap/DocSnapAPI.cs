@@ -169,58 +169,93 @@ namespace AmirCollider.UnityDocSnap.Editor
         //   -docsnapSkin auto|cozy|lite    skin the site opens in
         //   -docsnapNoThumbnails           metadata only, no pixel previews
         //   -docsnapNoFonts                skip the embedded web fonts
+        //   -docsnapSaveSettings           also WRITE the settings above to
+        //                                  ProjectSettings/UnityDocSnapSettings.json
         //
         // With none of the action arguments it runs a full
         // project export, which is the thing a first-time
         // user almost always means.
+        //
+        // Settings passed here apply to this run only and are
+        // NOT written to the committed settings file unless
+        // -docsnapSaveSettings says so. They used to be written
+        // every time, which left the working tree dirty on every
+        // CI run - failing the `git diff --exit-code` step a lot
+        // of pipelines end with, and on a job that commits its
+        // own output, quietly rewriting the project's
+        // configuration to whatever one build happened to pass.
+        // A build agent asking for a different output folder for
+        // one run is not the same act as a person changing what
+        // the project documents.
         // ==========================================
         public static void RunFromCommandLine()
         {
             string[] args = Environment.GetCommandLineArgs();
+            bool badArguments = false;
 
             // Settings first: an export reads them as it runs, so
             // they have to be in place before anything starts.
-            // These write to the committed project settings file
-            // exactly as the Project Settings window does - a CI
-            // job that passes -docsnapExclude is changing the
-            // project's configuration, and it should be visible
-            // that it did.
-            string output = Value(args, "-docsnapOutput");
-            if (output != null) { DocSnapSettings.OutputRootPath = output; }
+            bool persist = Flag(args, "-docsnapSaveSettings");
 
-            string excludes = Value(args, "-docsnapExclude");
-            if (excludes != null) { DocSnapSettings.ExcludePatterns = excludes.Replace(";", "\n"); }
+            string output = Value(args, "-docsnapOutput", ref badArguments);
+            if (output != null) { ApplySetting("outputPath", output, persist, v => DocSnapSettings.OutputRootPath = v); }
 
-            string language = Value(args, "-docsnapLanguage");
-            if (language != null) { DocSnapSettings.DefaultSiteLanguage = language; }
+            string excludes = Value(args, "-docsnapExclude", ref badArguments);
+            if (excludes != null) { ApplySetting("excludePatterns", excludes.Replace(";", "\n"), persist, v => DocSnapSettings.ExcludePatterns = v); }
 
-            string theme = Value(args, "-docsnapTheme");
-            if (theme != null) { DocSnapSettings.DefaultSiteTheme = theme; }
+            string language = Value(args, "-docsnapLanguage", ref badArguments);
+            if (language != null) { ApplySetting("defaultSiteLanguage", language, persist, v => DocSnapSettings.DefaultSiteLanguage = v); }
 
-            string skin = Value(args, "-docsnapSkin");
-            if (skin != null) { DocSnapSettings.SiteSkin = skin; }
+            string theme = Value(args, "-docsnapTheme", ref badArguments);
+            if (theme != null) { ApplySetting("defaultSiteTheme", theme, persist, v => DocSnapSettings.DefaultSiteTheme = v); }
 
-            if (Flag(args, "-docsnapNoThumbnails")) { DocSnapSettings.GenerateThumbnails = false; }
-            if (Flag(args, "-docsnapNoFonts")) { DocSnapSettings.EmbedFonts = false; }
+            string skin = Value(args, "-docsnapSkin", ref badArguments);
+            if (skin != null) { ApplySetting("siteSkin", skin, persist, v => DocSnapSettings.SiteSkin = v); }
+
+            if (Flag(args, "-docsnapNoThumbnails")) { ApplySetting("generateThumbnails", "0", persist, v => DocSnapSettings.GenerateThumbnails = false); }
+            if (Flag(args, "-docsnapNoFonts")) { ApplySetting("embedFonts", "0", persist, v => DocSnapSettings.EmbedFonts = false); }
 
             bool withFiles = Flag(args, "-docsnapWithFiles");
-            List<string> scenes = Values(args, "-docsnapScene");
-            List<string> folders = Values(args, "-docsnapFolder");
+            List<string> scenes = Values(args, "-docsnapScene", ref badArguments);
+            List<string> folders = Values(args, "-docsnapFolder", ref badArguments);
+
+            // An argument that was meant to configure the run and did
+            // not is a failure, not a detail. Silently falling back to
+            // the default output folder is how a CI job writes its
+            // documentation somewhere nobody looks and still reports
+            // success.
+            if (badArguments)
+            {
+                Debug.LogError("[" + DocSnapConstants.ToolName + "] Refusing to export: one or more arguments were malformed (see the warnings above).");
+                DocSnapSettings.ClearSessionOverrides();
+                if (Application.isBatchMode) { EditorApplication.Exit(1); }
+                return;
+            }
 
             var results = new List<DocSnapResult>();
 
-            if (Flag(args, "-docsnapUpdate"))
+            try
             {
-                results.Add(UpdatePreviousExport());
+                if (Flag(args, "-docsnapUpdate"))
+                {
+                    results.Add(UpdatePreviousExport());
+                }
+                else if (scenes.Count > 0 || folders.Count > 0)
+                {
+                    foreach (string scene in scenes) { results.Add(ExportScene(scene)); }
+                    foreach (string folder in folders) { results.Add(ExportAssetFolder(folder)); }
+                }
+                else
+                {
+                    results.Add(ExportFullProject(withFiles));
+                }
             }
-            else if (scenes.Count > 0 || folders.Count > 0)
+            finally
             {
-                foreach (string scene in scenes) { results.Add(ExportScene(scene)); }
-                foreach (string folder in folders) { results.Add(ExportAssetFolder(folder)); }
-            }
-            else
-            {
-                results.Add(ExportFullProject(withFiles));
+                // Whatever happened, this session must not carry the
+                // run's overrides into whatever runs next in the same
+                // Editor.
+                DocSnapSettings.ClearSessionOverrides();
             }
 
             bool allSucceeded = true;
@@ -246,6 +281,18 @@ namespace AmirCollider.UnityDocSnap.Editor
             {
                 EditorApplication.Exit(1);
             }
+        }
+
+        // ==========================================
+        // ApplySetting
+        // One command-line setting, applied either to this
+        // session only (the default) or through the normal
+        // setter, which writes the committed file.
+        // ==========================================
+        private static void ApplySetting(string key, string value, bool persist, Action<string> persistentSetter)
+        {
+            if (persist) { persistentSetter(value); }
+            else { DocSnapSettings.SetSessionOverride(key, value); }
         }
 
         // ==========================================
@@ -300,13 +347,28 @@ namespace AmirCollider.UnityDocSnap.Editor
         // Unity hands the whole process command line back,
         // including its own arguments, so these look only
         // for the names above and ignore everything else.
-        // A value that starts with '-' is treated as the
-        // next argument rather than as this one's value,
-        // so a typo'd "-docsnapOutput -docsnapUpdate"
-        // fails visibly instead of creating a folder
-        // literally called "-docsnapUpdate".
+        //
+        // A value that starts with '-' is treated as the next
+        // argument rather than as this one's value, so a typo'd
+        // "-docsnapOutput -docsnapUpdate" cannot create a folder
+        // literally called "-docsnapUpdate". This used to be
+        // described as failing visibly, and it did not: the
+        // helper returned null, the caller's `if (value != null)`
+        // skipped the setting without a word, and the export ran
+        // to the DEFAULT output folder reporting success. A
+        // pipeline pointing its docs at Build/Docs would publish
+        // nothing from there and go green.
+        //
+        // Now every such case says which argument was wrong, on
+        // the console where a CI log will carry it, and sets the
+        // caller's flag so the run is refused outright.
         // ==========================================
-        private static bool Flag(string[] args, string name)
+        // internal rather than private so the tests can reach them.
+        // The rule they encode - that a missing value is refused
+        // rather than reinterpreted - is one whose failure mode is
+        // a green build that published nothing, so it needs holding
+        // in place.
+        internal static bool Flag(string[] args, string name)
         {
             for (int i = 0; i < args.Length; i++)
             {
@@ -315,29 +377,67 @@ namespace AmirCollider.UnityDocSnap.Editor
             return false;
         }
 
-        private static string Value(string[] args, string name)
+        internal static string Value(string[] args, string name, ref bool malformed)
         {
-            for (int i = 0; i < args.Length - 1; i++)
+            for (int i = 0; i < args.Length; i++)
             {
                 if (!string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase)) { continue; }
+
+                if (i + 1 >= args.Length)
+                {
+                    ReportMissingValue(name, "it is the last argument on the command line");
+                    malformed = true;
+                    return null;
+                }
+
                 string next = args[i + 1];
-                if (string.IsNullOrEmpty(next) || next.StartsWith("-", StringComparison.Ordinal)) { return null; }
+                if (string.IsNullOrEmpty(next))
+                {
+                    ReportMissingValue(name, "the value that follows it is empty");
+                    malformed = true;
+                    return null;
+                }
+                if (next.StartsWith("-", StringComparison.Ordinal))
+                {
+                    ReportMissingValue(name, "it is followed by \"" + next + "\", which is another argument rather than a value");
+                    malformed = true;
+                    return null;
+                }
                 return next;
             }
             return null;
         }
 
-        private static List<string> Values(string[] args, string name)
+        internal static List<string> Values(string[] args, string name, ref bool malformed)
         {
             var found = new List<string>();
-            for (int i = 0; i < args.Length - 1; i++)
+            for (int i = 0; i < args.Length; i++)
             {
                 if (!string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase)) { continue; }
+
+                if (i + 1 >= args.Length)
+                {
+                    ReportMissingValue(name, "it is the last argument on the command line");
+                    malformed = true;
+                    continue;
+                }
+
                 string next = args[i + 1];
-                if (string.IsNullOrEmpty(next) || next.StartsWith("-", StringComparison.Ordinal)) { continue; }
+                if (string.IsNullOrEmpty(next) || next.StartsWith("-", StringComparison.Ordinal))
+                {
+                    ReportMissingValue(name, "it is not followed by a value");
+                    malformed = true;
+                    continue;
+                }
                 found.Add(next);
             }
             return found;
+        }
+
+        private static void ReportMissingValue(string name, string why)
+        {
+            Debug.LogWarning("[" + DocSnapConstants.ToolName + "] \"" + name
+                + "\" needs a value, but " + why + ".");
         }
     }
 }

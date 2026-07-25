@@ -1475,6 +1475,13 @@ html[dir=rtl] .ds-issue-side { align-items: flex-start; }
 .ds-diff-badge.ds-diff-removed { background: var(--danger); }
 .ds-diff-badge.ds-diff-changed { background: var(--accent); }
 
+/* Files Unity rewrote by itself. Muted on purpose: this group
+   is here so a reader can confirm what was set aside, not so
+   it competes with the changes somebody actually made. */
+.ds-diff-item.ds-diff-regenerated { border-inline-start-color: var(--text-faint); opacity: 0.85; }
+.ds-diff-badge.ds-diff-regenerated { background: var(--text-faint); }
+.ds-diff-pattern { font-family: var(--font-mono); }
+
 /* ==========================================
    Callouts, footer, back-to-top
    ========================================== */

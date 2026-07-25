@@ -69,6 +69,26 @@ namespace AmirCollider.UnityDocSnap.Editor
                 "Always included: " + string.Join(" · ", DocSnapVendorPaths.VendorFolders().ToArray()),
                 EditorStyles.miniLabel);
 
+            // The Changes page's own noise filter. Kept next to the
+            // health report's because it answers the same shape of
+            // question - "which of these is actually mine?" - just for
+            // a different page.
+            EditorGUILayout.Space(12);
+            EditorGUILayout.LabelField("Changes page", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(
+                new GUIContent("Rewritten-by-Unity paths",
+                    "One path or pattern per line, same syntax as Exclude paths. These files are still documented in full — they are only listed separately on the Changes page, because Unity rewrites them on its own and they would otherwise appear as a change nobody made."),
+                EditorStyles.label);
+            EditorGUI.BeginChangeCheck();
+            string regenerated = EditorGUILayout.TextArea(DocSnapSettings.RegeneratedPaths, GUILayout.MinHeight(48));
+            if (EditorGUI.EndChangeCheck()) { DocSnapSettings.RegeneratedPaths = regenerated; }
+            EditorGUILayout.LabelField(
+                "Always included: " + string.Join(" · ", DocSnapRegeneratedPaths.Patterns().ToArray()),
+                EditorStyles.miniLabel);
+            EditorGUILayout.LabelField(
+                "TextMesh Pro's font assets re-serialise their glyph atlas whenever a new character is rendered, so they change just from opening and closing the Editor.",
+                EditorStyles.miniLabel);
+
             EditorGUILayout.Space(12);
             EditorGUILayout.LabelField("Output extras", EditorStyles.boldLabel);
             EditorGUI.BeginChangeCheck();

@@ -38,7 +38,7 @@ Then run the EditMode tests from **Window → General → Test Runner** in any p
 `package.json`, `DocSnapConstants.Version` and the newest `CHANGELOG.md` heading all carry the version and must agree — CI fails if they do not, including if the newest CHANGELOG entry is not the version being shipped.
 
 ```bash
-git tag v0.10.0 && git push origin v0.10.0
+git tag v0.10.1 && git push origin v0.10.1
 ```
 
-The release workflow builds the GitHub Release from the matching CHANGELOG section. Tagging is what lets a user pin a version in the Package Manager (`…UnityDocSnap.git#v0.10.0`) instead of always getting whatever the default branch happens to be that day.
+The release workflow builds the GitHub Release from the matching CHANGELOG section. Tagging is what lets a user pin a version in the Package Manager (`…UnityDocSnap.git#v0.10.1`) instead of always getting whatever the default branch happens to be that day.
