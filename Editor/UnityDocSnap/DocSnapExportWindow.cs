@@ -13,6 +13,7 @@
 // ==========================================
 using System.Collections.Generic;
 using AmirCollider.UnityDocSnap.Editor.Export;
+using AmirCollider.UnityDocSnap.Editor.Licensing;
 using UnityEditor;
 using UnityEngine;
 
@@ -228,10 +229,22 @@ namespace AmirCollider.UnityDocSnap.Editor
             if (_ontoExisting && _existingVersions.Length > 0)
             {
                 _existingIndex = EditorGUILayout.Popup(L("Target version", "対象バージョン", "نسخه‌ی هدف"), _existingIndex, _existingVersions);
+
+                // Two different true sentences, because the two
+                // editions genuinely do different work here. Free
+                // refreshes the folder by re-scanning everything,
+                // which is what the tool always did; Pro reuses what
+                // has not changed. Saying "reusing anything
+                // unchanged" to a Free user would be a promise the
+                // export does not keep.
                 EditorGUILayout.HelpBox(
-                    L("This refreshes that version in place, reusing anything unchanged.",
-                      "そのバージョンをその場で更新し、変更のない項目は再利用します。",
-                      "این نسخه همانجا بروزرسانی می‌شود و موارد تغییرنکرده دوباره استفاده می‌شوند."),
+                    DocSnapLicense.Has(DocSnapFeature.IncrementalUpdate)
+                        ? L("This refreshes that version in place, reusing anything unchanged.",
+                            "そのバージョンをその場で更新し、変更のない項目は再利用します。",
+                            "این نسخه همانجا بروزرسانی می‌شود و موارد تغییرنکرده دوباره استفاده می‌شوند.")
+                        : L("This refreshes that version in place. Pro reuses the Scenes that have not changed instead of re-scanning them all.",
+                            "そのバージョンをその場で更新します。Pro では変更のないシーンを再スキャンせず再利用します。",
+                            "این نسخه همانجا بروزرسانی می‌شود. نسخه‌ی Pro سین‌های تغییرنکرده را دوباره اسکن نمی‌کند."),
                     MessageType.None);
             }
             else
@@ -250,6 +263,26 @@ namespace AmirCollider.UnityDocSnap.Editor
                 // left to work out why on their own.
                 string problem = CustomVersionProblem();
                 if (problem != null) { EditorGUILayout.HelpBox(problem, MessageType.Warning); }
+
+                // Said BEFORE the export rather than after it. The
+                // Free shelf limit changes where the output lands,
+                // and finding that out from the completion dialog -
+                // after ten minutes of scanning - is finding it out
+                // too late to have chosen differently.
+                if (!DocSnapLicense.Has(DocSnapFeature.UnlimitedVersions)
+                    && _existingVersions.Length >= DocSnapEditionLimits.FreeVersionFolders)
+                {
+                    EditorGUILayout.HelpBox(
+                        L("The free edition keeps " + DocSnapEditionLimits.FreeVersionFolders + " snapshots, and you have that many. "
+                          + "This export will refresh " + (_existingVersions.Length > 0 ? _existingVersions[0] : "the newest version")
+                          + " instead of adding a new folder. Nothing is deleted.",
+                          "無料版のスナップショット保持数は " + DocSnapEditionLimits.FreeVersionFolders + " 件で、既に上限に達しています。"
+                          + "今回は新しいフォルダを作らず " + (_existingVersions.Length > 0 ? _existingVersions[0] : "最新バージョン") + " を更新します。削除は行われません。",
+                          "نسخه‌ی رایگان " + DocSnapEditionLimits.FreeVersionFolders + " اسنپ‌شات نگه می‌دارد و همین حالا همین‌قدر داری. "
+                          + "این خروجی به‌جای ساختن فولدر جدید، " + (_existingVersions.Length > 0 ? _existingVersions[0] : "جدیدترین نسخه")
+                          + " را بروزرسانی می‌کند. هیچ چیزی پاک نمی‌شود."),
+                        MessageType.Info);
+                }
             }
             EditorGUI.indentLevel--;
 
@@ -271,13 +304,11 @@ namespace AmirCollider.UnityDocSnap.Editor
                     inBuild == 0 ? MessageType.Warning : MessageType.None);
             }
 
-            _includeFiles = EditorGUILayout.ToggleLeft(
-                L("Include file copies (bytes, not just info)", "ファイル本体もコピー(情報だけでなく)", "کپی خود فایل‌ها هم گرفته شود (نه فقط اطلاعات)"),
-                _includeFiles);
+            _includeFiles = ProToggle(DocSnapFeature.IncludeFiles, _includeFiles,
+                L("Include file copies (bytes, not just info)", "ファイル本体もコピー(情報だけでなく)", "کپی خود فایل‌ها هم گرفته شود (نه فقط اطلاعات)"));
 
-            _makeBackup = EditorGUILayout.ToggleLeft(
-                L("Also export a whole-project .unitypackage backup", "プロジェクト全体の .unitypackage バックアップも作成", "یک بک‌آپ .unitypackage از کل پروژه هم گرفته شود"),
-                _makeBackup);
+            _makeBackup = ProToggle(DocSnapFeature.ProjectBackup, _makeBackup,
+                L("Also export a whole-project .unitypackage backup", "プロジェクト全体の .unitypackage バックアップも作成", "یک بک‌آپ .unitypackage از کل پروژه هم گرفته شود"));
             if (_makeBackup)
             {
                 EditorGUILayout.HelpBox(
@@ -313,9 +344,8 @@ namespace AmirCollider.UnityDocSnap.Editor
 
             using (new EditorGUI.DisabledScope(_existingVersions.Length == 0))
             {
-                _recordChanges = EditorGUILayout.ToggleLeft(
-                    L("Record changes vs a previous version", "以前のバージョンとの変更点を記録", "ثبت تغییرات نسبت به یک نسخه‌ی قبلی"),
-                    _recordChanges && _existingVersions.Length > 0);
+                _recordChanges = ProToggle(DocSnapFeature.ChangesPage, _recordChanges && _existingVersions.Length > 0,
+                    L("Record changes vs a previous version", "以前のバージョンとの変更点を記録", "ثبت تغییرات نسبت به یک نسخه‌ی قبلی"));
             }
             if (_recordChanges && _existingVersions.Length > 0)
             {
@@ -345,6 +375,8 @@ namespace AmirCollider.UnityDocSnap.Editor
             EditorGUILayout.LabelField(
                 L("Output: ", "出力先: ", "خروجی در: ") + DocSnapConstants.DefaultOutputFolderName + "/<version>/",
                 EditorStyles.centeredGreyMiniLabel);
+
+            DrawProPanel();
 
             GUILayout.Space(8);
             EditorGUILayout.EndScrollView();
@@ -439,6 +471,110 @@ namespace AmirCollider.UnityDocSnap.Editor
             EditorGUILayout.EndHorizontal();
             return result;
         }
+
+        // ==========================================
+        // ProToggle
+        // A checkbox that is only a checkbox when the feature
+        // behind it is licensed.
+        //
+        // In the Free edition it draws disabled, keeps the
+        // label, gains a "PRO" tag, and returns false whatever
+        // is stored - so the option cannot be smuggled past the
+        // UI by a stale field surviving a domain reload.
+        //
+        // Shown rather than hidden, on purpose. A hidden feature
+        // is one nobody knows they could buy; a visible, greyed
+        // one with a tag is the single most effective thing on
+        // this window, because it turns up at the exact moment
+        // somebody wanted the thing. Clicking the row opens the
+        // product page, so the tag is not a dead end either.
+        // ==========================================
+        private bool ProToggle(DocSnapFeature feature, bool value, string label)
+        {
+            if (DocSnapLicense.Has(feature))
+            {
+                return EditorGUILayout.ToggleLeft(label, value);
+            }
+
+            EditorGUILayout.BeginHorizontal();
+            using (new EditorGUI.DisabledScope(true))
+            {
+                EditorGUILayout.ToggleLeft(label, false);
+            }
+            if (GUILayout.Button(new GUIContent("PRO",
+                    L("A Unity DocSnap Pro feature — click to see what else is in it.",
+                      "Unity DocSnap Pro の機能です。クリックすると内容を確認できます。",
+                      "این قابلیت مال Unity DocSnap Pro است — کلیک کن ببین چه چیزهای دیگری دارد.")),
+                EditorStyles.miniButton, GUILayout.Width(40)))
+            {
+                Application.OpenURL(DocSnapConstants.ProductUrl);
+            }
+            EditorGUILayout.EndHorizontal();
+            return false;
+        }
+
+        // ==========================================
+        // DrawProPanel
+        // The pitch, at the bottom of the window, collapsed by
+        // default after the first dismissal.
+        //
+        // Bottom rather than top: somebody opening this window
+        // came to export something, and putting an
+        // advertisement above the controls they came for is how
+        // a tool starts feeling like adware. They reach this
+        // after the Export button, on the way past.
+        //
+        // It is also genuinely dismissible - the choice is
+        // remembered across projects and sessions - because an
+        // upsell that cannot be turned off gets the whole tool
+        // resented rather than the panel.
+        // ==========================================
+        private void DrawProPanel()
+        {
+            if (DocSnapLicense.IsPro) { return; }
+
+            DrawSeparator();
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("✨ " + DocSnapProPitch.Headline(UiLangCode), EditorStyles.boldLabel);
+            if (GUILayout.Button(DocSnapLicenseStore.UpsellCollapsed ? "▾" : "▴", EditorStyles.miniButton, GUILayout.Width(24)))
+            {
+                DocSnapLicenseStore.UpsellCollapsed = !DocSnapLicenseStore.UpsellCollapsed;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (DocSnapLicenseStore.UpsellCollapsed) { return; }
+
+            EditorGUILayout.LabelField(DocSnapProPitch.Subhead(UiLangCode), EditorStyles.miniLabel);
+            GUILayout.Space(4);
+
+            // Only the locked lines. Listing something the reader
+            // already has reads as padding and costs the rest of
+            // the list its credibility.
+            foreach (DocSnapProPitchLine line in DocSnapProPitch.Locked())
+            {
+                EditorGUILayout.LabelField(line.Emoji + "  " + line.Title(UiLangCode), EditorStyles.miniBoldLabel);
+            }
+
+            GUILayout.Space(6);
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button(L("Get Pro — " + DocSnapConstants.ProPriceDisplay,
+                                   "Pro を購入 — " + DocSnapConstants.ProPriceDisplay,
+                                   "خرید Pro — " + DocSnapConstants.ProPriceDisplay)))
+            {
+                Application.OpenURL(DocSnapConstants.BuyUrl);
+            }
+            if (GUILayout.Button(L("I have a key", "キーを持っています", "کد دارم"), GUILayout.Width(120)))
+            {
+                DocSnapLicenseWindow.ShowWindow();
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+
+        // The window's own language as a code rather than a popup
+        // index, which is what everything outside this window
+        // speaks.
+        private string UiLangCode { get { return DocSnapLanguages.CodeAt(_uiLang); } }
 
         private static void Section(string title)
         {

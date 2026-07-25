@@ -20,9 +20,57 @@ namespace AmirCollider.UnityDocSnap.Editor
         // reported a version the package had not been on for two
         // releases). PackageVersionTests now fails the build if
         // the two ever disagree again.
-        public const string Version = "0.11.0";
+        public const string Version = "1.0.0";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
+
+        // ==========================================
+        // Editions
+        //
+        // 1.0.0 splits the tool in two. Free needs no key
+        // and no account: install it and every core export
+        // works. Pro is a one-off purchase, bound to one
+        // machine, that adds the AI summary outputs, the
+        // Changes page, unlimited version history,
+        // incremental updates, file copies, project backups
+        // and CI automation - see DocSnapEditionMatrix,
+        // which is the only place that list is authoritative.
+        //
+        // The URLs live here rather than being typed into
+        // each window, because they appear in the About
+        // window, the export window, Project Settings, the
+        // licence window and the footer of every generated
+        // page. One of them changing and five of them not is
+        // exactly the kind of thing nobody notices until a
+        // customer clicks a dead link.
+        // ==========================================
+        public const string SiteBaseUrl = "https://amircollider.n95pluss.workers.dev";
+
+        // Where the Editor talks to the licence server. Split
+        // from SiteBaseUrl only so a self-hosted or staging
+        // deployment can be pointed elsewhere without moving
+        // the marketing pages too.
+        public const string LicenseApiBase = SiteBaseUrl;
+
+        // The product page: what Pro adds, side by side with
+        // what Free already does, and the buy button.
+        public const string ProductUrl = SiteBaseUrl + "/unity-docsnap";
+
+        // The checkout itself. Keys are pre-generated and
+        // loaded into Sell.app's serial pool, so a purchase
+        // delivers one instantly without this tool or the
+        // Worker being in the payment path at all.
+        public const string BuyUrl = "https://amircollider.sell.app";
+
+        // Where somebody manages an existing key from a
+        // browser: which machines it is on, and releasing one.
+        public const string LicenseManageUrl = SiteBaseUrl + "/license";
+
+        // Shown in the Editor next to the buy button. A price
+        // in the UI is worth the small duplication - "Get Pro"
+        // with no number attached reads as a subscription
+        // trap, and this is a one-off.
+        public const string ProPriceDisplay = "$49.99";
 
         // ==========================================
         // Menu paths (must match README.md exactly)
@@ -36,6 +84,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         public const string MenuExportFullProjectWithFiles = MenuRoot + "Export Full Project With Files";
         public const string MenuUpdatePreviousExport = MenuRoot + "Update Previous Export";
         public const string MenuOpenOutputFolder = MenuRoot + "Open Output Folder";
+        public const string MenuLicense = MenuRoot + "Licence & Pro Features";
         public const string MenuAbout = MenuRoot + "About Unity DocSnap";
 
         public const string AssetsContextRoot = "Assets/Unity DocSnap/";

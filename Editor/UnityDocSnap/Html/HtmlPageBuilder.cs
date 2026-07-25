@@ -15,6 +15,7 @@ using System.IO;
 using System.Text;
 using AmirCollider.UnityDocSnap.Editor.Export;
 using AmirCollider.UnityDocSnap.Editor.Json;
+using AmirCollider.UnityDocSnap.Editor.Licensing;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
 
 namespace AmirCollider.UnityDocSnap.Editor.Html
@@ -565,6 +566,22 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // ==========================================
         private static string ResolveLogoHtml()
         {
+            // Branding the exported site with somebody else's logo
+            // is the white-label half of Pro, and it pairs with the
+            // free-edition footer line: an export that carries your
+            // mark and not ours is the one you hand a client.
+            //
+            // The setting itself stays visible and editable in the
+            // Free edition rather than being hidden. A path field
+            // that quietly does nothing would be the bug report;
+            // Project Settings says which edition honours it, so a
+            // configured logo is a thing somebody chose and can see
+            // the effect of the moment they upgrade.
+            if (!DocSnapLicense.Has(DocSnapFeature.Whitelabel))
+            {
+                return DocSnapSiteAssets.LogoMarkSvg;
+            }
+
             string customPath = DocSnapSettings.CustomLogoAbsolutePath;
             if (string.IsNullOrEmpty(customPath) || !File.Exists(customPath))
             {
@@ -603,6 +620,29 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 "Unity DocSnap \uD83C\uDF70 により生成",
                 "تولید شده با Unity DocSnap \uD83C\uDF70"));
             sb.Append("<a href=\"").Append(DocSnapConstants.GithubUrl).Append("\">github.com/AmirCollider/UnityDocSnap</a>");
+
+            // A site exported by the Free edition carries one
+            // quiet line saying so, linking to what Pro adds.
+            //
+            // Deliberately a footer and nothing else: no banner,
+            // no watermark across the content, no interstitial. An
+            // exported site is the customer's work product - it
+            // goes to their team and sometimes to their client -
+            // and a free tool that defaces that is a tool people
+            // uninstall rather than upgrade. This is the credit
+            // line every free tool has earned; buying Pro removes
+            // it (see DocSnapFeature.Whitelabel).
+            if (!DocSnapLicense.Has(DocSnapFeature.Whitelabel))
+            {
+                sb.Append("<a class=\"ds-free-badge\" href=\"").Append(DocSnapConstants.ProductUrl)
+                  .Append("\" target=\"_blank\" rel=\"noopener\">");
+                sb.Append(I18n("span", null,
+                    "Free edition · see what Pro adds",
+                    "無料版 · Pro の内容を見る",
+                    "نسخه‌ی رایگان · ببین Pro چه دارد"));
+                sb.Append("</a>");
+            }
+
             sb.Append("</div>\n");
             return sb.ToString();
         }

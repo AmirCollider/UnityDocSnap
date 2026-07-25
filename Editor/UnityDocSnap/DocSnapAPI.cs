@@ -330,6 +330,30 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         private static DocSnapResult Run(Action action)
         {
+            // Automation is a Pro feature, and this is the one
+            // gate in the tool that refuses rather than clamps.
+            //
+            // Everywhere else the rule is "run the export, leave
+            // out the Pro parts" - because a person clicked a menu
+            // item and wants documentation. Here nobody clicked
+            // anything: this is a build agent, and a build agent
+            // that half-succeeds is worse than one that fails. It
+            // publishes a docs folder missing the exact outputs
+            // the pipeline was built to produce, reports success,
+            // and nobody looks again for six months.
+            //
+            // So a Free Editor gets a failure with the reason on
+            // it, and -batchmode exits non-zero. The Editor's own
+            // menu items are untouched and still export everything
+            // Free includes.
+            if (!Licensing.DocSnapLicense.Has(Licensing.DocSnapFeature.Automation))
+            {
+                return Failure(
+                    "Scripted and command-line exports are a " + DocSnapConstants.ToolName
+                    + " Pro feature. The Editor menu still exports everything the free edition includes.\n"
+                    + "Unlock CI automation: " + DocSnapConstants.ProductUrl);
+            }
+
             DocSnapInteraction.BeginSilent();
             try
             {

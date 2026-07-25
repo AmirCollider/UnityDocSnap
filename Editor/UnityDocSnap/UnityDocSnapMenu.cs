@@ -178,6 +178,20 @@ namespace AmirCollider.UnityDocSnap.Editor
         }
 
         // ==========================================
+        // Licence & Pro Features
+        // One entry point for both halves of the same
+        // question: activating a key somebody bought, and
+        // reading what Pro adds for somebody who has not.
+        // Placed above About because it is the one people
+        // actually go looking for.
+        // ==========================================
+        [MenuItem(DocSnapConstants.MenuLicense, false, 44)]
+        private static void ShowLicenseMenuItem()
+        {
+            Licensing.DocSnapLicenseWindow.ShowWindow();
+        }
+
+        // ==========================================
         // About Unity DocSnap
         // ==========================================
         [MenuItem(DocSnapConstants.MenuAbout, false, 45)]

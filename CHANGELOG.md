@@ -2,6 +2,27 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [1.0.0] - 2026-07-25
+
+The first stable release, and the one that splits the tool into two editions.
+
+### Added
+
+- **Unity DocSnap Free and Unity DocSnap Pro.** Free needs no key, no account and no network: install the package and the entire exporter works — every Scene, every GameObject, every Component, every serialized field, every reference, the project health report, the packages page, full-text search, both visual skins and all three languages. Nothing that worked in 0.11.0 without a licence has been taken behind one, with a single deliberate exception noted below. Pro is a one-off **$49.99**, activated on one machine, and adds eight things: the **AI-ready summaries** (`summary/*.md`, `summary/*.json` and the one-paste `summary/ai-bundle.md`), the **Changes page**, **unlimited version history** (Free keeps the three most recent snapshots), **incremental updates** (Free re-scans everything, exactly as every earlier version did), **verbatim file copies** into `source-files/`, the **whole-project `.unitypackage` backup**, **CI automation** through `DocSnapAPI` and `-executeMethod`, and **white-label exports** — your own logo in the sidebar and no free-edition line in the footer.
+- **`Unity DocSnap ▸ Licence & Pro Features`.** One window for both halves of the same question: where a customer pastes the key from their purchase email, and where somebody still deciding reads what Pro adds. It shows which machine the server knows this Editor as, how long the licence works offline, and a **Release this machine** button so moving to a new computer is self-service rather than a support email.
+- **A licence page on the website.** `amircollider.n95pluss.workers.dev/license` does the same seat management from a browser — which is the version that matters when the old machine is dead, sold or wiped, and its Editor is not there to click.
+- **`edition` in `export-info.json` and `export-info.txt`.** So a snapshot opened six months later can say why it has no `summary/` folder in it, instead of being a bug hunt.
+
+### Changed
+
+- **`DocSnapAPI` and `-executeMethod` now require Pro.** This is the one capability that moved behind the licence, and it is also the only gate in the tool that *refuses* rather than quietly doing less. Everywhere else — a Pro checkbox ticked in the Free edition, a Free project at its snapshot limit — the export runs, the unavailable parts are skipped, and the completion dialog lists exactly what was left out. A build agent is different: half-succeeding there means publishing a docs folder that is missing the outputs the pipeline existed to produce, reporting success, and nobody looking again for six months. So a Free Editor fails the call with the reason attached, and `-batchmode` exits non-zero. Every menu item is untouched.
+- **The Free edition's version shelf keeps three snapshots.** At the limit an export refreshes the newest folder in place instead of adding a fourth. It does not refuse, and it never deletes a snapshot to make room — nothing about a commercial rule should be allowed to destroy somebody's data. The export window says this before the export starts, not after ten minutes of scanning.
+- **A site exported by the Free edition carries one line in its footer.** A credit link in the footer and nothing else: no banner, no watermark over the content, no interstitial. An exported site is the customer's work product, and a free tool that defaces the thing you hand your team is one people uninstall rather than upgrade.
+
+### Security
+
+- **Licence tokens are RSA-signed and verified offline.** Activation returns a token signed with a private key that exists only in the Worker's encrypted environment; the Editor verifies it against a public key compiled into the package, so after one activation a machine needs no network for 45 days and renews itself quietly whenever it is online. There is never a licence check in front of an export. Keys are stored server-side only as SHA-256 hashes, so a dump of that database contains nothing usable, and the machine identifier that leaves the Editor is a salted hash of Unity's `deviceUniqueIdentifier` rather than the value itself. Nothing about the project — not its name, not its path, not its size — is ever sent.
+
 ## [0.11.0] - 2026-07-25
 
 ### Fixed

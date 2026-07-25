@@ -1,0 +1,64 @@
+# ==========================================
+# Unity DocSnap
+#
+# Two jobs here, and the second is the one that bites.
+#
+# 1. Consistent line endings, so a Windows contributor and
+#    a macOS one do not produce a diff of the entire file
+#    every time either of them saves.
+#
+# 2. Keeping Unity's own formats out of the merge
+#    algorithm. A .meta file is YAML whose whole purpose is
+#    a GUID, and a three-way merge of two .meta files can
+#    produce a syntactically valid file with a merged GUID
+#    that matches nothing - which silently detaches every
+#    reference to that asset in every project that has the
+#    package installed. `merge=binary` makes Git stop and
+#    ask instead.
+# ==========================================
+
+# Sensible defaults: detect text, normalise to LF in the
+# repository, check out native.
+* text=auto
+
+# ---- Source and docs ----
+*.cs        text diff=csharp
+*.js        text
+*.css       text
+*.html      text
+*.json      text
+*.md        text
+*.yml       text
+*.yaml      text
+*.py        text
+*.svg       text
+*.sh        text eol=lf
+
+# ---- Unity serialised assets ----
+# Never merged. See the note above: a merged GUID is worse
+# than a conflict, because a conflict is visible.
+*.meta          -text merge=binary
+*.unity         -text merge=binary
+*.prefab        -text merge=binary
+*.asset         -text merge=binary
+*.asmdef        text
+*.unitypackage  binary
+
+# ---- Binary ----
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.zip   binary
+*.pdf   binary
+
+# ---- Not part of a release archive ----
+.github/        export-ignore
+.gitignore      export-ignore
+.gitattributes  export-ignore

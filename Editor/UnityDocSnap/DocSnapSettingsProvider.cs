@@ -7,6 +7,7 @@
 // tree documented in README.md.
 // ==========================================
 using System.Collections.Generic;
+using AmirCollider.UnityDocSnap.Editor.Licensing;
 using UnityEditor;
 using UnityEngine;
 
@@ -30,10 +31,52 @@ namespace AmirCollider.UnityDocSnap.Editor
         }
 
         // ==========================================
+        // DrawEditionBanner
+        // Which edition this machine is running, at the top of
+        // the settings that edition governs.
+        //
+        // It belongs here rather than only in the About window
+        // because this page is where somebody configures things
+        // whose behaviour depends on the answer - the AI bundle,
+        // the custom logo - and "why did my setting do nothing?"
+        // should be answerable without leaving the screen the
+        // setting is on.
+        // ==========================================
+        private static void DrawEditionBanner()
+        {
+            EditorGUILayout.Space(6);
+            EditorGUILayout.BeginHorizontal();
+
+            bool isPro = DocSnapLicense.IsPro;
+            EditorGUILayout.LabelField(
+                isPro ? "✨  Unity DocSnap Pro" : "🆓  Unity DocSnap Free",
+                EditorStyles.boldLabel);
+
+            if (GUILayout.Button(isPro ? "Licence" : "What's in Pro?", EditorStyles.miniButton, GUILayout.Width(110)))
+            {
+                DocSnapLicenseWindow.ShowWindow();
+            }
+            EditorGUILayout.EndHorizontal();
+
+            // A key that is stored but not working is the one state
+            // worth interrupting for: the customer already paid, and
+            // every other screen will silently behave as Free until
+            // somebody notices.
+            DocSnapLicenseStatus status = DocSnapLicense.Status();
+            if (status.NeedsAttention)
+            {
+                string why = DocSnapLicense.DescribeVerdict(status.Verdict);
+                if (!string.IsNullOrEmpty(why)) { EditorGUILayout.HelpBox(why, MessageType.Warning); }
+            }
+        }
+
+        // ==========================================
         // DrawSettingsGui
         // ==========================================
         private static void DrawSettingsGui(string searchContext)
         {
+            DrawEditionBanner();
+
             EditorGUILayout.Space(8);
             EditorGUILayout.LabelField("Output", EditorStyles.boldLabel);
             EditorGUI.BeginChangeCheck();
@@ -123,6 +166,23 @@ namespace AmirCollider.UnityDocSnap.Editor
                 DocSnapSettings.WriteAiBundle);
             if (EditorGUI.EndChangeCheck()) { DocSnapSettings.WriteAiBundle = aiBundle; }
 
+            // The setting stays editable in the Free edition rather
+            // than being greyed out, because it describes the
+            // PROJECT and lives in the committed settings file: a
+            // team where one person has Pro and another does not
+            // must still be able to agree on it in a pull request,
+            // and a field that disables itself per-machine would
+            // make that file mean different things on different
+            // desks. What changes is that the free Editor says
+            // plainly that it will not act on it.
+            if (!DocSnapLicense.Has(DocSnapFeature.AiSummaries))
+            {
+                EditorGUILayout.HelpBox(
+                    "The summary/ folder and ai-bundle.md are Pro features, so exports from this machine skip them. "
+                    + "The setting is still written to the shared settings file for teammates who have Pro.",
+                    MessageType.None);
+            }
+
             EditorGUILayout.Space(12);
             EditorGUILayout.LabelField("Visuals", EditorStyles.boldLabel);
 
@@ -191,6 +251,15 @@ namespace AmirCollider.UnityDocSnap.Editor
                 if (!string.IsNullOrEmpty(picked)) { DocSnapSettings.CustomLogoAbsolutePath = picked; }
             }
             EditorGUILayout.EndHorizontal();
+
+            if (!string.IsNullOrEmpty(DocSnapSettings.CustomLogoAbsolutePath)
+                && !DocSnapLicense.Has(DocSnapFeature.Whitelabel))
+            {
+                EditorGUILayout.HelpBox(
+                    "Exports from this machine use the built-in mark: a custom logo is part of Pro, along with removing "
+                    + "the \"free edition\" line from the exported site's footer.",
+                    MessageType.None);
+            }
 
             EditorGUILayout.Space(14);
             EditorGUILayout.HelpBox(
