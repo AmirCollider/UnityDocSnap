@@ -15,6 +15,7 @@ using System.IO;
 using System.Text;
 using AmirCollider.UnityDocSnap.Editor.Export;
 using AmirCollider.UnityDocSnap.Editor.Json;
+using AmirCollider.UnityDocSnap.Editor.Licensing;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
 
 namespace AmirCollider.UnityDocSnap.Editor.Html
@@ -565,6 +566,28 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // ==========================================
         private static string ResolveLogoHtml()
         {
+            // Branding the exported site with your own mark is a Pro
+            // feature: an export that carries your logo and not ours
+            // is the one you hand a client.
+            //
+            // Note this is a different question from the footer's
+            // free-edition line below, which ANY paid tier removes.
+            // A Plus customer is not running the free edition and
+            // should not be told they are; a Plus customer also has
+            // not bought white-labelling. Two rules, because they
+            // are two things.
+            //
+            // The setting itself stays visible and editable in every
+            // edition rather than being hidden. A path field that
+            // quietly does nothing would be the bug report; Project
+            // Settings says which edition honours it, so a
+            // configured logo is a thing somebody chose and can see
+            // the effect of the moment they upgrade.
+            if (!DocSnapLicense.Has(DocSnapFeature.CustomLogo))
+            {
+                return DocSnapSiteAssets.LogoMarkSvg;
+            }
+
             string customPath = DocSnapSettings.CustomLogoAbsolutePath;
             if (string.IsNullOrEmpty(customPath) || !File.Exists(customPath))
             {
@@ -603,6 +626,35 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 "Unity DocSnap \uD83C\uDF70 により生成",
                 "تولید شده با Unity DocSnap \uD83C\uDF70"));
             sb.Append("<a href=\"").Append(DocSnapConstants.GithubUrl).Append("\">github.com/AmirCollider/UnityDocSnap</a>");
+
+            // A site exported by the Free edition carries one quiet
+            // line saying so, linking to the editions page.
+            //
+            // Removed by ANY paid tier, not just the top one - see
+            // DocSnapEditionMatrix.ShowsFreeEditionBadge. Telling a
+            // Plus customer on every page they generate that they
+            // are running the free edition would simply be false,
+            // and a paid product that gets that wrong is picking a
+            // fight with its own customer.
+            //
+            // Deliberately a footer and nothing else: no banner, no
+            // watermark across the content, no interstitial. An
+            // exported site is the customer's work product - it goes
+            // to their team and sometimes to their client - and a
+            // free tool that defaces that is a tool people uninstall
+            // rather than upgrade. This is the credit line every
+            // free tool has earned.
+            if (DocSnapEditionMatrix.ShowsFreeEditionBadge(DocSnapLicense.Edition))
+            {
+                sb.Append("<a class=\"ds-free-badge\" href=\"").Append(DocSnapConstants.ProductUrl)
+                  .Append("\" target=\"_blank\" rel=\"noopener\">");
+                sb.Append(I18n("span", null,
+                    "Free edition · see Plus & Pro",
+                    "無料版 · Plus と Pro を見る",
+                    "نسخه‌ی رایگان · ‏Plus و Pro را ببین"));
+                sb.Append("</a>");
+            }
+
             sb.Append("</div>\n");
             return sb.ToString();
         }

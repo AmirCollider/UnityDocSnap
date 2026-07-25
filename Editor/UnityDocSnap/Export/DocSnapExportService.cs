@@ -12,6 +12,7 @@ using System.Text;
 using AmirCollider.UnityDocSnap.Editor.Assets;
 using AmirCollider.UnityDocSnap.Editor.Html;
 using AmirCollider.UnityDocSnap.Editor.Json;
+using AmirCollider.UnityDocSnap.Editor.Licensing;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
 using AmirCollider.UnityDocSnap.Editor.Packages;
 using AmirCollider.UnityDocSnap.Editor.SceneExport;
@@ -125,6 +126,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             options.includeFiles = prior.withFiles;
             options.recordChanges = !string.IsNullOrEmpty(prior.changesBaseVersion);
             options.changesBaseVersion = prior.changesBaseVersion;
+
+            // Carried facts still have to pass the edition gate.
+            // These come from a snapshot, not from anything the
+            // user just asked for, so a folder built while Pro was
+            // active would otherwise keep re-rendering its Changes
+            // page from a Free Editor. Clamping silently is right
+            // here for the same reason: nobody requested any of
+            // this on this run, so there is nothing to report as
+            // skipped.
+            DocSnapEditionGate.ClampOptions(options, DocSnapSettings.WindowLanguage);
             return options;
         }
 
@@ -336,6 +347,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string baseRoot = DocSnapSettings.ResolveOutputRootAbsolute();
             VersionsState registry = DocSnapVersioning.LoadRegistry();
 
+            // What this edition allows, settled once, before a
+            // single file is written. Every Pro option that was
+            // requested and is not licensed is turned off here and
+            // recorded, so the rest of this method reads plain
+            // booleans and the export-complete message can say what
+            // was left out. See DocSnapEditionGate for why this
+            // clamps rather than refuses.
+            string gateLang = DocSnapSettings.WindowLanguage;
+            DocSnapGateReport gate = DocSnapEditionGate.ClampOptions(options, gateLang);
+
             // Resolve which version folder this export writes into.
             string version;
             bool incremental;
@@ -355,9 +376,36 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             }
             else
             {
-                version = DocSnapVersioning.NextVersion(baseRoot, registry);
-                incremental = false;
+                // The Free edition's shelf limit lands here and
+                // nowhere else: at the cap, a would-be new folder
+                // becomes a refresh of the newest existing one. The
+                // export still happens, and no snapshot is deleted
+                // to make room.
+                string capped = DocSnapEditionGate.ResolveVersionCap(baseRoot, registry, gate, gateLang);
+                if (!string.IsNullOrEmpty(capped)
+                    && Directory.Exists(DocSnapVersioning.VersionFolderAbsolute(baseRoot, capped)))
+                {
+                    version = capped;
+                    incremental = true;
+                }
+                else
+                {
+                    version = DocSnapVersioning.NextVersion(baseRoot, registry);
+                    incremental = false;
+                }
             }
+
+            // Reusing the output of unchanged Scenes is itself a Pro
+            // feature. Free still writes into the same folder and
+            // still produces the same site - it simply re-scans
+            // everything, which is exactly what every version before
+            // 1.0.0 did, so nobody loses a capability they had.
+            //
+            // Deliberately NOT added to the gate report: it changes
+            // how long the export takes and nothing about what comes
+            // out of it, and listing it beside "no backup was made"
+            // would put a speed note next to a data note.
+            incremental = incremental && DocSnapEditionGate.CanRunIncrementally;
 
             // A Changes page is only produced when a real base
             // snapshot to diff against exists.
@@ -608,10 +656,17 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string headJa = incremental ? "エクスポートを更新しました" : "プロジェクト全体をエクスポートしました";
             string headFa = incremental ? "خروجی بروزرسانی شد" : "کل پروژه اکسپورت شد";
 
+            // The clamp list is appended to all three languages
+            // (it is already resolved into one) so the message says
+            // what the export did AND what the edition left out, in
+            // the same breath. Splitting them across two dialogs
+            // would guarantee the second one gets dismissed unread.
+            string gateNote = gate.Summary(gateLang);
+
             ShowExportComplete(outputRoot,
-                headEn + " " + version + ": " + scenePages.Count + " scene(s), " + fileCount + " file(s)" + filesNoteEn + backupEn + changesEn + "." + reuseNote,
-                headJa + " " + version + ":シーン" + scenePages.Count + "件、ファイル" + fileCount + "件" + (copyFiles ? "(アセットは source-files/ にコピー済み)" : "") + "。",
-                headFa + " " + version + ": " + scenePages.Count + " سین، " + fileCount + " فایل" + filesNoteFa + ".");
+                headEn + " " + version + ": " + scenePages.Count + " scene(s), " + fileCount + " file(s)" + filesNoteEn + backupEn + changesEn + "." + reuseNote + gateNote,
+                headJa + " " + version + ":シーン" + scenePages.Count + "件、ファイル" + fileCount + "件" + (copyFiles ? "(アセットは source-files/ にコピー済み)" : "") + "。" + gateNote,
+                headFa + " " + version + ": " + scenePages.Count + " سین، " + fileCount + " فایل" + filesNoteFa + "." + gateNote);
         }
 
         // ==========================================
@@ -978,6 +1033,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         private static void WriteAiBundle(string outputRoot, ManifestState manifest)
         {
+            // Nothing to concatenate in the Free edition - the
+            // per-Scene summaries this bundle is built from were
+            // never written. Checked here as well as at the call
+            // site because an empty bundle file is worse than no
+            // bundle file: it looks like the feature ran and found
+            // nothing.
+            if (!DocSnapEditionGate.WritesAiSummaries) { return; }
+
             try
             {
                 var sb = new StringBuilder(64 * 1024);
@@ -1455,18 +1518,35 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
         // ==========================================
         // WriteSceneSummaries / WriteFolderSummaries
-        // Every export writes the "simple" summary of a
+        // A Pro export writes the "simple" summary of a
         // Scene / folder in both forms - readable Markdown
         // and structured JSON - into the summary/ folder.
+        //
+        // The summary/ folder is the Pro half of the tool's
+        // "two forms of the same information" promise: the full
+        // site is what a person reads, and these short documents
+        // are what an assistant reads. The Free edition writes
+        // the site and skips these; the browsable HTML, the
+        // data/ JSON, the health report and everything else are
+        // untouched by this gate.
+        //
+        // Both writers return silently rather than being guarded
+        // at each of their five call sites. A skipped summary
+        // must not leave a half-written pair behind either - the
+        // Markdown present and the JSON missing would look like
+        // a failed export rather than an unlicensed feature - so
+        // the check sits above both writes, not between them.
         // ==========================================
         private static void WriteSceneSummaries(string outputRoot, string sceneKey, JsonValue sceneData)
         {
+            if (!DocSnapEditionGate.WritesAiSummaries) { return; }
             WriteText(outputRoot, DocSnapSummaryWriter.SceneSummaryMarkdown(sceneKey), DocSnapSummaryWriter.RenderScene(sceneData));
             WriteText(outputRoot, DocSnapSummaryWriter.SceneSummaryJson(sceneKey), DocSnapSummaryWriter.RenderSceneJson(sceneData));
         }
 
         private static void WriteFolderSummaries(string outputRoot, string folderKey, JsonValue folderData)
         {
+            if (!DocSnapEditionGate.WritesAiSummaries) { return; }
             WriteText(outputRoot, DocSnapSummaryWriter.FolderSummaryMarkdown(folderKey), DocSnapSummaryWriter.RenderFolder(folderData));
             WriteText(outputRoot, DocSnapSummaryWriter.FolderSummaryJson(folderKey), DocSnapSummaryWriter.RenderFolderJson(folderData));
         }

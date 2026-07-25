@@ -41,7 +41,7 @@ It's an Editor extension that walks every Scene in your project — every GameOb
 - 📁 **One menu entry per Scene** — DocSnap scans your project and lists every Scene as its own menu item, so exporting one Scene is a single click.
 - 🖱️ **Right-click, anywhere** — every menu action is also available from the Project window's right-click context menu on any folder or asset.
 - 🌐 **An actual local website** — everything bakes into a self-contained `index.html` plus a handful of linked pages, complete with a sidebar and cross-links between objects and the assets they reference.
-- 🤖 **Built for AI too** — alongside the pretty HTML, DocSnap writes a structured JSON export, so handing your whole project's context to an AI assistant takes one file instead of a screen-sharing session.
+- 🤖 **Built for AI too** *(Plus / Pro)* — alongside the pretty HTML, DocSnap writes a structured JSON export, so handing your whole project's context to an AI assistant takes one file instead of a screen-sharing session.
 - 🧩 **Editor-only** — lives entirely inside an `Editor` assembly. Zero runtime cost, zero added build size.
 - 🩺 **Project health that tells you *where*** — a dedicated `issues.html` lists every missing script, broken object reference and unresolved asset **individually**, with the GameObject path it sits on (`Canvas/Menu/StartButton`), the component and field that hold it (`MenuController › targetScene`), and a link that opens the collapsed card it lives in and flashes it. The dashboard leads with the counts, and each one is a link into that report filtered to its own kind.
 - 🙋 **…and whose fault it is** — findings in folders Unity or a package installed into `Assets/` (TextMesh Pro, the render-pipeline `Settings` a template creates, package Samples) are separated from your own, with a **My files / Unity & packages / All** tab defaulting to yours. "8 broken references" where none of the eight is yours to fix now reads as clean instead of alarming.
@@ -49,9 +49,38 @@ It's an Editor extension that walks every Scene in your project — every GameOb
 - 🔎 **Filter any page in place** — every Hierarchy and folder tree has a filter box: type four letters and a Scene with 20,000 GameObjects collapses to the handful that match, ancestors kept so the path still reads.
 - 🚫 **Exclude what you did not write** — one line like `Assets/Plugins` in Project Settings keeps imported Asset Store content out of the walk, the tree, the search index and the counts. Wildcards (`*`, `?`) work too, and what was excluded is stated in the output rather than silently missing.
 - 🎬 **Build Settings scenes only** — optionally document just the Scenes your game actually ships, skipping the test beds and sample Scenes that arrived with a package.
-- 📦 **One file for an AI** — `summary/ai-bundle.md` is every summary in the export concatenated into a single document, so a whole project is one paste instead of a folder.
+- 📦 **One file for an AI** *(Plus / Pro)* — `summary/ai-bundle.md` is every summary in the export concatenated into a single document, so a whole project is one paste instead of a folder.
 - ⏹️ **Cancelable** — both passes show a progress bar you can stop.
 - ⚡ **Built for big projects** — the site skips layout for everything off-screen, so a Scene with tens of thousands of objects opens as fast as a small one. Minimal, modern UI in light and dark, keyboard-driven (`/` to search, `[` to collapse the sidebar), with copy-path buttons where you'd reach for them.
+
+### 💎 Free, Plus and Pro
+
+Unity DocSnap ships in three editions. **Free needs no key, no account and no network** — install the package and every export in the first three rows works.
+
+| | Free | Plus $19.99 | Pro $49.99 |
+| --- | :---: | :---: | :---: |
+| The full offline site — hierarchy, Inspector data, references, cross-links | ✅ | ✅ | ✅ |
+| Project health report (`issues.html`) — every missing script and broken reference, with the object path and field | ✅ | ✅ | ✅ |
+| Packages page, search, light/dark, both skins, all three languages, thumbnails, exclude rules | ✅ | ✅ | ✅ |
+| 🤖 **AI-ready summaries** — `summary/*.md`, `summary/*.json` and the one-paste `summary/ai-bundle.md` | — | ✅ | ✅ |
+| 🔁 **Changes page** — what moved between two exports, old and new bytes side by side | — | ✅ | ✅ |
+| No "free edition" line in the exported footer | — | ✅ | ✅ |
+| 📚 **Version history** | 3 snapshots | 3 snapshots | unlimited |
+| ⚡ **Incremental `Update Previous Export`** — reuse the Scenes that did not change | — | — | ✅ |
+| 🤖 **CI automation** — `DocSnapAPI` and `-executeMethod` | — | — | ✅ |
+| 📁 **File copies** — the real asset bytes in `source-files/` | — | — | ✅ |
+| 📦 **Whole-project `.unitypackage` backup** | — | — | ✅ |
+| ✨ **Your own logo** in the exported sidebar | — | — | ✅ |
+
+**Both paid editions are one-off purchases.** Not subscriptions. One machine per key, and moving to a new computer is self-service — release the old one from `Unity DocSnap ▸ Licence & Pro Features`, or from [the licence page](https://amircollider.n95pluss.workers.dev/license) when that machine is gone. All 1.x updates are included.
+
+→ **[Compare all three](https://amircollider.n95pluss.workers.dev/unity-docsnap)** · **[Buy Plus](https://amircollider.sell.app)** · **[Buy Pro](https://amircollider.sell.app)**
+
+**Why Plus exists.** The AI summaries and the Changes page are what most people actually come for, and a lot of those people have no use for CI automation, file copies or project backups. Making them buy the $49.99 tier to get two features means most of them buy nothing at all. Plus is those two, on their own, at $19.99.
+
+**A note on what the Free edition does.** Everything in the first three rows is the entire exporter, and it is not time-limited or nagged. Free hits exactly three walls in normal use: it keeps three snapshots rather than every one, it re-scans everything instead of reusing unchanged Scenes, and it writes one credit line into the footer of the site it generates. Where an edition's option is switched on and not licensed, the export still runs — the option is skipped and the completion dialog says which, and at what price. The one exception is `DocSnapAPI`, which refuses outright, because a build agent that half-succeeds publishes a docs folder missing the outputs the pipeline existed to produce and still goes green.
+
+**What leaves your machine.** In the Free edition, nothing: it never touches the network. A paid edition sends one request when activating and one when renewing, carrying the licence key, a salted hash of Unity's `deviceUniqueIdentifier`, and the package version. Nothing about your project — not its name, not its path, not its size — is ever transmitted. After activation the licence verifies offline for 45 days against a public key compiled into the package, so there is never a network call in front of an export.
 
 ### 📋 Requirements
 
@@ -88,6 +117,7 @@ Unity DocSnap
 ├── Export Full Project With Files
 ├── Update Previous Export    (fast incremental refresh — reuses unchanged Scenes/Assets)
 ├── Open Output Folder
+├── Licence & Pro Features
 └── About Unity DocSnap
 ```
 
@@ -152,6 +182,8 @@ Version names run `V1.0.0 → V1.0.9 → V1.1.0 → … → V9.9.9 → V10.0.0`,
 The site itself has a **Simple / Advanced** toggle in the sidebar: *Simple* shows a clean skim (hierarchy, custom-script configuration, key asset facts), *Advanced* shows every serialized field. It opens in Simple by default and remembers your choice.
 
 ### 🤖 Automation & CI
+
+> **Pro.** Scripted and command-line exports need a Pro licence. A Free Editor fails the call with the reason attached and exits non-zero in `-batchmode` — deliberately, rather than half-succeeding and publishing a docs folder missing the outputs the pipeline was built to produce. Every menu item works as normal in Free.
 
 Every export is available from C# and from the command line, so documentation can be regenerated on merge instead of by remembering to click a menu item.
 
@@ -312,6 +344,35 @@ If Unity DocSnap saves you some digging around later, a ⭐ on the repo goes a l
 - ⏹️ **キャンセル可能** — どちらの処理もプログレスバーから中断できます。
 - ⚡ **大規模プロジェクト向け** — 画面外の要素はレイアウトを省略するため、数万オブジェクトのシーンでも小さなシーンと同じ速さで開きます。ライト/ダーク対応のミニマルでモダンなUI、キーボード操作(`/` で検索、`[` でサイドバー折りたたみ)、必要な場所にパスのコピーボタン。
 
+### 💎 無料版・Plus・Pro
+
+Unity DocSnap には 3 つのエディションがあります。**無料版はキーもアカウントもネットワークも不要**です。インストールすれば、下表の最初の 3 行はすべて動作します。
+
+| | 無料版 | Plus $19.99 | Pro $49.99 |
+| --- | :---: | :---: | :---: |
+| オフラインサイト一式 — 階層、インスペクター情報、参照、相互リンク | ✅ | ✅ | ✅ |
+| プロジェクトのヘルスレポート(`issues.html`)— 欠落スクリプトと壊れた参照を、オブジェクトのパスとフィールド付きで | ✅ | ✅ | ✅ |
+| パッケージページ、検索、ライト/ダーク、2 つのスキン、3 言語、サムネイル、除外ルール | ✅ | ✅ | ✅ |
+| 🤖 **AI 向けサマリー** — `summary/*.md`、`summary/*.json`、1 回の貼り付けで済む `summary/ai-bundle.md` | — | ✅ | ✅ |
+| 🔁 **変更ページ** — 2 つのエクスポート間の差分を、変更前後のバイトと並べて | — | ✅ | ✅ |
+| エクスポートのフッターに「無料版」表記なし | — | ✅ | ✅ |
+| 📚 **バージョン履歴** | 3 件 | 3 件 | 無制限 |
+| ⚡ **差分更新(`Update Previous Export`)** — 変更のないシーンを再利用 | — | — | ✅ |
+| 🤖 **CI 自動化** — `DocSnapAPI` と `-executeMethod` | — | — | ✅ |
+| 📁 **ファイル本体のコピー** — アセットの実バイトを `source-files/` へ | — | — | ✅ |
+| 📦 **プロジェクト全体の `.unitypackage` バックアップ** | — | — | ✅ |
+| ✨ **自社ロゴ** をエクスポートのサイドバーに | — | — | ✅ |
+
+**有料版はいずれも買い切り**で、サブスクリプションではありません。キー 1 つにつき 1 台で、別のマシンへの移行は自分で行えます(`Unity DocSnap ▸ Licence & Pro Features` から解除するか、そのマシンが手元にない場合は[ライセンスページ](https://amircollider.n95pluss.workers.dev/license)から)。1.x のアップデートはすべて含まれます。
+
+→ **[3 つを比較](https://amircollider.n95pluss.workers.dev/unity-docsnap)** · **[Plus を購入](https://amircollider.sell.app)** · **[Pro を購入](https://amircollider.sell.app)**
+
+**Plus がある理由。** 多くの方が実際に求めているのは AI サマリーと変更ページであり、その大半は CI 自動化・ファイルコピー・プロジェクトバックアップを必要としていません。その 2 つのために $49.99 のエディションを買わせると、結局ほとんどの方は何も購入しません。Plus はその 2 つだけを $19.99 で提供します。
+
+**無料版でできることについて。** 上の 3 行はエクスポーターのすべてであり、期限も催促もありません。通常の利用で無料版が制限に触れるのは 3 か所だけです。スナップショットを 3 件までしか保持しないこと、変更のないシーンを再利用せず毎回すべて再スキャンすること、そして生成されるサイトのフッターにクレジット行が 1 行入ることです。ライセンスのないオプションを有効にしていても、エクスポート自体は実行されます。該当のオプションがスキップされ、完了ダイアログにその内容と価格が表示されます。唯一の例外が `DocSnapAPI` で、こちらは明示的に失敗します。ビルドエージェントが中途半端に成功すると、パイプラインが本来生成するはずの出力を欠いたまま成功として扱われてしまうためです。
+
+**送信される情報。** 無料版では一切ありません(ネットワークに接続しません)。有料版は有効化時と更新時にそれぞれ 1 回リクエストを送り、ライセンスキー、Unity の `deviceUniqueIdentifier` のソルト付きハッシュ、パッケージのバージョンのみを含みます。プロジェクトの名前・パス・規模など、プロジェクトに関する情報は一切送信されません。有効化後はパッケージに埋め込まれた公開鍵で 45 日間オフライン検証されるため、エクスポートの前にネットワーク通信が入ることはありません。
+
 ### 📋 必要環境
 
 - Unity **2021.3 LTS** 以降(Unity 6系にも対応)
@@ -347,6 +408,7 @@ Unity DocSnap
 ├── Export Full Project With Files
 ├── Update Previous Export    (増分更新 — 変更のないScene/Assetは再利用)
 ├── Open Output Folder
+├── Licence & Pro Features
 └── About Unity DocSnap
 ```
 
@@ -409,6 +471,8 @@ V1.1.0/
 サイトにはサイドバーに **Simple / Advanced** の切り替えがあります。*Simple* はすっきりした概要(ヒエラルキー、カスタムスクリプトの設定、アセットの要点)を、*Advanced* はすべてのシリアライズ済みフィールドを表示します。初期状態は Simple で、選択は記憶されます。
 
 ### 🤖 自動化とCI
+
+> **Pro 機能です。** スクリプトおよびコマンドラインからのエクスポートには Pro ライセンスが必要です。無料版では理由を添えて失敗し、`-batchmode` では非ゼロで終了します。中途半端に成功してパイプラインが本来生成するはずの出力を欠いたまま公開されることを避けるための意図的な動作です。メニュー項目は無料版でも通常どおり利用できます。
 
 すべてのエクスポートはC#とコマンドラインから実行できるので、メニューを押し忘れることなくマージのたびにドキュメントを再生成できます。
 
@@ -514,6 +578,35 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 - ⏹️ **قابل لغو** — هر دو مرحله نوار پیشرفت دارن و می‌تونی متوقفشون کنی.
 - ⚡ **ساخته‌شده برای پروژه‌های بزرگ** — سایت برای هر چیزی که بیرون صفحه‌ست layout انجام نمی‌ده، پس یه سین با ده‌ها هزار آبجکت هم به‌سرعت یه سین کوچیک باز می‌شه. ظاهر مینیمال و مدرن در حالت روشن و تاریک، کار با کیبورد (`/` برای جستجو، `[` برای بستن سایدبار)، و دکمه‌ی کپی مسیر همون‌جایی که لازمش داری.
 
+### 💎 رایگان، Plus و Pro
+
+‏Unity DocSnap سه نسخه دارد. **نسخه‌ی رایگان هیچ کدی، هیچ حسابی و هیچ اینترنتی نمی‌خواهد** — پکیج را نصب کن و هر چیزی که در سه ردیف اول جدول است کار می‌کند.
+
+| | رایگان | Plus ۱۹.۹۹$ | Pro ۴۹.۹۹$ |
+| --- | :---: | :---: | :---: |
+| کل سایت آفلاین — سلسله‌مراتب، اطلاعات اینسپکتور، رفرنس‌ها، لینک‌های متقابل | ✅ | ✅ | ✅ |
+| گزارش سلامت پروژه (`issues.html`) — هر اسکریپت گم‌شده و رفرنس شکسته، با مسیر آبجکت و نام فیلد | ✅ | ✅ | ✅ |
+| صفحه‌ی پکیج‌ها، جست‌وجو، تم روشن/تاریک، هر دو ظاهر، هر سه زبان، تامبنیل، قوانین حذف | ✅ | ✅ | ✅ |
+| 🤖 **خروجی آماده‌ی هوش مصنوعی** — `summary/*.md`، `summary/*.json` و `summary/ai-bundle.md` که یک پیست است | — | ✅ | ✅ |
+| 🔁 **صفحه‌ی تغییرات** — بین دو خروجی چه عوض شده، با بایت‌های قبل و بعد کنار هم | — | ✅ | ✅ |
+| بدون خط «نسخه‌ی رایگان» توی فوتر خروجی | — | ✅ | ✅ |
+| 📚 **تاریخچه‌ی نسخه‌ها** | ۳ اسنپ‌شات | ۳ اسنپ‌شات | نامحدود |
+| ⚡ **بروزرسانی افزایشی (`Update Previous Export`)** — سین‌های تغییرنکرده دوباره استفاده می‌شوند | — | — | ✅ |
+| 🤖 **اتوماسیون CI** — `DocSnapAPI` و `-executeMethod` | — | — | ✅ |
+| 📁 **کپی خود فایل‌ها** — بایت واقعی اسست‌ها توی `source-files/` | — | — | ✅ |
+| 📦 **بک‌آپ `.unitypackage` از کل پروژه** | — | — | ✅ |
+| ✨ **لوگوی خودت** توی سایدبار خروجی | — | — | ✅ |
+
+**هر دو نسخه‌ی پولی خرید یک‌باره هستند** — اشتراک ماهانه نیست. هر کد روی یک سیستم، و رفتن به سیستم جدید کاملاً خودسرویس است: سیستم قبلی را از `Unity DocSnap ▸ Licence & Pro Features` آزاد کن، یا اگر آن سیستم دیگر در دسترس نیست از [صفحه‌ی لایسنس](https://amircollider.n95pluss.workers.dev/license). همه‌ی بروزرسانی‌های ۱.x شامل می‌شود.
+
+← **[هر سه را مقایسه کن](https://amircollider.n95pluss.workers.dev/unity-docsnap)** · **[خرید Plus](https://amircollider.sell.app)** · **[خرید Pro](https://amircollider.sell.app)**
+
+**‏Plus برای چیست؟** خروجی AI و صفحه‌ی تغییرات همان چیزی است که بیشتر آدم‌ها واقعاً برایش می‌آیند، و خیلی از همان آدم‌ها هیچ کاری با اتوماسیون CI، کپی فایل‌ها یا بک‌آپ پروژه ندارند. اگر مجبورشان کنی برای دو تا قابلیت نسخه‌ی ۴۹.۹۹ دلاری بخرند، بیشترشان هیچ چیزی نمی‌خرند. نسخه‌ی Plus همان دو تاست، تنها، با ۱۹.۹۹ دلار.
+
+**یک توضیح درباره‌ی نسخه‌ی رایگان.** هرچه در سه ردیف اول است، تمامِ اکسپورتر است — نه محدودیت زمانی دارد نه پیام مزاحم. نسخه‌ی رایگان توی استفاده‌ی معمولی دقیقاً به سه دیوار می‌خورد: سه اسنپ‌شات نگه می‌دارد نه همه را، به‌جای استفاده‌ی دوباره از سین‌های تغییرنکرده همه‌چیز را دوباره اسکن می‌کند، و یک خط کردیت توی فوتر سایتی که می‌سازد می‌نویسد. اگر گزینه‌ای را روشن کنی که لایسنسش را نداری، خروجی باز هم گرفته می‌شود — آن گزینه رد می‌شود و دیالوگ پایان کار می‌گوید کدام‌ها و با چه قیمتی. تنها استثنا `DocSnapAPI` است که صریحاً رد می‌کند، چون یک بیلد اجنت که نصفه‌نیمه موفق شود، پوشه‌ی مستنداتی منتشر می‌کند که دقیقاً خروجی‌هایی را ندارد که پایپ‌لاین برایشان ساخته شده بود — و سبز هم می‌شود.
+
+**چه چیزی از سیستمت بیرون می‌رود.** توی نسخه‌ی رایگان: هیچ‌چیز. اصلاً به شبکه وصل نمی‌شود. نسخه‌های پولی یک درخواست موقع فعال‌سازی و یکی موقع تمدید می‌فرستند که فقط شامل کد لایسنس، هش نمک‌دار `deviceUniqueIdentifier` یونیتی، و شماره‌ی نسخه‌ی پکیج است. هیچ‌چیزی از پروژه‌ات — نه اسمش، نه مسیرش، نه اندازه‌اش — هرگز فرستاده نمی‌شود. بعد از فعال‌سازی، لایسنس ۴۵ روز به‌صورت آفلاین و با یک کلید عمومی که داخل خود پکیج کامپایل شده تأیید می‌شود، پس هیچ‌وقت سر راه یک اکسپورت، تماس شبکه‌ای وجود ندارد.
+
 ### 📋 پیش‌نیازها
 
 - یونیتی **2021.3 LTS** به بعد (یونیتی 6 هم پشتیبانی میشه)
@@ -549,6 +642,7 @@ Unity DocSnap
 ├── Export Full Project With Files
 ├── Update Previous Export    (بروزرسانی افزایشی و سریع — موارد تغییرنکرده دوباره استفاده می‌شن)
 ├── Open Output Folder
+├── Licence & Pro Features
 └── About Unity DocSnap
 ```
 
@@ -613,6 +707,8 @@ V1.1.0/
 خود سایت توی سایدبار یه کلید **Simple / Advanced** داره: حالت *Simple* یه نمای تمیز و سریع نشون می‌ده (Hierarchy، تنظیمات اسکریپت‌های خودت، نکات کلیدی فایل‌ها) و حالت *Advanced* همه‌ی فیلدهای سریالایز‌شده رو. به‌صورت پیش‌فرض روی Simple باز میشه و انتخابت رو یادش می‌مونه.
 
 ### 🤖 اتوماسیون و CI
+
+> **مخصوص Pro.** خروجی گرفتن از طریق اسکریپت و خط فرمان به لایسنس Pro نیاز دارد. نسخه‌ی رایگان با ذکر دلیل شکست می‌خورد و در `-batchmode` با کد غیرصفر خارج می‌شود — عمداً، به‌جای اینکه نصفه‌نیمه موفق شود و پوشه‌ی مستنداتی منتشر کند که خروجی‌های موردنظر پایپ‌لاین را ندارد. همه‌ی آیتم‌های منو در نسخه‌ی رایگان مثل همیشه کار می‌کنند.
 
 هر اکسپورت از C# و از خط فرمان هم قابل اجراست، پس می‌شه مستندات رو روی هر merge دوباره ساخت به‌جای اینکه یادت بمونه یه منو رو کلیک کنی.
 

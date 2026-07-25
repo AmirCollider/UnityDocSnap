@@ -263,7 +263,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         private static JsonValue BuildJson(VersionSnapshot snap, ManifestState manifest)
         {
             var root = JsonValue.Obj();
+            // Which edition produced this folder. Recorded because
+            // export-info is the file somebody opens six months
+            // later to work out why a snapshot has no summary/
+            // folder in it - and "made by the free edition" is a
+            // complete answer, where silence is a bug hunt.
             root.Set("generatedBy", DocSnapConstants.ToolName + " v" + DocSnapConstants.Version);
+            root.Set("edition", Licensing.DocSnapEditionMatrix.DisplayName(Licensing.DocSnapLicense.Edition));
             root.Set("projectName", manifest.projectName);
             root.Set("unityVersion", manifest.unityVersion);
             root.Set("version", snap.version);
@@ -290,6 +296,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             sb.Append("Project        : ").Append(manifest.projectName).Append('\n');
             sb.Append("Unity          : ").Append(manifest.unityVersion).Append('\n');
             sb.Append("Version        : ").Append(snap.version).Append('\n');
+            sb.Append("Edition        : ").Append(Licensing.DocSnapEditionMatrix.DisplayName(Licensing.DocSnapLicense.Edition)).Append('\n');
             sb.Append("Exported (UTC) : ").Append(snap.exportedUtc).Append('\n');
             sb.Append("Exported (local): ").Append(snap.exportedLocal).Append('\n');
             sb.Append("Time zone      : ").Append(snap.timeZone).Append('\n');
