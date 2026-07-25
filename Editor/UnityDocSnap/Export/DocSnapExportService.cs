@@ -31,6 +31,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         public static void ExportScene(string scenePath)
         {
+            if (!EditorIsReady()) { return; }
+
             string version;
             string outputRoot = ResolveSingleItemSiteRoot(out version);
             ManifestState manifest = DocSnapManifest.Load();
@@ -129,6 +131,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         public static void ExportFolder(string folderPath)
         {
+            if (!EditorIsReady()) { return; }
+
             string version;
             string outputRoot = ResolveSingleItemSiteRoot(out version);
             ManifestState manifest = DocSnapManifest.Load();
@@ -273,6 +277,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // ==========================================
         private static void ExportProject(DocSnapExportOptions options)
         {
+            if (!EditorIsReady()) { return; }
+
             try
             {
                 ThumbnailGenerator.BeginExport(DocSnapConstants.AssetPreviewTotalBudgetMs);
@@ -518,6 +524,69 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 headEn + " " + version + ": " + scenePages.Count + " scene(s), " + fileCount + " file(s)" + filesNoteEn + backupEn + changesEn + "." + reuseNote,
                 headJa + " " + version + ":シーン" + scenePages.Count + "件、ファイル" + fileCount + "件" + (copyFiles ? "(アセットは source-files/ にコピー済み)" : "") + "。",
                 headFa + " " + version + ": " + scenePages.Count + " سین، " + fileCount + " فایل" + filesNoteFa + ".");
+        }
+
+        // ==========================================
+        // EditorIsReady
+        // Refuses to start an export while the Editor is in
+        // a state where walking the project does not mean
+        // what it normally means.
+        //
+        // Play Mode is the one that matters. An export opens
+        // every Scene additively, and in Play Mode that runs
+        // Awake/OnEnable/Start on everything it opens, inside
+        // the running game - spawning objects, starting
+        // coroutines, writing to whatever the project's
+        // singletons touch. What it then documents is not the
+        // project either: it is the live simulation mid-flight,
+        // with runtime-instantiated objects in the hierarchy
+        // and serialized values already mutated away from
+        // their authored state. Neither half of that is what
+        // anybody asked for, and the first half can damage a
+        // session in progress.
+        //
+        // A compile or an import in flight is milder but still
+        // wrong: types are being swapped underneath the
+        // reflector and the AssetDatabase is mid-write, so the
+        // export would describe a project that does not exist
+        // in that shape for more than a few seconds. Both are
+        // over shortly, so this says "try again in a moment"
+        // rather than pretending to be a real failure.
+        // ==========================================
+        private static bool EditorIsReady()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isPlaying)
+            {
+                EditorUtility.DisplayDialog(
+                    DocSnapConstants.ToolName,
+                    "Unity DocSnap can't export while the Editor is in Play Mode.\n\n"
+                    + "Exporting opens every Scene, which in Play Mode would run their scripts inside your running game "
+                    + "and would document the live simulation instead of your project.\n\n"
+                    + "Stop playing, then export.\n\n"
+                    + "─────\n"
+                    + "再生モード中はエクスポートできません。再生を停止してからもう一度お試しください。\n\n"
+                    + "─────\n"
+                    + "توی حالت Play نمی‌شه خروجی گرفت. اول بازی رو متوقف کن، بعد دوباره امتحان کن.",
+                    "OK");
+                return false;
+            }
+
+            if (EditorApplication.isCompiling || EditorApplication.isUpdating)
+            {
+                EditorUtility.DisplayDialog(
+                    DocSnapConstants.ToolName,
+                    "Unity is still compiling scripts or importing assets.\n\n"
+                    + "Please wait for that to finish, then export - otherwise the export would describe a project that is "
+                    + "still changing underneath it.\n\n"
+                    + "─────\n"
+                    + "スクリプトのコンパイル / アセットのインポート中です。完了してからエクスポートしてください。\n\n"
+                    + "─────\n"
+                    + "یونیتی هنوز داره کامپایل / ایمپورت می‌کنه. صبر کن تموم بشه، بعد خروجی بگیر.",
+                    "OK");
+                return false;
+            }
+
+            return true;
         }
 
         // ==========================================
@@ -917,17 +986,75 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // manifest lists every Scene/folder ever exported
         // in this project, so a single-item export never
         // deletes another item's still-valid output.
+        //
+        // internal rather than private purely so the tests can
+        // reach it. This is the only code in Unity DocSnap that
+        // deletes files, and it was also the only code in Unity
+        // DocSnap that nothing tested - the two facts together
+        // are what let the fresh-manifest case below stay a bug.
         // ==========================================
-        private static void PruneStaleOutput(string outputRoot, ManifestState manifest)
+        internal static void PruneStaleOutput(string outputRoot, ManifestState manifest)
         {
+            // The manifest is this method's entire authority to delete:
+            // every file it does not recognise is assumed to be a stale
+            // leftover. When the manifest was NOT read back from a prior
+            // run, that assumption inverts - the files it does not
+            // recognise are a previous export's, and they are the
+            // artefact the user actually keeps.
+            //
+            // The record lives in Library/, which is machine-local,
+            // git-ignored, and the first thing anyone deletes to make
+            // Unity behave. Lose it, run a single "Export This Scene"
+            // into the active version folder, and a manifest holding one
+            // Scene met a folder holding twenty: nineteen Scenes' pages,
+            // data JSON and summaries were all unrecognised, and all
+            // deleted. IsDocSnapVersionFolder cannot catch this - the
+            // folder genuinely IS a DocSnap version folder, which is
+            // precisely why it had something worth losing in it.
+            //
+            // Skipping leaves stale files behind in that rare case,
+            // which the next export with a real manifest cleans up, and
+            // which is in any event a mess rather than a loss.
+            if (!manifest.loadedFromDisk)
+            {
+                Debug.LogWarning("[Unity DocSnap] No previous export record was found (\""
+                    + DocSnapConstants.InternalStateRelativePath
+                    + "\" is missing or unreadable), so stale-file cleanup was skipped to avoid deleting"
+                    + " output from an earlier export. Run a full export to rebuild the record.");
+                return;
+            }
+
             try
             {
                 var liveScenes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var liveFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var liveData = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var liveSummary = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var liveThumbs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 liveData.Add(DocSnapConstants.DataSubFolder + "/" + DocSnapConstants.ManifestFileName);
+
+                // theme/thumbs/ was the one managed output folder the
+                // sweep never touched, and the only one that is purely
+                // additive: a thumbnail is written as <guid>.png and
+                // nothing ever removed it. Re-exporting onto a version
+                // folder - which "Update Previous Export" does by
+                // design, repeatedly - therefore accumulated a preview
+                // for every asset the project has EVER held, including
+                // every one since deleted, renamed or excluded. On a
+                // project with real churn that grows without bound, and
+                // the files are invisible: nothing links to them, so
+                // nobody notices the version folder quietly getting
+                // heavier.
+                //
+                // The asset index carries one entry per asset actually
+                // exported, keyed by the same GUID the thumbnail is
+                // named after, so it is exactly the live set.
+                foreach (ManifestAssetIndexEntry asset in manifest.assetIndex)
+                {
+                    if (string.IsNullOrEmpty(asset.guid)) { continue; }
+                    liveThumbs.Add(ThumbsSubPath + "/" + asset.guid + ".png");
+                }
 
                 // The Packages summary (when present) lives in summary/ too;
                 // keep it out of the prune sweep so a Scene/folder-only export
@@ -958,11 +1085,33 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 PruneDir(outputRoot, DocSnapConstants.AssetsSubFolder, liveFolders);
                 PruneDir(outputRoot, DocSnapConstants.DataSubFolder, liveData);
                 PruneDir(outputRoot, DocSnapConstants.SummarySubFolder, liveSummary);
+
+                // Only swept once the asset index has something in it.
+                // A Scene-only export leaves the index untouched and
+                // empty, and an empty live set would read as "none of
+                // these thumbnails are current" and delete the lot -
+                // the same mistake at a smaller scale.
+                if (manifest.assetIndex.Count > 0)
+                {
+                    PruneDir(outputRoot, ThumbsSubPath, liveThumbs);
+                }
             }
             catch (Exception ex)
             {
                 Debug.LogWarning("[Unity DocSnap] Could not prune stale output: " + ex.Message);
             }
+        }
+
+        // ==========================================
+        // ThumbsSubPath
+        // The thumbnail folder sits one level inside the
+        // site-assets folder ("theme/thumbs"), unlike every
+        // other managed folder, so its relative path is
+        // spelled once here.
+        // ==========================================
+        private static string ThumbsSubPath
+        {
+            get { return DocSnapConstants.SiteAssetsSubFolder + "/" + DocSnapConstants.ThumbsSubFolder; }
         }
 
         // ==========================================
@@ -990,7 +1139,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 return;
             }
 
-            string absolute = Path.Combine(outputRoot, subFolder);
+            // subFolder may be nested ("theme/thumbs"), so the separator
+            // is normalised rather than assumed.
+            string absolute = Path.Combine(outputRoot, subFolder.Replace('/', Path.DirectorySeparatorChar));
             if (!Directory.Exists(absolute)) { return; }
 
             foreach (string file in Directory.GetFiles(absolute, "*", SearchOption.TopDirectoryOnly))

@@ -407,6 +407,28 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
         // image when one is set and readable on disk;
         // otherwise falls back to the built-in mascot
         // mark so branding always looks finished.
+        //
+        // Every format takes the same route: a data: URI
+        // inside an <img>. An SVG used to be different -
+        // its markup was pasted into the page verbatim -
+        // and SVG is not an image format in the way the
+        // other two are. It is an XML document that can
+        // carry <script>, event-handler attributes and
+        // external references, so inlining one hands the
+        // exported page arbitrary control over itself.
+        // The file is the user's own, which makes the
+        // practical risk small, but it is not always only
+        // theirs: a logo can arrive from a brand kit, a
+        // contractor, or an asset pack, and the page it
+        // lands in is the page a whole team opens. Inside
+        // an <img> the browser renders the same picture
+        // with scripting and external loads disabled by
+        // spec - so the fix costs the feature nothing.
+        //
+        // This is also the one place in the file that was
+        // writing unescaped external content into the
+        // page, which every other line here goes out of
+        // its way not to do.
         // ==========================================
         private static string ResolveLogoHtml()
         {
@@ -419,13 +441,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             try
             {
                 string ext = Path.GetExtension(customPath).ToLowerInvariant();
-                if (ext == ".svg")
-                {
-                    return File.ReadAllText(customPath);
-                }
-                string mime = ext == ".jpg" || ext == ".jpeg" ? "image/jpeg" : "image/png";
+                string mime = ext == ".svg" ? "image/svg+xml"
+                    : ext == ".jpg" || ext == ".jpeg" ? "image/jpeg"
+                    : ext == ".webp" ? "image/webp"
+                    : "image/png";
+
                 byte[] bytes = File.ReadAllBytes(customPath);
-                return "<img alt=\"logo\" style=\"width:44px;height:44px;object-fit:contain;\" src=\"data:" + mime + ";base64," + Convert.ToBase64String(bytes) + "\">";
+                return "<img alt=\"logo\" style=\"width:44px;height:44px;object-fit:contain;\" src=\"data:"
+                    + mime + ";base64," + Convert.ToBase64String(bytes) + "\">";
             }
             catch
             {

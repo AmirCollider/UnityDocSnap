@@ -223,6 +223,38 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
         // deliberately left out. An omission nobody is told
         // about is worse than no omission.
         public List<string> excludePatterns = new List<string>();
+
+        // ==========================================
+        // loadedFromDisk
+        // Whether this state was actually read back from a
+        // prior run, as opposed to being a blank one handed
+        // out because there was nothing to read.
+        //
+        // It exists for exactly one consumer, and that
+        // consumer deletes files. PruneStaleOutput treats
+        // the manifest as the complete record of everything
+        // this project has ever exported, and removes any
+        // file in a managed output folder that the record
+        // does not mention. That premise is sound only while
+        // the record survives - and it lives in Library/,
+        // which is machine-local, git-ignored, and routinely
+        // deleted outright to make Unity behave.
+        //
+        // Load() answers a missing or unreadable state file
+        // by returning a blank one and carrying on, which is
+        // right for every other caller. For the pruner it
+        // meant a manifest describing one Scene could arrive
+        // at a version folder holding twenty, and every page,
+        // JSON and summary belonging to the other nineteen
+        // was "unrecognised" - and deleted. The version
+        // folder is the artefact the user keeps; nothing else
+        // in the tool can put it back.
+        //
+        // [NonSerialized] so it never round-trips through the
+        // state file: it is a fact about THIS load, and a
+        // serialized `true` read back out of a corrupt file
+        // would defeat the whole point.
+        [NonSerialized] public bool loadedFromDisk;
     }
 
     internal static class DocSnapManifest
@@ -265,6 +297,10 @@ namespace AmirCollider.UnityDocSnap.Editor.Manifest
                 state.issues = state.issues ?? new List<ManifestIssueEntry>();
                 state.excludePatterns = state.excludePatterns ?? new List<string>();
                 BackfillSceneKeys(state);
+                // Set only here: this is the one path where a real
+                // prior record was successfully read back. See the
+                // field's own comment for why the pruner cares.
+                state.loadedFromDisk = true;
                 return state;
             }
             catch (Exception ex)
