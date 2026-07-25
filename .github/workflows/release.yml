@@ -1,0 +1,81 @@
+name: Release
+
+# ==========================================
+# Turns a pushed tag into a GitHub Release, with the
+# notes taken from the matching CHANGELOG section.
+#
+# The package advertises installation from a git URL,
+# and UPM resolves a version by tag. With no tags in
+# the repository there was no version to ask for:
+# every user got whatever the default branch happened
+# to be that day, could not pin a known-good release,
+# and could not roll back from a bad one. Tagging is
+# the whole fix; this makes the release that goes with
+# the tag automatic so the two can never drift.
+#
+#   git tag v0.10.0
+#   git push origin v0.10.0
+#
+# The tag must match the version in package.json, and
+# the job fails if it does not - a Release advertising
+# a version the package does not declare is worse than
+# no Release.
+# ==========================================
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build a release for"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Validate package
+        run: python3 .github/scripts/validate_package.py
+
+      - name: Check the tag matches package.json
+        id: version
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          PKG=$(python3 -c "import json;print(json.load(open('package.json'))['version'])")
+          echo "Tag: $TAG   package.json: $PKG"
+          if [ "$TAG" != "v$PKG" ]; then
+            echo "::error::Tag '$TAG' does not match package.json version '$PKG'. Expected 'v$PKG'."
+            exit 1
+          fi
+          echo "version=$PKG" >> "$GITHUB_OUTPUT"
+
+      - name: Extract this version's changelog section
+        run: |
+          python3 - <<'PY' > RELEASE_NOTES.md
+          import re
+          version = "${{ steps.version.outputs.version }}"
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          # Everything from this version's heading up to the next one.
+          pattern = r"^## \[" + re.escape(version) + r"\].*?$(.*?)(?=^## \[|\Z)"
+          found = re.search(pattern, text, re.MULTILINE | re.DOTALL)
+          print(found.group(1).strip() if found else "See CHANGELOG.md.")
+          PY
+          cat RELEASE_NOTES.md
+
+      - name: Create the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: Unity DocSnap ${{ steps.version.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: ${{ startsWith(steps.version.outputs.version, '0.') }}
