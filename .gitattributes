@@ -1,0 +1,54 @@
+# ==========================================
+# Unity DocSnap
+#
+# Line endings first, and they matter more here than in
+# most repositories: this package ships C# that Unity
+# compiles on Windows, macOS and Linux, and a .meta file
+# whose endings changed is a file Unity rewrites - which
+# shows up as a diff nobody made, on every machine that
+# is not the one that committed it.
+#
+# Normalising to LF in the repository and letting Git
+# hand out the platform's own endings on checkout is the
+# arrangement that keeps a Windows contributor and a Mac
+# contributor from taking turns reverting each other.
+# ==========================================
+
+* text=auto eol=lf
+
+# --- Sources and data, always text ---
+*.cs        text diff=csharp
+*.md        text
+*.json      text
+*.jsonc     text
+*.asmdef    text
+*.meta      text
+*.yml       text
+*.yaml      text
+*.py        text
+*.sh        text eol=lf
+*.css       text
+*.js        text
+*.html      text
+*.svg       text
+
+# --- Binary, never touched ---
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.otf       binary
+*.zip       binary
+*.unitypackage binary
+
+# Deliberately no export-ignore rules. A release archive
+# stays identical to the repository, because Tests/ is part
+# of the package (its asmdef is gated behind
+# UNITY_INCLUDE_TESTS, not removed from the tree) and an
+# archive that quietly holds less than the clone is a
+# difference nobody remembers when they are comparing the
+# two to work out why something is missing.
