@@ -1,0 +1,61 @@
+# ==========================================
+# Unity DocSnap
+#
+# This repository is a Unity PACKAGE, not a Unity project:
+# there is no Assets/ or ProjectSettings/ here, and the
+# folders Unity generates only appear when the package is
+# opened inside a test project. They are listed anyway,
+# because that is exactly how they get committed by
+# accident.
+#
+# The .meta files are deliberately NOT ignored. Unity
+# resolves every asset by the GUID inside its .meta, so a
+# package that ships without them hands each user a
+# freshly generated GUID and every cross-reference rots -
+# which the author never sees, because their own copy has
+# the originals.
+# ==========================================
+
+# --- Unity generated ---
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+sysinfo.txt
+crashlytics-build.properties
+
+# --- This tool's own output, when the package is being
+#     tested inside a project that lives here ---
+UnityDocSnap_Output/
+
+# --- IDE / editor ---
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.sln
+*.user
+*.userprefs
+*.unityproj
+*.pidb
+*.booproj
+*.svd
+*.suo
+*.tmp
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# --- OS ---
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+desktop.ini
