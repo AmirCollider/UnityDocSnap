@@ -62,6 +62,7 @@ Unity DocSnap ships in three editions. **Free needs no key, no account and no ne
 | The full offline site — hierarchy, Inspector data, references, cross-links | ✅ | ✅ | ✅ |
 | Project health report (`issues.html`) — every missing script and broken reference, with the object path and field | ✅ | ✅ | ✅ |
 | Packages page, search, light/dark, both skins, all three languages, thumbnails, exclude rules | ✅ | ✅ | ✅ |
+| Plan page (`plan.html`) — which edition made the export, what it includes, and a link to verify the licence | ✅ | ✅ | ✅ |
 | 🤖 **AI-ready summaries** — `summary/*.md`, `summary/*.json` and the one-paste `summary/ai-bundle.md` | — | ✅ | ✅ |
 | 🔁 **Changes page** — what moved between two exports, old and new bytes side by side | — | ✅ | ✅ |
 | No "free edition" line in the exported footer | — | ✅ | ✅ |
@@ -157,6 +158,7 @@ V1.1.0/
 ├── issues.html        ← every broken reference / missing script, linked to the exact object
 ├── packages.html      ← packages the project depends on (Unity + third-party)
 ├── changes.html       ← what changed vs an earlier version (when change tracking is on)
+├── plan.html          ← the plan this export was made on: what it includes and what it does not
 ├── summary.md         ← project index → points into summary/
 ├── export-info.txt    ← what this export contains, in plain words
 ├── export-info.json   ← the same, machine-readable
@@ -178,6 +180,8 @@ V1.1.0/
 ```
 
 Version names run `V1.0.0 → V1.0.9 → V1.1.0 → … → V9.9.9 → V10.0.0`, or you can type your own name in the export window. **Update Previous Export** re-exports *into* the newest folder instead of making a new one, reusing whatever has not changed.
+
+> **Re-exporting onto a folder made by a higher edition.** A version folder keeps whatever the export that built it produced, so a folder built while Plus or Pro was active still holds that tier's `summary/`, `source-files/`, `changes.html` and `project-backup.unitypackage`. When a full export lands back on that folder from an edition that does not include those, they are removed — the folder is rewritten to match the plan that produced it, and the export-complete dialog lists every file it took out. Nothing is touched in a folder this export does not write into, and a tier that still holds a feature keeps its files even when the box is left unticked on a later run.
 
 The site itself has a **Simple / Advanced** toggle in the sidebar: *Simple* shows a clean skim (hierarchy, custom-script configuration, key asset facts), *Advanced* shows every serialized field. It opens in Simple by default and remembers your choice.
 
@@ -353,6 +357,7 @@ Unity DocSnap には 3 つのエディションがあります。**無料版は�
 | オフラインサイト一式 — 階層、インスペクター情報、参照、相互リンク | ✅ | ✅ | ✅ |
 | プロジェクトのヘルスレポート(`issues.html`)— 欠落スクリプトと壊れた参照を、オブジェクトのパスとフィールド付きで | ✅ | ✅ | ✅ |
 | パッケージページ、検索、ライト/ダーク、2 つのスキン、3 言語、サムネイル、除外ルール | ✅ | ✅ | ✅ |
+| プランページ(`plan.html`)— どのエディションで作成したか、含まれる機能、ライセンス確認リンク | ✅ | ✅ | ✅ |
 | 🤖 **AI 向けサマリー** — `summary/*.md`、`summary/*.json`、1 回の貼り付けで済む `summary/ai-bundle.md` | — | ✅ | ✅ |
 | 🔁 **変更ページ** — 2 つのエクスポート間の差分を、変更前後のバイトと並べて | — | ✅ | ✅ |
 | エクスポートのフッターに「無料版」表記なし | — | ✅ | ✅ |
@@ -446,6 +451,7 @@ V1.1.0/
 ├── issues.html        ← 切れた参照・欠落スクリプトを1件ずつ、該当オブジェクトへのリンク付きで
 ├── packages.html      ← プロジェクトが依存するパッケージ(Unity + サードパーティ)
 ├── changes.html       ← 以前のバージョンとの差分(変更履歴を有効にした場合)
+├── plan.html          ← このエクスポートを作成したプラン。含まれるもの・含まれないもの
 ├── summary.md         ← プロジェクト索引 → summary/ への案内
 ├── export-info.txt    ← このエクスポートの内容を平易な文章で
 ├── export-info.json   ← 同じ内容の機械可読版
@@ -467,6 +473,8 @@ V1.1.0/
 ```
 
 バージョン名は `V1.0.0 → V1.0.9 → V1.1.0 → … → V9.9.9 → V10.0.0` と進みます。エクスポートウィンドウで独自の名前を付けることもできます。**Update Previous Export** は新しいフォルダを作らず、最新のフォルダに**上書きで**再エクスポートし、変更のないものは再利用します。
+
+> **上位エディションで作成されたフォルダへの再エクスポートについて。** バージョンフォルダには、それを作成したエクスポートの生成物がそのまま残ります。Plus / Pro が有効な状態で作成されたフォルダには、そのエディションの `summary/`、`source-files/`、`changes.html`、`project-backup.unitypackage` が残っています。これらを含まないエディションからプロジェクト全体を同じフォルダに再エクスポートすると、それらは削除されます。フォルダは作成したプランに合わせて書き直され、削除されたファイルはエクスポート完了ダイアログにすべて表示されます。今回書き込まないフォルダには一切触れません。また、機能を保持しているエディションでは、チェックを外して再エクスポートしてもファイルは残ります。
 
 サイトにはサイドバーに **Simple / Advanced** の切り替えがあります。*Simple* はすっきりした概要(ヒエラルキー、カスタムスクリプトの設定、アセットの要点)を、*Advanced* はすべてのシリアライズ済みフィールドを表示します。初期状態は Simple で、選択は記憶されます。
 
@@ -587,6 +595,7 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 | کل سایت آفلاین — سلسله‌مراتب، اطلاعات اینسپکتور، رفرنس‌ها، لینک‌های متقابل | ✅ | ✅ | ✅ |
 | گزارش سلامت پروژه (`issues.html`) — هر اسکریپت گم‌شده و رفرنس شکسته، با مسیر آبجکت و نام فیلد | ✅ | ✅ | ✅ |
 | صفحه‌ی پکیج‌ها، جست‌وجو، تم روشن/تاریک، هر دو ظاهر، هر سه زبان، تامبنیل، قوانین حذف | ✅ | ✅ | ✅ |
+| صفحه‌ی پلن (`plan.html`) — این خروجی با کدوم نسخه ساخته شده، چی توشه، و لینک بررسی درستی لایسنس | ✅ | ✅ | ✅ |
 | 🤖 **خروجی آماده‌ی هوش مصنوعی** — `summary/*.md`، `summary/*.json` و `summary/ai-bundle.md` که یک پیست است | — | ✅ | ✅ |
 | 🔁 **صفحه‌ی تغییرات** — بین دو خروجی چه عوض شده، با بایت‌های قبل و بعد کنار هم | — | ✅ | ✅ |
 | بدون خط «نسخه‌ی رایگان» توی فوتر خروجی | — | ✅ | ✅ |
@@ -682,6 +691,7 @@ V1.1.0/
 ├── issues.html        ← هر ارجاع شکسته و اسکریپت گم‌شده، دونه‌دونه، با لینک به همون آبجکت
 ├── packages.html      ← پکیج‌هایی که پروژه بهشون وابسته‌ست (یونیتی + شخص‌ثالث)
 ├── changes.html       ← تفاوت‌ها نسبت به یک نسخه‌ی قبلی (وقتی ثبت تغییرات روشن باشه)
+├── plan.html          ← پلنی که این خروجی باهاش ساخته شده: چی توشه و چی نیست
 ├── summary.md         ← فهرست پروژه → راهنما به summary/
 ├── export-info.txt    ← این اکسپورت شامل چیه، به زبان ساده
 ├── export-info.json   ← همون، ولی ماشین‌خوان
@@ -703,6 +713,8 @@ V1.1.0/
 ```
 
 نام نسخه‌ها این‌طور جلو می‌ره: `V1.0.0 → V1.0.9 → V1.1.0 → … → V9.9.9 → V10.0.0`. توی پنجره‌ی اکسپورت می‌تونی اسم دلخواه خودت رو هم بذاری. گزینه‌ی **Update Previous Export** به‌جای ساختن پوشه‌ی جدید، **روی** جدیدترین پوشه دوباره اکسپورت می‌کنه و هرچی تغییر نکرده رو دوباره استفاده می‌کنه.
+
+> **خروجی گرفتن دوباره روی پوشه‌ای که با نسخه‌ی بالاتر ساخته شده.** هر پوشه‌ی نسخه هرچی رو که اکسپورت سازنده‌اش تولید کرده نگه می‌داره؛ پس پوشه‌ای که موقع فعال بودن Plus یا Pro ساخته شده، هنوز `summary/` و `source-files/` و `changes.html` و `project-backup.unitypackage` همون نسخه رو داره. وقتی یک اکسپورت کامل از نسخه‌ای که اینا رو نداره دوباره روی همون پوشه بیفته، این فایل‌ها حذف می‌شن — پوشه مطابق پلنی که ساختتش بازنویسی می‌شه و پنجره‌ی پایان اکسپورت دونه‌دونه می‌گه چی برداشته شده. به پوشه‌ای که این اکسپورت توش نمی‌نویسه دست زده نمی‌شه، و نسخه‌ای که هنوز قابلیت رو داره، حتی با تیک‌نزدن گزینه توی اجرای بعدی هم فایل‌هاش سر جاشون می‌مونن.
 
 خود سایت توی سایدبار یه کلید **Simple / Advanced** داره: حالت *Simple* یه نمای تمیز و سریع نشون می‌ده (Hierarchy، تنظیمات اسکریپت‌های خودت، نکات کلیدی فایل‌ها) و حالت *Advanced* همه‌ی فیلدهای سریالایز‌شده رو. به‌صورت پیش‌فرض روی Simple باز میشه و انتخابت رو یادش می‌مونه.
 

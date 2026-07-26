@@ -461,6 +461,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             bool onPackages = currentHtmlFile == DocSnapConstants.PackagesFileName;
             bool onChanges = currentHtmlFile == DocSnapConstants.ChangesFileName;
             bool onIssues = currentHtmlFile == DocSnapConstants.IssuesFileName;
+            bool onPlan = currentHtmlFile == DocSnapConstants.PlanFileName;
             sb.Append("<div class=\"ds-nav-section\"><ul class=\"ds-nav-list\">");
             sb.Append("<li><a class=\"ds-nav-link").Append(onIndex ? " is-current" : "").Append("\" href=\"").Append(prefix).Append(DocSnapConstants.IndexFileName).Append("\">");
             sb.Append(I18n("span", null, "\uD83C\uDFE0 Dashboard", "\uD83C\uDFE0 ダッシュボード", "\uD83C\uDFE0 داشبورد"));
@@ -492,6 +493,21 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 }
                 sb.Append("</a></li>");
             }
+
+            // The plan this export was made on, carrying the edition
+            // name as its count chip.
+            //
+            // In the primary nav rather than only in the footer,
+            // because it answers a question the reader has while
+            // looking at the site - "where is the summary/ folder this
+            // thing keeps mentioning?" - and a footer line is where
+            // that question goes to not get answered. The chip means
+            // the answer is usually visible without clicking at all.
+            sb.Append("<li><a class=\"ds-nav-link").Append(onPlan ? " is-current" : "").Append("\" href=\"").Append(prefix).Append(DocSnapConstants.PlanFileName).Append("\">");
+            sb.Append(I18n("span", null, "🎟️ Plan", "🎟️ プラン", "🎟️ پلن"));
+            sb.Append("<span class=\"ds-nav-count\">")
+              .Append(Escape(DocSnapEditionMatrix.DisplayName(DocSnapLicense.Edition)))
+              .Append("</span></a></li>");
             sb.Append("</ul></div>\n");
 
             sb.Append("<div class=\"ds-nav-section\"><p class=\"ds-nav-title\">");

@@ -647,12 +647,37 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
               .Append(" · last export ").Append(Clean(manifest.lastUpdatedUtc))
               .Append(" · ").Append(DocSnapConstants.ToolName).Append(" v").Append(DocSnapConstants.Version).Append("\n\n");
 
-            sb.Append("This export comes in two forms:\n\n");
-            sb.Append("- **Simple (give this to an AI)** — the short files in **`").Append(DocSnapConstants.SummarySubFolder)
-              .Append("/`**, linked below. Each Scene / folder has a readable `.md` and a structured `.json`, only a few hundred lines each.\n");
-            sb.Append("- **Full (advanced)** — open **`").Append(DocSnapConstants.IndexFileName)
-              .Append("`** in a browser for the complete interactive site, or read the raw **`")
-              .Append(DocSnapConstants.DataSubFolder).Append("/…json`** for every single field.\n\n");
+            // Whether the summary/ half of this sentence is true for
+            // this export. It is not a detail: every Scene and folder
+            // line below links to a .md and a .json in summary/, and
+            // this file used to promise and link all of them whatever
+            // the edition was - so a Free export shipped a summary.md
+            // headed "Simple (give this to an AI)" whose every link
+            // was dead. Advertising a folder the same export
+            // deliberately did not write is worse than not mentioning
+            // it: the reader concludes the export failed.
+            bool aiSummaries = Licensing.DocSnapEditionGate.WritesAiSummaries;
+
+            if (aiSummaries)
+            {
+                sb.Append("This export comes in two forms:\n\n");
+                sb.Append("- **Simple (give this to an AI)** — the short files in **`").Append(DocSnapConstants.SummarySubFolder)
+                  .Append("/`**, linked below. Each Scene / folder has a readable `.md` and a structured `.json`, only a few hundred lines each.\n");
+                sb.Append("- **Full (advanced)** — open **`").Append(DocSnapConstants.IndexFileName)
+                  .Append("`** in a browser for the complete interactive site, or read the raw **`")
+                  .Append(DocSnapConstants.DataSubFolder).Append("/…json`** for every single field.\n\n");
+            }
+            else
+            {
+                sb.Append("Open **`").Append(DocSnapConstants.IndexFileName)
+                  .Append("`** in a browser for the complete interactive site, or read the raw **`")
+                  .Append(DocSnapConstants.DataSubFolder).Append("/…json`** for every single field.\n\n");
+                sb.Append("The short, AI-ready summaries in `").Append(DocSnapConstants.SummarySubFolder)
+                  .Append("/` are not part of the ")
+                  .Append(Licensing.DocSnapEditionMatrix.DisplayName(Licensing.DocSnapLicense.Edition))
+                  .Append(" edition, so this export does not contain them — see **`")
+                  .Append(DocSnapConstants.PlanFileName).Append("`** for what this plan does and does not include.\n\n");
+            }
 
             sb.Append("## Scenes\n\n");
             if (manifest.scenes.Count == 0)
@@ -669,8 +694,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                     // at one file - the same collision that used to
                     // make one Scene's export overwrite the other's.
                     sb.Append("- **").Append(Clean(s.sceneName)).Append("** — ").Append(s.gameObjectCount)
-                      .Append(" GameObjects · [json](").Append(SceneSummaryJson(s.sceneKey)).Append(")")
-                      .Append(" · [md](").Append(SceneSummaryMarkdown(s.sceneKey)).Append(")\n");
+                      .Append(" GameObjects");
+                    if (aiSummaries)
+                    {
+                        sb.Append(" · [json](").Append(SceneSummaryJson(s.sceneKey)).Append(")")
+                          .Append(" · [md](").Append(SceneSummaryMarkdown(s.sceneKey)).Append(")");
+                    }
+                    sb.Append('\n');
                 }
                 sb.Append("\n");
             }
@@ -685,8 +715,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Summary
                 foreach (ManifestFolderEntry f in manifest.assetFolders)
                 {
                     sb.Append("- **").Append(Clean(f.folderPath)).Append("** — ").Append(f.fileCount)
-                      .Append(" files · [json](").Append(FolderSummaryJson(f.folderKey)).Append(")")
-                      .Append(" · [md](").Append(FolderSummaryMarkdown(f.folderKey)).Append(")\n");
+                      .Append(" files");
+                    if (aiSummaries)
+                    {
+                        sb.Append(" · [json](").Append(FolderSummaryJson(f.folderKey)).Append(")")
+                          .Append(" · [md](").Append(FolderSummaryMarkdown(f.folderKey)).Append(")");
+                    }
+                    sb.Append('\n');
                 }
                 sb.Append("\n");
             }
