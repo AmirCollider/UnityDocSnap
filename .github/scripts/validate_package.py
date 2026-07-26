@@ -384,6 +384,22 @@ check(
     "DocSnapEditionGate.ResolveVersionCap" in export_service,
 )
 
+# --- Clamping the options decides what an export WRITES. It
+#     does not decide what the version folder ends up HOLDING,
+#     and the two stop being the same question the moment an
+#     export lands on a folder that already has content - which
+#     is what "Update Previous Export" does by design, and what
+#     every export does once the shelf cap is reached. Without
+#     the sweep, a folder built while Pro was active kept that
+#     tier's backup, source-files/ mirror and Changes page
+#     forever, and a Free export onto it was byte-for-byte as
+#     complete as a paid one. This is the check that keeps the
+#     two halves together.
+check(
+    "a paid tier's leftovers are swept from a re-used folder",
+    "DocSnapEditionGate.SweepUnlicensedArtefacts" in export_service,
+)
+
 check(
     "scripted exports check the Automation feature",
     "DocSnapFeature.Automation" in docsnap_api,
