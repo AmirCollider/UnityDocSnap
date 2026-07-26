@@ -420,6 +420,21 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             string outputRoot = DocSnapVersioning.VersionFolderAbsolute(baseRoot, version);
             PrepareOutput(outputRoot);
 
+            // Clamping the options above settled what this run writes.
+            // It does not settle what the folder ends up holding: when
+            // this export lands on a folder built while a paid tier was
+            // active - which is the normal case for "Update Previous
+            // Export", for picking an existing version, and for every
+            // export once the shelf cap is reached - that tier's
+            // backup, source-files/ mirror and Changes page are still
+            // in it, and nothing here had ever removed them. The result
+            // was a Free export indistinguishable from a Pro one.
+            //
+            // Runs before a single page is written, so the sweep can
+            // never race the pages being rewritten around it, and a
+            // fresh folder is a no-op because none of it exists yet.
+            DocSnapEditionGate.SweepUnlicensedArtefacts(outputRoot, gate, gateLang);
+
             bool copyFiles = options.includeFiles;
             string physicalFilesRoot = null;
             if (copyFiles)
@@ -993,6 +1008,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             // nothing happens to be broken is its own small bug.
             WriteText(outputRoot, DocSnapConstants.IssuesFileName, IssuesPageRenderer.Render(manifest));
 
+            // Which plan made this export, what it includes and what it
+            // does not. Written by every edition, including Pro, for the
+            // same reason the health page is written for a clean project:
+            // a page that only exists when something is missing is an
+            // advert, and it is the reader who opens the folder weeks
+            // later - with no Editor in front of them - who needs the
+            // export to be able to explain itself.
+            WriteText(outputRoot, DocSnapConstants.PlanFileName, PlanPageRenderer.Render(manifest));
+
             WriteText(outputRoot, DocSnapConstants.ProjectSummaryFileName, DocSnapSummaryWriter.RenderProjectIndex(manifest));
             DocSnapManifest.WritePublicJson(manifest, Path.Combine(outputRoot, DocSnapConstants.DataSubFolder, DocSnapConstants.ManifestFileName));
 
@@ -1232,15 +1256,33 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
                 // The Packages summary (when present) lives in summary/ too;
                 // keep it out of the prune sweep so a Scene/folder-only export
-                // never deletes it.
+                // never deletes it. It is NOT one of the AI summaries the
+                // edition gate covers - every edition writes it - so it stays
+                // on the live list unconditionally.
                 liveSummary.Add(DocSnapSummaryWriter.PackagesSummaryMarkdown());
                 liveSummary.Add(DocSnapSummaryWriter.PackagesSummaryJson());
-                liveSummary.Add(DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.AiBundleFileName);
+
+                // The per-Scene / per-folder summaries and the bundle built
+                // from them are only live when this edition writes them.
+                //
+                // Listing them unconditionally is what kept a paid tier's
+                // summary/ folder alive forever inside a Free export: the
+                // pruner's live set is its entire definition of "current",
+                // and naming a file the export never wrote told it to
+                // protect exactly the stale file it exists to remove. The
+                // gate decided not to write these; the sweep has to agree,
+                // or the two halves cancel out.
+                bool aiSummaries = DocSnapEditionGate.WritesAiSummaries;
+                if (aiSummaries)
+                {
+                    liveSummary.Add(DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.AiBundleFileName);
+                }
 
                 foreach (ManifestSceneEntry scene in manifest.scenes)
                 {
                     liveScenes.Add(scene.htmlFile);
                     liveData.Add(scene.jsonFile);
+                    if (!aiSummaries) { continue; }
                     // sceneKey, not sceneName: they diverge as soon as
                     // two Scenes share a name, and pruning on the wrong
                     // one would delete a summary that is still current.
@@ -1251,6 +1293,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 {
                     liveFolders.Add(folder.htmlFile);
                     liveData.Add(folder.jsonFile);
+                    if (!aiSummaries) { continue; }
                     liveSummary.Add(DocSnapSummaryWriter.FolderSummaryMarkdown(folder.folderKey));
                     liveSummary.Add(DocSnapSummaryWriter.FolderSummaryJson(folder.folderKey));
                 }
@@ -1408,10 +1451,22 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             // and a source-files/ mirror written by an earlier export
             // are still physically there; a later single-Scene export
             // has no business declaring they are not.
+            //
+            // "Still physically there" is now checked rather than
+            // assumed, because it stopped being true. The edition
+            // sweep removes a paid tier's leftovers from a folder a
+            // Free export re-uses, and a customer can always delete a
+            // multi-gigabyte .unitypackage by hand - and in both cases
+            // the old code went on recording hasBackup: true, so
+            // export-info.txt said "Project backup: yes" and
+            // versions.html kept its 📦 badge over a file that was not
+            // there. A snapshot claiming a backup nobody has is the
+            // one error in this file somebody could act on and lose
+            // work over.
             if (previous != null)
             {
-                if (!options.makeBackup) { snap.hasBackup = previous.hasBackup; }
-                if (!options.includeFiles) { snap.withFiles = previous.withFiles; }
+                if (!options.makeBackup) { snap.hasBackup = previous.hasBackup && HasBackupOnDisk(siteRoot); }
+                if (!options.includeFiles) { snap.withFiles = previous.withFiles && HasSourceFilesOnDisk(siteRoot); }
             }
 
             if (options.recordChanges && changesBase != null)
@@ -1457,6 +1512,45 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 }
             }
             return snap;
+        }
+
+        // ==========================================
+        // HasBackupOnDisk / HasSourceFilesOnDisk
+        // Whether the two carried-forward artefacts are
+        // actually in the version folder.
+        //
+        // internal so the tests can pin them: these are the two
+        // answers that decide what export-info.txt and the
+        // versions shelf claim about a folder, and "claims a
+        // backup that is not there" is the failure worth a test.
+        // ==========================================
+        internal static bool HasBackupOnDisk(string versionFolder)
+        {
+            if (string.IsNullOrEmpty(versionFolder)) { return false; }
+            return File.Exists(Path.Combine(versionFolder, DocSnapConstants.BackupFileName));
+        }
+
+        internal static bool HasSourceFilesOnDisk(string versionFolder)
+        {
+            if (string.IsNullOrEmpty(versionFolder)) { return false; }
+            string root = Path.Combine(versionFolder, DocSnapConstants.FilesSubFolder);
+
+            // An empty source-files/ is not a source-files/ mirror. The
+            // folder survives an interrupted export, and a snapshot that
+            // says "included file bytes: yes" over an empty directory is
+            // the same lie in a smaller font.
+            if (!Directory.Exists(root)) { return false; }
+            try
+            {
+                return Directory.GetFiles(root, "*", SearchOption.AllDirectories).Length > 0;
+            }
+            catch (Exception)
+            {
+                // Unreadable is not the same as absent, and guessing
+                // "absent" would silently drop a real mirror from the
+                // record. The directory is there; say so.
+                return true;
+            }
         }
 
         // ==========================================

@@ -69,6 +69,24 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 sb.Append("<span class=\"ds-folder-meta\">").Append(manifest.packages.Count).Append("</span></a>\n");
             }
 
+            // The plan this export was made on, one row, always.
+            //
+            // On the dashboard rather than only in the sidebar because
+            // the first question somebody asks of an export they did
+            // not make is "is this all of it?", and the answer is a
+            // property of the plan. The row states the edition without
+            // being clicked, which is the whole point: the reader who
+            // most needs it is the one who does not yet know there is
+            // a page to look for.
+            sb.Append("<a class=\"ds-folder-row\" style=\"margin-bottom:18px;\" href=\"").Append(DocSnapConstants.PlanFileName).Append("\">");
+            sb.Append("<span class=\"ds-folder-path\">🎟️ ").Append(HtmlPageBuilder.I18n("span", null,
+                "Plan — what this export does and does not include",
+                "プラン — このエクスポートに含まれるもの・含まれないもの",
+                "پلن — چه چیزی توی این خروجی هست و چه چیزی نیست")).Append("</span>");
+            sb.Append("<span class=\"ds-folder-meta\">")
+              .Append(HtmlPageBuilder.Escape(Licensing.DocSnapEditionMatrix.DisplayName(Licensing.DocSnapLicense.Edition)))
+              .Append("</span></a>\n");
+
             sb.Append("<div class=\"ds-card\">").Append(HtmlPageBuilder.I18n("h3", null, "Scenes", "シーン", "سین‌ها")).Append("<ul class=\"ds-folder-list\">\n");
             if (manifest.scenes.Count == 0)
             {

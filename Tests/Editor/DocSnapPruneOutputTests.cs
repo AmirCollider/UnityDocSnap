@@ -16,6 +16,7 @@
 // ==========================================
 using System.IO;
 using AmirCollider.UnityDocSnap.Editor.Export;
+using AmirCollider.UnityDocSnap.Editor.Licensing;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
 using AmirCollider.UnityDocSnap.Editor.Summary;
 using NUnit.Framework;
@@ -214,22 +215,48 @@ namespace AmirCollider.UnityDocSnap.Editor.Tests
             Assert.IsFalse(Exists(DocSnapConstants.SiteAssetsSubFolder + "/" + DocSnapConstants.ThumbsSubFolder + "/dead.png"));
         }
 
-        // The Packages summary and the AI bundle belong to the
-        // export as a whole, not to any one Scene or folder, so a
-        // single-item export must not sweep them away.
+        // The Packages summary belongs to the export as a whole,
+        // not to any one Scene or folder, so a single-item export
+        // must not sweep it away. Every edition writes it, so it is
+        // live unconditionally.
         [Test]
         public void ProjectWideSummaries_SurvivePruning()
         {
             MakeVersionFolder();
             Write(DocSnapSummaryWriter.PackagesSummaryMarkdown(), "# packages");
             Write(DocSnapSummaryWriter.PackagesSummaryJson(), "{}");
-            Write(DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.AiBundleFileName, "# bundle");
 
             DocSnapExportService.PruneStaleOutput(_root, ManifestWithScene("Kept", loadedFromDisk: true));
 
             Assert.IsTrue(Exists(DocSnapSummaryWriter.PackagesSummaryMarkdown()));
             Assert.IsTrue(Exists(DocSnapSummaryWriter.PackagesSummaryJson()));
-            Assert.IsTrue(Exists(DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.AiBundleFileName));
+        }
+
+        // The AI bundle is not in that category, and treating it as
+        // though it were is what kept a paid tier's summary/ folder
+        // alive inside a Free export forever.
+        //
+        // The live set is the pruner's entire definition of
+        // "current", so naming a file the export never wrote told it
+        // to protect exactly the stale file it exists to remove. The
+        // gate and the sweep have to agree, or the two halves cancel
+        // out and the folder keeps a bundle nothing regenerates.
+        //
+        // Asserted as an invariant over the edition rather than
+        // against a hard-coded Free: the tier on the machine running
+        // the tests is not something a test can choose, and a
+        // developer with a real Pro key must not see this go red.
+        [Test]
+        public void TheAiBundle_SurvivesOnlyWhereTheEditionWritesIt()
+        {
+            MakeVersionFolder();
+            string bundle = DocSnapConstants.SummarySubFolder + "/" + DocSnapConstants.AiBundleFileName;
+            Write(bundle, "# bundle");
+
+            DocSnapExportService.PruneStaleOutput(_root, ManifestWithScene("Kept", loadedFromDisk: true));
+
+            Assert.AreEqual(DocSnapEditionGate.WritesAiSummaries, Exists(bundle),
+                DocSnapConstants.AiBundleFileName + " must be kept exactly when this edition writes it.");
         }
 
         // The public data/manifest.json is written by the exporter
@@ -266,8 +293,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Tests
             DocSnapExportService.PruneStaleOutput(_root, state);
 
             Assert.IsTrue(Exists(DocSnapConstants.AssetsSubFolder + "/Assets.html"));
-            Assert.IsTrue(Exists(DocSnapSummaryWriter.FolderSummaryMarkdown("Assets")));
             Assert.IsFalse(Exists(DocSnapConstants.AssetsSubFolder + "/Gone.html"));
+
+            // The folder's SUMMARY is a paid output, so it is live only
+            // where the edition writes it. The page beside it is not,
+            // and stays either way - the two must not be conflated:
+            // pruning the page on a Free export would delete the site.
+            Assert.AreEqual(DocSnapEditionGate.WritesAiSummaries,
+                Exists(DocSnapSummaryWriter.FolderSummaryMarkdown("Assets")),
+                "A folder summary must be kept exactly when this edition writes it.");
         }
     }
 }

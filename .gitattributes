@@ -1,0 +1,53 @@
+# ==========================================
+# Unity DocSnap
+#
+# Line endings first, and they matter more here than in
+# most repositories: this package ships C# that Unity
+# compiles on Windows, macOS and Linux, and a .meta file
+# whose endings changed is a file Unity rewrites - which
+# shows up as a diff nobody made, on every machine that
+# is not the one that committed it.
+#
+# Normalising to LF in the repository and letting Git
+# hand out the platform's own endings on checkout is the
+# arrangement that keeps a Windows contributor and a Mac
+# contributor from taking turns reverting each other.
+# ==========================================
+
+* text=auto eol=lf
+
+# --- Sources and data, always text ---
+*.cs        text diff=csharp
+*.md        text
+*.json      text
+*.jsonc     text
+*.asmdef    text
+*.meta      text
+*.yml       text
+*.yaml      text
+*.py        text
+*.sh        text eol=lf
+*.css       text
+*.js        text
+*.html      text
+*.svg       text
+
+# --- Binary, never touched ---
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.otf       binary
+*.zip       binary
+*.unitypackage binary
+
+# --- Kept out of the archive GitHub builds for a release,
+#     so a download is the package and nothing else ---
+.gitattributes  export-ignore
+.gitignore      export-ignore
+.github/        export-ignore
+Tests/          export-ignore

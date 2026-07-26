@@ -205,6 +205,27 @@ namespace AmirCollider.UnityDocSnap.Editor
         public const string IssuesFileName = "issues.html";
         public const string IssuesSummaryName = "issues";
 
+        // ==========================================
+        // The Plan page.
+        //
+        // Every export states, in the site itself, which
+        // edition produced it, what that edition includes,
+        // what it does not, and where to check the licence.
+        //
+        // The reason it is a page rather than a line in the
+        // footer is that "why is there no summary/ folder in
+        // this export?" is a question the output has to be
+        // able to answer on its own. It is read weeks later,
+        // by somebody who was not at the keyboard when it was
+        // made, out of a folder that has been copied to a
+        // share or handed to a client - nowhere near the
+        // Editor window that could have explained it. Without
+        // this page the honest answer ("that is a paid
+        // feature and this export was made on Free") is
+        // indistinguishable from the export having failed.
+        // ==========================================
+        public const string PlanFileName = "plan.html";
+
         // A project that is broken enough to produce tens of
         // thousands of findings does not need every one of them
         // enumerated - it needs the first few hundred and an
