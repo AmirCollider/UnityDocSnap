@@ -73,7 +73,7 @@ Unity DocSnap ships in three editions. **Free needs no key, no account and no ne
 | 📦 **Whole-project `.unitypackage` backup** | — | — | ✅ |
 | ✨ **Your own logo** in the exported sidebar | — | — | ✅ |
 
-**Both paid editions are one-off purchases.** Not subscriptions. One machine per key, and moving to a new computer is self-service — release the old one from `Unity DocSnap ▸ Licence & Pro Features`, or from [the licence page](https://amircollider.n95pluss.workers.dev/license) when that machine is gone. All 1.x updates are included.
+**Both paid editions are one-off purchases.** Not subscriptions. One machine per key, and moving to a new computer is self-service — release the old one from `Unity DocSnap ▸ Licence & Pro Features`, or from [the licence page](https://amircollider.com/license) when that machine is gone. All 1.x updates are included.
 
 → **[Compare all three](https://amircollider.com/unity-docsnap)** · **[Buy Plus](https://amircollider.com/checkout?tier=plus&lang=en)** · **[Buy Pro](https://amircollider.com/checkout?tier=pro&lang=en)**
 
@@ -368,7 +368,7 @@ Unity DocSnap には 3 つのエディションがあります。**無料版は�
 | 📦 **プロジェクト全体の `.unitypackage` バックアップ** | — | — | ✅ |
 | ✨ **自社ロゴ** をエクスポートのサイドバーに | — | — | ✅ |
 
-**有料版はいずれも買い切り**で、サブスクリプションではありません。キー 1 つにつき 1 台で、別のマシンへの移行は自分で行えます(`Unity DocSnap ▸ Licence & Pro Features` から解除するか、そのマシンが手元にない場合は[ライセンスページ](https://amircollider.n95pluss.workers.dev/license)から)。1.x のアップデートはすべて含まれます。
+**有料版はいずれも買い切り**で、サブスクリプションではありません。キー 1 つにつき 1 台で、別のマシンへの移行は自分で行えます(`Unity DocSnap ▸ Licence & Pro Features` から解除するか、そのマシンが手元にない場合は[ライセンスページ](https://amircollider.com/license)から)。1.x のアップデートはすべて含まれます。
 
 → **[Compare all three](https://amircollider.com/unity-docsnap)** · **[Buy Plus](https://amircollider.com/checkout?tier=plus&lang=en)** · **[Buy Pro](https://amircollider.com/checkout?tier=pro&lang=en)**
 
@@ -606,7 +606,7 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 | 📦 **بک‌آپ `.unitypackage` از کل پروژه** | — | — | ✅ |
 | ✨ **لوگوی خودت** توی سایدبار خروجی | — | — | ✅ |
 
-**هر دو نسخه‌ی پولی خرید یک‌باره هستند** — اشتراک ماهانه نیست. هر کد روی یک سیستم، و رفتن به سیستم جدید کاملاً خودسرویس است: سیستم قبلی را از `Unity DocSnap ▸ Licence & Pro Features` آزاد کن، یا اگر آن سیستم دیگر در دسترس نیست از [صفحه‌ی لایسنس](https://amircollider.n95pluss.workers.dev/license). همه‌ی بروزرسانی‌های ۱.x شامل می‌شود.
+**هر دو نسخه‌ی پولی خرید یک‌باره هستند** — اشتراک ماهانه نیست. هر کد روی یک سیستم، و رفتن به سیستم جدید کاملاً خودسرویس است: سیستم قبلی را از `Unity DocSnap ▸ Licence & Pro Features` آزاد کن، یا اگر آن سیستم دیگر در دسترس نیست از [صفحه‌ی لایسنس](https://amircollider.com/license). همه‌ی بروزرسانی‌های ۱.x شامل می‌شود.
 
 ← **[هر سه را مقایسه کن](https://amircollider.com/unity-docsnap)** · **[خرید Plus](https://amircollider.com/checkout?tier=plus&lang=fa)** · **[خرید Pro](https://amircollider.com/checkout?tier=pro&lang=fa)**
 
