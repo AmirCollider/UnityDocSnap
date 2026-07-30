@@ -75,7 +75,7 @@ Unity DocSnap ships in three editions. **Free needs no key, no account and no ne
 
 **Both paid editions are one-off purchases.** Not subscriptions. One machine per key, and moving to a new computer is self-service — release the old one from `Unity DocSnap ▸ Licence & Pro Features`, or from [the licence page](https://amircollider.n95pluss.workers.dev/license) when that machine is gone. All 1.x updates are included.
 
-→ **[Compare all three](https://amircollider.n95pluss.workers.dev/unity-docsnap)** · **[Buy Plus](https://amircollider.n95pluss.workers.dev/unity-docsnap#pricing)** · **[Buy Pro](https://amircollider.n95pluss.workers.dev/unity-docsnap#pricing)**
+→ **[Compare all three](https://amircollider.n95pluss.workers.dev/unity-docsnap)** · **[Buy Plus](https://amircollider.n95pluss.workers.dev/checkout?tier=plus&lang=en)** · **[Buy Pro](https://amircollider.n95pluss.workers.dev/checkout?tier=pro&lang=en)**
 
 **Why Plus exists.** The AI summaries and the Changes page are what most people actually come for, and a lot of those people have no use for CI automation, file copies or project backups. Making them buy the $49.99 tier to get two features means most of them buy nothing at all. Plus is those two, on their own, at $19.99.
 
@@ -609,6 +609,7 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 **هر دو نسخه‌ی پولی خرید یک‌باره هستند** — اشتراک ماهانه نیست. هر کد روی یک سیستم، و رفتن به سیستم جدید کاملاً خودسرویس است: سیستم قبلی را از `Unity DocSnap ▸ Licence & Pro Features` آزاد کن، یا اگر آن سیستم دیگر در دسترس نیست از [صفحه‌ی لایسنس](https://amircollider.n95pluss.workers.dev/license). همه‌ی بروزرسانی‌های ۱.x شامل می‌شود.
 
 ← **[هر سه را مقایسه کن](https://amircollider.n95pluss.workers.dev/unity-docsnap)** · **[خرید Plus](https://amircollider.n95pluss.workers.dev/checkout?tier=plus&lang=fa)** · **[خرید Pro](https://amircollider.n95pluss.workers.dev/checkout?tier=pro&lang=fa)**
+
 **‏Plus برای چیست؟** خروجی AI و صفحه‌ی تغییرات همان چیزی است که بیشتر آدم‌ها واقعاً برایش می‌آیند، و خیلی از همان آدم‌ها هیچ کاری با اتوماسیون CI، کپی فایل‌ها یا بک‌آپ پروژه ندارند. اگر مجبورشان کنی برای دو تا قابلیت نسخه‌ی ۴۹.۹۹ دلاری بخرند، بیشترشان هیچ چیزی نمی‌خرند. نسخه‌ی Plus همان دو تاست، تنها، با ۱۹.۹۹ دلار.
 
 **یک توضیح درباره‌ی نسخه‌ی رایگان.** هرچه در سه ردیف اول است، تمامِ اکسپورتر است — نه محدودیت زمانی دارد نه پیام مزاحم. نسخه‌ی رایگان توی استفاده‌ی معمولی دقیقاً به سه دیوار می‌خورد: سه اسنپ‌شات نگه می‌دارد نه همه را (نسخه‌ی Plus پنج تا)، به‌جای استفاده‌ی دوباره از سین‌های تغییرنکرده همه‌چیز را دوباره اسکن می‌کند، و یک خط کردیت توی فوتر سایتی که می‌سازد می‌نویسد. اگر گزینه‌ای را روشن کنی که لایسنسش را نداری، خروجی باز هم گرفته می‌شود — آن گزینه رد می‌شود و دیالوگ پایان کار می‌گوید کدام‌ها و با چه قیمتی. تنها استثنا `DocSnapAPI` است که صریحاً رد می‌کند، چون یک بیلد اجنت که نصفه‌نیمه موفق شود، پوشه‌ی مستنداتی منتشر می‌کند که دقیقاً خروجی‌هایی را ندارد که پایپ‌لاین برایشان ساخته شده بود — و سبز هم می‌شود.
