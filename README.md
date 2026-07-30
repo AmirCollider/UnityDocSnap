@@ -75,7 +75,7 @@ Unity DocSnap ships in three editions. **Free needs no key, no account and no ne
 
 **Both paid editions are one-off purchases.** Not subscriptions. One machine per key, and moving to a new computer is self-service — release the old one from `Unity DocSnap ▸ Licence & Pro Features`, or from [the licence page](https://amircollider.n95pluss.workers.dev/license) when that machine is gone. All 1.x updates are included.
 
-→ **[Compare all three](https://amircollider.n95pluss.workers.dev/unity-docsnap)** · **[Buy Plus](https://amircollider.sell.app)** · **[Buy Pro](https://amircollider.sell.app)**
+→ **[Compare all three](https://amircollider.n95pluss.workers.dev/unity-docsnap)** · **[Buy Plus]([https://amircollider.sell.app](https://amircollider.n95pluss.workers.dev/unity-docsnap#pricing))** · **[Buy Pro]([https://amircollider.sell.app](https://amircollider.n95pluss.workers.dev/unity-docsnap#pricing))**
 
 **Why Plus exists.** The AI summaries and the Changes page are what most people actually come for, and a lot of those people have no use for CI automation, file copies or project backups. Making them buy the $49.99 tier to get two features means most of them buy nothing at all. Plus is those two, on their own, at $19.99.
 
