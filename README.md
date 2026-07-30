@@ -370,7 +370,7 @@ Unity DocSnap には 3 つのエディションがあります。**無料版は�
 
 **有料版はいずれも買い切り**で、サブスクリプションではありません。キー 1 つにつき 1 台で、別のマシンへの移行は自分で行えます(`Unity DocSnap ▸ Licence & Pro Features` から解除するか、そのマシンが手元にない場合は[ライセンスページ](https://amircollider.n95pluss.workers.dev/license)から)。1.x のアップデートはすべて含まれます。
 
-→ **[3 つを比較](https://amircollider.n95pluss.workers.dev/unity-docsnap)** · **[Plus を購入](https://amircollider.sell.app)** · **[Pro を購入](https://amircollider.sell.app)**
+→ **[Compare all three](https://amircollider.n95pluss.workers.dev/unity-docsnap)** · **[Buy Plus](https://amircollider.n95pluss.workers.dev/checkout?tier=plus&lang=en)** · **[Buy Pro](https://amircollider.n95pluss.workers.dev/checkout?tier=pro&lang=en)**
 
 **Plus がある理由。** 多くの方が実際に求めているのは AI サマリーと変更ページであり、その大半は CI 自動化・ファイルコピー・プロジェクトバックアップを必要としていません。その 2 つのために $49.99 のエディションを買わせると、結局ほとんどの方は何も購入しません。Plus はその 2 つだけを $19.99 で提供します。
 
@@ -608,8 +608,7 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 
 **هر دو نسخه‌ی پولی خرید یک‌باره هستند** — اشتراک ماهانه نیست. هر کد روی یک سیستم، و رفتن به سیستم جدید کاملاً خودسرویس است: سیستم قبلی را از `Unity DocSnap ▸ Licence & Pro Features` آزاد کن، یا اگر آن سیستم دیگر در دسترس نیست از [صفحه‌ی لایسنس](https://amircollider.n95pluss.workers.dev/license). همه‌ی بروزرسانی‌های ۱.x شامل می‌شود.
 
-← **[هر سه را مقایسه کن](https://amircollider.n95pluss.workers.dev/unity-docsnap)** · **[خرید Plus](https://amircollider.sell.app)** · **[خرید Pro](https://amircollider.sell.app)**
-
+← **[هر سه را مقایسه کن](https://amircollider.n95pluss.workers.dev/unity-docsnap)** · **[خرید Plus](https://amircollider.n95pluss.workers.dev/checkout?tier=plus&lang=fa)** · **[خرید Pro](https://amircollider.n95pluss.workers.dev/checkout?tier=pro&lang=fa)**
 **‏Plus برای چیست؟** خروجی AI و صفحه‌ی تغییرات همان چیزی است که بیشتر آدم‌ها واقعاً برایش می‌آیند، و خیلی از همان آدم‌ها هیچ کاری با اتوماسیون CI، کپی فایل‌ها یا بک‌آپ پروژه ندارند. اگر مجبورشان کنی برای دو تا قابلیت نسخه‌ی ۴۹.۹۹ دلاری بخرند، بیشترشان هیچ چیزی نمی‌خرند. نسخه‌ی Plus همان دو تاست، تنها، با ۱۹.۹۹ دلار.
 
 **یک توضیح درباره‌ی نسخه‌ی رایگان.** هرچه در سه ردیف اول است، تمامِ اکسپورتر است — نه محدودیت زمانی دارد نه پیام مزاحم. نسخه‌ی رایگان توی استفاده‌ی معمولی دقیقاً به سه دیوار می‌خورد: سه اسنپ‌شات نگه می‌دارد نه همه را (نسخه‌ی Plus پنج تا)، به‌جای استفاده‌ی دوباره از سین‌های تغییرنکرده همه‌چیز را دوباره اسکن می‌کند، و یک خط کردیت توی فوتر سایتی که می‌سازد می‌نویسد. اگر گزینه‌ای را روشن کنی که لایسنسش را نداری، خروجی باز هم گرفته می‌شود — آن گزینه رد می‌شود و دیالوگ پایان کار می‌گوید کدام‌ها و با چه قیمتی. تنها استثنا `DocSnapAPI` است که صریحاً رد می‌کند، چون یک بیلد اجنت که نصفه‌نیمه موفق شود، پوشه‌ی مستنداتی منتشر می‌کند که دقیقاً خروجی‌هایی را ندارد که پایپ‌لاین برایشان ساخته شده بود — و سبز هم می‌شود.
