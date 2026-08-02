@@ -1,4 +1,4 @@
-# Changelog
+# Changelog 
 
 All notable changes to Unity DocSnap are documented in this file.
 
