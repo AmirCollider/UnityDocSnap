@@ -446,7 +446,7 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
                 {
                     if (!IsDocSnapVersionFolder(folder))
                     {
-                        error = """ + folder + "" does not look like a Unity DocSnap version folder, so it was left alone.";
+                        error = "\"" + folder + "\" does not look like a Unity DocSnap version folder, so it was left alone.";
                         return false;
                     }
                     Directory.Delete(folder, true);
