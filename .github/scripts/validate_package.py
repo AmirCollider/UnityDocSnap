@@ -321,8 +321,11 @@ check(
 )
 
 # --- Recursive directory deletion. There are exactly
-#     three of these, all in code that has proved it
-#     owns the folder first. A fourth is not
+#     five of these, all in code that has proved it
+#     owns the folder first - three in the output
+#     pruner and legacy cleanup, two in DocSnapVersioning
+#     for the Pro "delete a snapshot" and "clear the
+#     output folder" buttons. A sixth is not
 #     automatically wrong, but it is never something
 #     to add without noticing.
 recursive_deletes = []
@@ -333,7 +336,7 @@ for path, source in sorted(editor_sources.items()):
 
 check(
     "recursive deletes stay accounted for (found {})".format(len(recursive_deletes)),
-    len(recursive_deletes) <= 3,
+    len(recursive_deletes) <= 5,
     ", ".join(recursive_deletes),
 )
 
