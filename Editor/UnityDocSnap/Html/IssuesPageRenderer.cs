@@ -184,9 +184,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             }
 
             sb.Append(HtmlPageBuilder.I18n("span", null,
-                "All " + totals.VendorFindings + " of these sit in folders Unity or a package installed into Assets/ — TextMesh Pro, the render-pipeline Settings a template creates, package Samples. They cannot be edited or deleted, so they are hidden by default.",
-                "これら " + totals.VendorFindings + " 件はすべて、Unity かパッケージが Assets/ にインストールしたフォルダ内にあります(TextMesh Pro、テンプレートが作る Settings、パッケージの Samples など)。編集も削除もできないため、既定では非表示です。",
-                "همه‌ی این " + totals.VendorFindings + " مورد داخل پوشه‌هایی هستن که Unity یا یه پکیج توی Assets/ نصب کرده — TextMesh Pro، پوشه‌ی Settings که تمپلیت می‌سازه، Samples پکیج‌ها. نه قابل ویرایشن نه قابل حذف، پس به‌صورت پیش‌فرض مخفی‌ان."));
+                "All " + totals.VendorFindings + " of these belong to Unity or to an installed package — a folder one of them wrote into Assets/ (TextMesh Pro, template Settings, package Samples), or a file Unity itself generates and maintains (a render-pipeline Renderer asset, a Scene template). Their fields are not authored in any Inspector you open, so they are hidden by default.",
+                "これら " + totals.VendorFindings + " 件はすべて Unity かインストール済みパッケージのものです。Assets/ 配下に書き込まれたフォルダ(TextMesh Pro、テンプレートの Settings、パッケージの Samples)か、Unity 自身が生成・管理するファイル(レンダーパイプラインの Renderer アセット、シーンテンプレート)です。どちらもインスペクターで編集する類のものではないため、既定では非表示です。",
+                "همه‌ی این " + totals.VendorFindings + " مورد مال Unity یا یکی از پکیج‌های نصب‌شده‌ست — یا داخل پوشه‌ای هستن که یکی‌شون توی Assets/ ساخته (TextMesh Pro، پوشه‌ی Settings تمپلیت، Samples پکیج‌ها)، یا فایلی‌ان که خود Unity می‌سازه و نگه می‌داره (اسیت Renderer رندرپایپلاین، تمپلیت سین). فیلدهاشون توی هیچ اینسپکتوری که تو باز می‌کنی نوشته نشده، پس به‌صورت پیش‌فرض مخفی‌ان."));
 
             sb.Append(" ").Append(HtmlPageBuilder.I18n("span", null,
                 "Add your own vendor folders in Project Settings ▸ Unity DocSnap.",

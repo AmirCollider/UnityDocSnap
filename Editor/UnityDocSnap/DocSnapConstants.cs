@@ -20,7 +20,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // reported a version the package had not been on for two
         // releases). PackageVersionTests now fails the build if
         // the two ever disagree again.
-        public const string Version = "1.0.0";
+        public const string Version = "1.0.1";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
 
@@ -47,7 +47,25 @@ namespace AmirCollider.UnityDocSnap.Editor
         // thing nobody notices until a customer clicks a dead
         // link.
         // ==========================================
-        public const string SiteBaseUrl = "https://amircollider.n95pluss.workers.dev";
+        // The home the tool points at. It moved off the
+        // workers.dev hostname the first release shipped with, and
+        // it is spelled here once because a link that is right in
+        // the About window and dead in the exported footer is worse
+        // than one that is dead in both: nobody reports it.
+        public const string SiteBaseUrl = "https://amircollider.com";
+
+        // Where "Made with 🧋 by AmirCollider" goes, in the Editor
+        // and in every exported page's sidebar. The site, not the
+        // GitHub profile: the footer credits the author, and the
+        // repository already has its own link right beside it.
+        public const string AuthorUrl = SiteBaseUrl;
+
+        // Unity DirectTMP - the sibling package that makes Persian
+        // and Arabic actually render. DocSnap uses it in its own
+        // Editor windows when the project has it, and the exported
+        // site points a reader at it, so the URL lives here with
+        // every other one.
+        public const string DirectTmpUrl = SiteBaseUrl + "/unity-directtmp";
 
         // Where the Editor talks to the licence server. Split
         // from SiteBaseUrl only so a self-hosted or staging

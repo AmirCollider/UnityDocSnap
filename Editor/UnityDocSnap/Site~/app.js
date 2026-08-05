@@ -591,6 +591,119 @@
   }
 
   // ==========================================
+  // Packages page filtering and sorting
+  //
+  // The page states four counts - third-party, Unity,
+  // built-in, updates available - and used to print all
+  // sixty-odd packages in fixed sections underneath them.
+  // The only one of those numbers anybody arrives at this
+  // page about is "updates available", and answering it
+  // meant reading every card looking for a badge.
+  //
+  // The tiles are now the filter, the sort re-cuts the same
+  // list without a reload, and ?group= lets the dashboard's
+  // "Updatable packages" tile link straight into the
+  // answer.
+  // ==========================================
+  function wirePackageFilters() {
+    var list = document.querySelector('[data-pkg-list]');
+    if (!list) { return; }
+
+    var cards = [];
+    each('.ds-pkg-card', function (card) { cards.push(card); }, list);
+
+    var search = document.querySelector('[data-pkg-search]');
+    var sorter = document.querySelector('[data-pkg-sort]');
+    var empty = document.querySelector('[data-pkg-empty]');
+    var group = 'all';
+    var timer = null;
+
+    // The order the exporter wrote them in, kept so "Grouped"
+    // can be restored without re-deriving what the grouping was.
+    for (var i = 0; i < cards.length; i++) { cards[i].__dsRank = i; }
+
+    var params = new URLSearchParams(window.location.search || '');
+    var wanted = params.get('group');
+    if (wanted) { group = wanted; }
+    var wantedText = params.get('q');
+    if (wantedText && search) { search.value = wantedText; }
+
+    function matches(card) {
+      if (group === 'updates') { return card.getAttribute('data-pkg-update') === '1'; }
+      return group === 'all' || card.getAttribute('data-pkg-group') === group;
+    }
+
+    function apply() {
+      var q = search ? search.value.trim().toLowerCase() : '';
+      var shown = 0;
+
+      for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        var okText = !q || (card.getAttribute('data-pkg-text') || '').indexOf(q) >= 0;
+        var visible = matches(card) && okText;
+        card.classList.toggle('ds-filtered-out', !visible);
+        if (visible) { shown++; }
+      }
+
+      if (empty) { empty.hidden = shown !== 0; }
+
+      each('[data-pkg-filter]', function (tile) {
+        var isActive = tile.getAttribute('data-pkg-filter') === group;
+        tile.classList.toggle('is-active', isActive);
+        tile.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
+    }
+
+    function resort() {
+      var mode = sorter ? sorter.value : 'group';
+      var sorted = cards.slice();
+
+      sorted.sort(function (a, b) {
+        if (mode === 'name') {
+          var an = a.getAttribute('data-pkg-name') || '';
+          var bn = b.getAttribute('data-pkg-name') || '';
+          return an < bn ? -1 : (an > bn ? 1 : 0);
+        }
+        if (mode === 'updates') {
+          var au = a.getAttribute('data-pkg-update') === '1' ? 0 : 1;
+          var bu = b.getAttribute('data-pkg-update') === '1' ? 0 : 1;
+          if (au !== bu) { return au - bu; }
+        }
+        return a.__dsRank - b.__dsRank;
+      });
+
+      // Re-appending a node that is already in the list moves it,
+      // so this is a reorder rather than a rebuild - the cards
+      // keep their listeners and the browser keeps their layout.
+      for (var i = 0; i < sorted.length; i++) { list.appendChild(sorted[i]); }
+    }
+
+    each('[data-pkg-filter]', function (tile) {
+      tile.addEventListener('click', function (evt) {
+        var next = evt.currentTarget.getAttribute('data-pkg-filter');
+        group = (group === next && next !== 'all') ? 'all' : next;
+        apply();
+      });
+    });
+
+    if (sorter) {
+      sorter.addEventListener('change', function () { resort(); apply(); });
+    }
+
+    if (search) {
+      search.addEventListener('input', function () {
+        if (timer) { clearTimeout(timer); }
+        timer = setTimeout(apply, 120);
+      });
+      search.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { search.value = ''; apply(); }
+      });
+    }
+
+    apply();
+  }
+
+  // ==========================================
   // revealHashTarget()
   //
   // Cross-page links, search results and every row on
@@ -917,6 +1030,7 @@
     wireTreeControls();
     wireTreeFilter();
     wireIssueFilters();
+    wirePackageFilters();
     wireBackToTop();
     wireCopyButtons();
     wireSearch();

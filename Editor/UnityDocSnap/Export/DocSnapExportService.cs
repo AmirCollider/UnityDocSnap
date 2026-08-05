@@ -1215,6 +1215,22 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             // which is in any event a mess rather than a loss.
             if (!manifest.loadedFromDisk)
             {
+                // Said only when there was actually something to lose.
+                //
+                // On a project's FIRST export there is no record because
+                // there has been no export - the managed folders are
+                // empty, the sweep would have deleted nothing, and
+                // nothing was skipped in any meaningful sense. Warning
+                // there put a yellow line in the console of every new
+                // user's very first run, about a file they have never
+                // heard of, recommending the exact action they had just
+                // taken. A warning that fires when everything is fine is
+                // a warning people learn to scroll past, which costs the
+                // one below - where the record really is missing and a
+                // previous export's pages really are sitting there
+                // un-swept - the attention it needs.
+                if (!HasManagedOutput(outputRoot)) { return; }
+
                 Debug.LogWarning("[Unity DocSnap] No previous export record was found (\""
                     + DocSnapConstants.InternalStateRelativePath
                     + "\" is missing or unreadable), so stale-file cleanup was skipped to avoid deleting"
@@ -1317,6 +1333,48 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             {
                 Debug.LogWarning("[Unity DocSnap] Could not prune stale output: " + ex.Message);
             }
+        }
+
+        // ==========================================
+        // HasManagedOutput
+        // Whether any of the folders PruneStaleOutput sweeps
+        // already holds a file.
+        //
+        // This is the difference between "the record is gone
+        // and a previous export's output is at risk" - worth
+        // a warning - and "this project has never been
+        // exported", which is not an event at all. Only the
+        // folders the sweep would touch are counted, so a
+        // version folder holding nothing but the stylesheet
+        // this run just wrote still reads as empty.
+        // ==========================================
+        private static bool HasManagedOutput(string outputRoot)
+        {
+            string[] managed =
+            {
+                DocSnapConstants.ScenesSubFolder,
+                DocSnapConstants.AssetsSubFolder,
+                DocSnapConstants.DataSubFolder,
+                DocSnapConstants.SummarySubFolder
+            };
+
+            foreach (string subFolder in managed)
+            {
+                try
+                {
+                    string absolute = Path.Combine(outputRoot, subFolder.Replace('/', Path.DirectorySeparatorChar));
+                    if (!Directory.Exists(absolute)) { continue; }
+                    if (Directory.GetFiles(absolute, "*", SearchOption.TopDirectoryOnly).Length > 0) { return true; }
+                }
+                catch
+                {
+                    // An unreadable folder is not proof of an empty one, so
+                    // err towards saying something rather than towards
+                    // silence.
+                    return true;
+                }
+            }
+            return false;
         }
 
         // ==========================================

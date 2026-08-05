@@ -631,6 +631,23 @@ a.ds-badge.warn:hover { color: var(--danger); border-color: var(--danger); }
 .ds-inline-filter:focus { border-color: var(--accent); background: var(--surface); }
 .ds-inline-filter::placeholder { color: var(--text-faint); }
 
+/* Its sibling for the one control that is a choice rather
+   than a search: the packages sort. Same height and same
+   chrome so a card header with both reads as one toolbar. */
+.ds-inline-select {
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+  max-width: 100%;
+}
+.ds-inline-select:focus { border-color: var(--accent); background: var(--surface); }
+
 .ds-chip-btn {
   font-size: 11.5px;
   font-weight: 600;
@@ -662,6 +679,15 @@ a.ds-badge.warn:hover { color: var(--danger); border-color: var(--danger); }
 .ds-stat-tile.ds-tile-warn .ds-stat-num { color: var(--tile-warn); }
 .ds-stat-tile.ds-tile-lav .ds-stat-num { color: var(--tile-lav); }
 .ds-stat-tile.ds-tile-pink .ds-stat-num { color: var(--tile-pink); }
+
+/* A stat tile that goes somewhere. Same box as the tiles
+   beside it on purpose - a reader should not have to learn
+   which of two identical-looking boxes is clickable - so
+   the affordance is a hover state and a cursor, not a
+   different shape. */
+.ds-stat-link { display: block; text-decoration: none; color: inherit; transition: border-color .12s ease, background .12s ease; }
+.ds-stat-link:hover { border-color: var(--accent); background: var(--accent-soft); text-decoration: none; }
+.ds-stat-link .ds-stat-label::after { content: " →"; opacity: .45; }
 
 /* ==========================================
    Rows (dashboard lists)
@@ -1105,6 +1131,13 @@ a.ds-ref-chip:hover { background: var(--accent); color: var(--accent-contrast); 
 .ds-array-more { color: var(--text-faint); font-size: 11px; margin-top: 5px; }
 .ds-empty-note { color: var(--text-faint); font-size: 12.5px; padding: 6px 0; margin: 0; }
 
+/* A line that exists in some languages and not others - a
+   note about a problem only a Persian reader has, say.
+   The element is emitted with an empty text for the
+   languages it does not apply to, and collapses rather
+   than leaving a gap where a sentence used to be. */
+.ds-lang-only:empty { display: none; }
+
 /* ==========================================
    Thumbnails and media
    ========================================== */
@@ -1392,10 +1425,15 @@ html[dir=rtl] .ds-issue-side { align-items: flex-start; }
 .ds-pkg-id { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); overflow-wrap: anywhere; direction: ltr; unicode-bidi: isolate; }
 .ds-pkg-author { font-size: 11px; color: var(--text-faint); margin-top: 3px; }
 .ds-pkg-desc { font-size: 12px; color: var(--text-dim); margin: 7px 0 3px; }
-.ds-module-list { list-style: none; margin: 7px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 2px 14px; }
-.ds-module-list li { display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; }
-.ds-module-name { color: var(--text-dim); overflow-wrap: anywhere; }
-.ds-module-ver { margin-inline-start: auto; font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); }
+/* Built-in engine modules. There are typically fifty, none
+   of them arrived by a decision anybody made, and a full
+   card each buries the two that did - so they share the
+   grid and the filters but take a quarter of the room. */
+.ds-pkg-compact { border-inline-start-color: var(--border); }
+.ds-pkg-compact .ds-pkg-head { padding: 7px 12px 6px; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
+.ds-pkg-compact .ds-pkg-head h4 { font-size: 12px; font-weight: 550; }
+.ds-pkg-compact .ds-pkg-body { padding: 6px 12px 8px; }
+
 
 /* ==========================================
    Export info card

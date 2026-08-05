@@ -109,8 +109,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
                 // Per file, not per folder: an exported folder routinely
                 // mixes the author's own art with a package's installed
-                // assets, and only the file's own path can tell them apart.
-                sink.SetOwnerPath(path);
+                // assets. The file's TYPE is asked as well as its path,
+                // because a Unity-generated configuration asset - a URP
+                // Renderer2D.asset, a .scenetemplate - is Unity's wherever
+                // the project files it, and every project that organises
+                // its folders at all files those somewhere other than
+                // Assets/Settings.
+                sink.SetOwnerPath(path, file.Get("mainTypeFullName").AsString(""));
 
                 if (string.Equals(file.Get("mainType").AsString(""), "Unknown", StringComparison.Ordinal))
                 {
@@ -545,8 +550,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
 
             public void SetOwnerPath(string projectRelativePath)
             {
-                _owner = DocSnapVendorPaths.Classify(projectRelativePath);
-                _ownerNote = DocSnapVendorPaths.Describe(projectRelativePath);
+                SetOwnerPath(projectRelativePath, null);
+            }
+
+            // assetTypeFullName is the namespace-qualified main type of the
+            // file being scanned, or null for a scope (a Scene) where the
+            // question does not apply.
+            public void SetOwnerPath(string projectRelativePath, string assetTypeFullName)
+            {
+                _owner = DocSnapVendorPaths.Classify(projectRelativePath, assetTypeFullName);
+                _ownerNote = DocSnapVendorPaths.Describe(projectRelativePath, assetTypeFullName);
             }
 
             public bool OwnerIsMine

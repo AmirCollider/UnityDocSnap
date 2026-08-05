@@ -317,6 +317,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Assets
             node.Set("guid", guid);
             node.Set("mainType", mainType != null ? mainType.Name : "Unknown");
 
+            // The namespace-qualified name alongside the short one. The
+            // health report needs it to tell a URP Renderer2DData - which
+            // Unity writes, breaks and cannot be hand-fixed - from a
+            // project's own class that happens to share the short name.
+            // Short names collide; full ones do not.
+            if (mainType != null && !string.IsNullOrEmpty(mainType.FullName))
+            {
+                node.Set("mainTypeFullName", mainType.FullName);
+            }
+
             string absolutePath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", path));
             ReadFileSystemInfo(absolutePath, node);
 

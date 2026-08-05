@@ -47,6 +47,11 @@ namespace AmirCollider.UnityDocSnap.Editor
         // documenting somebody else's imported plugin folder.
         private string _excludes = "";
 
+        // Set by the Export button, acted on after the scroll view
+        // has been closed. Not serialized: a request that survived a
+        // domain reload would fire an export nobody just asked for.
+        [System.NonSerialized] private bool _exportRequested;
+
         private Vector2 _scroll;
         private VersionsState _registry;
         private string[] _existingVersions = new string[0];
@@ -155,6 +160,8 @@ namespace AmirCollider.UnityDocSnap.Editor
             int newUiLang = EditorGUILayout.Popup(_uiLang, LangNames);
             if (newUiLang != _uiLang) { _uiLang = newUiLang; DocSnapSettings.WindowLanguage = DocSnapLanguages.CodeAt(_uiLang); }
             EditorGUILayout.EndHorizontal();
+
+            DrawDirectTmpNotice();
 
             DrawSeparator();
 
@@ -366,10 +373,19 @@ namespace AmirCollider.UnityDocSnap.Editor
             GUILayout.Space(14);
 
             // ---- Export button ----
+            //
+            // The click is only RECORDED here. RunExport opens modal
+            // dialogs and closes this window, and doing either between
+            // BeginScrollView and EndScrollView leaves Unity's layout
+            // stack with a group nobody closed - which is the
+            // "EndLayoutGroup: BeginLayoutGroup must be called first"
+            // every single export used to print. It runs below, after
+            // the scroll view has been ended and there is nothing left
+            // on the stack to unbalance.
             var big = new GUIStyle(GUI.skin.button) { fontSize = 14, fixedHeight = 40 };
             if (GUILayout.Button("🚀  " + L("Export now", "今すぐエクスポート", "همین حالا خروجی بگیر"), big))
             {
-                RunExport();
+                _exportRequested = true;
             }
 
             GUILayout.Space(6);
@@ -381,6 +397,62 @@ namespace AmirCollider.UnityDocSnap.Editor
 
             GUILayout.Space(8);
             EditorGUILayout.EndScrollView();
+
+            // Outside every layout group, and out of the GUI pass
+            // altogether: see the Export button above. RunExport opens
+            // modal dialogs and closes this window, and neither belongs
+            // inside OnGUI at all.
+            if (_exportRequested)
+            {
+                _exportRequested = false;
+                EditorApplication.delayCall += RunExportDeferred;
+            }
+        }
+
+        private void RunExportDeferred()
+        {
+            // The window can be closed between the click and this tick.
+            // Unity's fake-null makes that checkable and worth checking.
+            if (this == null) { return; }
+            RunExport();
+        }
+
+        // ==========================================
+        // DrawDirectTmpNotice
+        //
+        // Persian in this window is drawn by IMGUI, and IMGUI
+        // joins nothing and reorders nothing - so without help the
+        // translation on screen is a row of disconnected letters
+        // running backwards. Unity DirectTMP supplies that help
+        // and DocSnapEditorText uses it automatically the moment
+        // the package is in the project.
+        //
+        // The one line below is for the project that does not have
+        // it. Without the line, somebody who switched this window
+        // to فارسی sees mangled text and concludes the translation
+        // is broken - which is both wrong and unfixable from where
+        // they are standing. Shown ONLY in that state: an English
+        // or Japanese user never sees it, and neither does a
+        // Persian user whose project already has the package.
+        // ==========================================
+        private void DrawDirectTmpNotice()
+        {
+            if (!DocSnapEditorText.NeedsDirectTmp(UiLangCode)) { return; }
+
+            GUILayout.Space(4);
+            EditorGUILayout.HelpBox(
+                L("Unity's own windows cannot join Arabic-script letters or lay out right-to-left text, so this window's Persian is drawn unjoined and reversed."
+                  + " Installing Unity DirectTMP fixes it here and in your game.",
+                  "Unity のウィンドウはアラビア文字の連結も右から左へのレイアウトも行わないため、このウィンドウのペルシャ語は分離した状態で逆順に描画されます。"
+                  + " Unity DirectTMP を導入すると、ここでもゲーム内でも解決します。",
+                  "ویندوزهای خود یونیتی نه حروف عربی/فارسی رو به هم وصل می‌کنن و نه متن راست‌به‌چپ رو درست می‌چینن،"
+                  + " برای همین متن فارسی این پنجره جدا‌جدا و برعکس دیده می‌شه. با نصب Unity DirectTMP، هم اینجا و هم داخل بازی‌ات درست می‌شه."),
+                MessageType.Info);
+
+            if (GUILayout.Button(L("Get Unity DirectTMP (free)", "Unity DirectTMP を入手(無料)", "دریافت Unity DirectTMP (رایگان)")))
+            {
+                Application.OpenURL(DocSnapConstants.DirectTmpUrl);
+            }
         }
 
         // ==========================================
@@ -448,7 +520,12 @@ namespace AmirCollider.UnityDocSnap.Editor
             }
 
             Close();
-            DocSnapExportService.ExportWithOptions(options);
+
+            // One more tick, past Close(). The export runs for minutes
+            // behind a progress bar of its own; starting it while this
+            // window is still being torn down is how a closed window
+            // ends up drawing.
+            EditorApplication.delayCall += () => DocSnapExportService.ExportWithOptions(options);
         }
 
         // ==========================================
@@ -456,7 +533,11 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         private string L(string en, string ja, string fa)
         {
-            return DocSnapText.Resolve(DocSnapLanguages.CodeAt(_uiLang), en, ja, fa);
+            // DocSnapEditorText, not DocSnapText: this string is about
+            // to be DRAWN by IMGUI, which joins nothing and reorders
+            // nothing, so Persian arrives on screen backwards and
+            // unjoined unless something shapes it first.
+            return DocSnapEditorText.L(DocSnapLanguages.CodeAt(_uiLang), en, ja, fa);
         }
 
         private static int LangIndex(string code)

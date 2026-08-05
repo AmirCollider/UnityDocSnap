@@ -58,7 +58,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Licensing
 
         private static string L(string en, string ja, string fa)
         {
-            return DocSnapText.Resolve(Lang, en, ja, fa);
+            // Shaped for IMGUI - see DocSnapEditorText.
+            return DocSnapEditorText.L(Lang, en, ja, fa);
         }
 
         // ==========================================

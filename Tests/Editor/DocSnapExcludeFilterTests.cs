@@ -86,6 +86,39 @@ namespace AmirCollider.UnityDocSnap.Editor.Tests
             Assert.AreEqual(3, filter.Patterns.Count);
         }
 
+        // ==========================================
+        // Applied, and not advertised.
+        //
+        // DocSnap adds one rule of its own - its output folder, on
+        // the rare occasion it sits inside Assets/. That is the tool
+        // keeping out of its own way, not a decision the project
+        // made, and listing it under "🚫 Excluded from this export"
+        // put a card on the dashboard of every export whose honest
+        // answer was "nothing was excluded" - naming a folder the
+        // reader had never chosen to leave out.
+        // ==========================================
+        [Test]
+        public void AnInternalPrefix_FiltersWithoutBeingReported()
+        {
+            DocSnapExcludeFilter filter = DocSnapExcludeFilter.Parse("");
+            filter.AddInternalPrefix("Assets/UnityDocSnap_Output");
+
+            Assert.IsTrue(filter.IsExcluded("Assets/UnityDocSnap_Output/V1.0.0/index.html"));
+            Assert.IsFalse(filter.IsExcluded("Assets/Scripts/Mine.cs"));
+            CollectionAssert.IsEmpty(filter.Patterns,
+                "an internal rule is the tool's own plumbing and must not read as a project's choice");
+        }
+
+        [Test]
+        public void AUserTypedPrefix_IsStillReported()
+        {
+            DocSnapExcludeFilter filter = DocSnapExcludeFilter.Parse("");
+            filter.AddPrefix("Assets/Plugins");
+
+            Assert.IsTrue(filter.IsExcluded("Assets/Plugins/x.dll"));
+            Assert.Contains("Assets/Plugins", filter.Patterns);
+        }
+
         [Test]
         public void WildcardMatch_HandlesConsecutiveStarsWithoutBlowingUp()
         {

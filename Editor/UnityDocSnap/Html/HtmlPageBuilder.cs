@@ -546,7 +546,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
 
             sb.Append("<div class=\"ds-sidebar-footer\">");
             sb.Append(I18n("span", null, "Made with \uD83E\uDDCB by", "\uD83E\uDDCB を込めて", "با \uD83E\uDDCB ساخته‌شده توسط"));
-            sb.Append(" <a href=\"").Append(DocSnapConstants.GithubUrl).Append("\">").Append(DocSnapConstants.Author).Append("</a></div>\n");
+            // The author credit points at the author's SITE, not at the
+            // repository. The page footer two functions below already
+            // links the repository, and spells it "github.com/…" so it
+            // says where it goes; a name is a person, and clicking a
+            // person's name expecting them and arriving at a git history
+            // is the wrong destination twice over.
+            sb.Append(" <a href=\"").Append(DocSnapConstants.AuthorUrl)
+              .Append("\" target=\"_blank\" rel=\"noopener\">").Append(DocSnapConstants.Author).Append("</a></div>\n");
             sb.Append("</aside>\n");
             return sb.ToString();
         }

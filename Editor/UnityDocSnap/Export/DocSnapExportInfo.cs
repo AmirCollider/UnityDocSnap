@@ -327,6 +327,15 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         // renders one single stat grid right below this
         // card, so the same numbers no longer appear twice
         // with slightly different labels.
+        //
+        // The export MOMENT is now stated once for the same
+        // reason. It used to appear three times on one
+        // screen: as a raw UTC ISO string in the page
+        // header, as a local stamp here, and as the same ISO
+        // string again on a line of its own labelled "UTC".
+        // export-info.json and export-info.txt still carry
+        // both forms - those are read by programs, and by
+        // people six months later, and neither can hover.
         // ==========================================
         public static string RenderCard(VersionSnapshot snap)
         {
@@ -336,10 +345,25 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
             sb.Append(HtmlPageBuilder.I18n("h3", null, "Export Info", "エクスポート情報", "اطلاعات خروجی"));
 
             sb.Append("<div class=\"ds-info-lines\">");
-            sb.Append(InfoLine("🏷", "Version", "バージョン", "نسخه", HtmlPageBuilder.Escape(snap.version)));
+
+            // "Export version", not "Version". The page also carries a
+            // "Unity DocSnap v1.0.1" badge, and on the export that
+            // happened to land in a folder called V1.0.1 the card read
+            // "Version V1.0.1" beside it - two unrelated numbers,
+            // identical, neither one saying which it was.
+            sb.Append(InfoLine("🏷", "Export version", "エクスポート版数", "نسخه‌ی این خروجی",
+                HtmlPageBuilder.Escape(snap.version)));
+
+            // ONE timestamp, in the reader's own words, with UTC on
+            // hover and in export-info.json for anything that needs to
+            // parse it. The card used to print the same instant twice -
+            // once local, once as an ISO string on its own line - and a
+            // reader who noticed had to work out that they matched.
             sb.Append(InfoLine("🕒", "Exported", "エクスポート日時", "زمان خروجی",
-                HtmlPageBuilder.Escape(snap.exportedLocal) + " <span class=\"ds-info-tz\">" + HtmlPageBuilder.Escape(snap.timeZone) + "</span>"));
-            sb.Append(InfoLine("🌐", "UTC", "UTC", "UTC", HtmlPageBuilder.Escape(snap.exportedUtc)));
+                "<span title=\"UTC " + HtmlPageBuilder.Escape(snap.exportedUtc) + "\">"
+                + HtmlPageBuilder.Escape(snap.exportedLocal)
+                + " <span class=\"ds-info-tz\">" + HtmlPageBuilder.Escape(snap.timeZone) + "</span></span>"));
+
             if (snap.withFiles)
             {
                 sb.Append(InfoLine("🗃", "File copies", "ファイルコピー", "کپی فایل‌ها",

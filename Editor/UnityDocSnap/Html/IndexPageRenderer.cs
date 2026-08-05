@@ -6,6 +6,7 @@
 // ==========================================
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using AmirCollider.UnityDocSnap.Editor.Export;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
@@ -32,7 +33,14 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 HtmlPageBuilder.Badge("lav", "Unity " + manifest.unityVersion),
                 HtmlPageBuilder.Badge("pink", "Unity DocSnap v" + DocSnapConstants.Version)
             };
-            string lastExportHtml = HtmlPageBuilder.I18n("span", null, "Last export: ", "最終エクスポート: ", "آخرین اکسپورت: ") + HtmlPageBuilder.Escape(manifest.lastUpdatedUtc);
+            // The human stamp, not the machine one. This line used to
+            // print the raw UTC ISO string - the least readable of the
+            // three renderings of one instant that shared this screen -
+            // directly under the project's name.
+            string when = exportInfo != null && !string.IsNullOrEmpty(exportInfo.exportedLocal)
+                ? exportInfo.exportedLocal + " · " + exportInfo.timeZone
+                : manifest.lastUpdatedUtc;
+            string lastExportHtml = HtmlPageBuilder.I18n("span", null, "Last export: ", "最終エクスポート: ", "آخرین اکسپورت: ") + HtmlPageBuilder.Escape(when);
             string header = HtmlPageBuilder.RenderPageHeader("\uD83C\uDF70", manifest.projectName, lastExportHtml, badges, true);
 
             var sb = new StringBuilder(2048);
@@ -45,47 +53,39 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             // Updatable" and this grid repeated "Scenes exported /
             // Files tracked / Packages" right below it with the same
             // numbers under different labels.
+            //
+            // A tile with somewhere to go is a link. "Packages" and
+            // "Updatable packages" sat here as dead numbers while a row
+            // below said "Packages used in this project — 68" and was
+            // the clickable one: the same fact twice, and the copy a
+            // reader's eye lands on first was the one that did nothing.
             sb.Append("<div class=\"ds-stat-grid\">");
             sb.Append(StatTile(manifest.scenes.Count, "Scenes", "シーン", "سین‌ها", "pink"));
             sb.Append(StatTile(totalGameObjects, "GameObjects", "GameObject数", "GameObject ها", "lav"));
             sb.Append(StatTile(totalFiles, "Asset files", "アセットファイル", "فایل‌های Assets", "mint"));
             if (manifest.packages != null && manifest.packages.Count > 0)
             {
-                sb.Append(StatTile(manifest.packages.Count, "Packages", "パッケージ", "پکیج‌ها", "pink"));
+                sb.Append(StatLink(DocSnapConstants.PackagesFileName,
+                    manifest.packages.Count, "Packages", "パッケージ", "پکیج‌ها", "pink"));
             }
             if (exportInfo != null && exportInfo.packagesUpdatable > 0)
             {
-                sb.Append(StatTile(exportInfo.packagesUpdatable, "Updatable packages", "更新可能パッケージ", "پکیج‌های قابل‌آپدیت", "warn"));
+                sb.Append(StatLink(DocSnapConstants.PackagesFileName + "?group=updates",
+                    exportInfo.packagesUpdatable, "Updatable packages", "更新可能パッケージ", "پکیج‌های قابل‌آپدیت", "warn"));
             }
             sb.Append("</div>\n");
 
             sb.Append(RenderHealthCard(manifest));
+
+            // Everything on this site that is not a Scene page or a
+            // folder page, in one card. These were three loose
+            // full-width rows floating between cards, all built from
+            // ds-folder-row - the control the Scenes and Assets lists
+            // use for their CONTENTS - so the dashboard read as though
+            // "Packages" and "Plan" were two asset folders that had
+            // escaped their card.
+            sb.Append(RenderExploreCard(manifest));
             sb.Append(RenderExcludeNote(manifest));
-
-            if (manifest.packages != null && manifest.packages.Count > 0)
-            {
-                sb.Append("<a class=\"ds-folder-row\" style=\"margin-bottom:18px;\" href=\"").Append(DocSnapConstants.PackagesFileName).Append("\">");
-                sb.Append("<span class=\"ds-folder-path\">📦 ").Append(HtmlPageBuilder.I18n("span", null, "Packages used in this project", "このプロジェクトで使用中のパッケージ", "پکیج‌های استفاده‌شده در این پروژه")).Append("</span>");
-                sb.Append("<span class=\"ds-folder-meta\">").Append(manifest.packages.Count).Append("</span></a>\n");
-            }
-
-            // The plan this export was made on, one row, always.
-            //
-            // On the dashboard rather than only in the sidebar because
-            // the first question somebody asks of an export they did
-            // not make is "is this all of it?", and the answer is a
-            // property of the plan. The row states the edition without
-            // being clicked, which is the whole point: the reader who
-            // most needs it is the one who does not yet know there is
-            // a page to look for.
-            sb.Append("<a class=\"ds-folder-row\" style=\"margin-bottom:18px;\" href=\"").Append(DocSnapConstants.PlanFileName).Append("\">");
-            sb.Append("<span class=\"ds-folder-path\">🎟️ ").Append(HtmlPageBuilder.I18n("span", null,
-                "Plan — what this export does and does not include",
-                "プラン — このエクスポートに含まれるもの・含まれないもの",
-                "پلن — چه چیزی توی این خروجی هست و چه چیزی نیست")).Append("</span>");
-            sb.Append("<span class=\"ds-folder-meta\">")
-              .Append(HtmlPageBuilder.Escape(Licensing.DocSnapEditionMatrix.DisplayName(Licensing.DocSnapLicense.Edition)))
-              .Append("</span></a>\n");
 
             sb.Append("<div class=\"ds-card\">").Append(HtmlPageBuilder.I18n("h3", null, "Scenes", "シーン", "سین‌ها")).Append("<ul class=\"ds-folder-list\">\n");
             if (manifest.scenes.Count == 0)
@@ -119,7 +119,120 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
             }
             sb.Append("</ul></div>\n");
 
+            sb.Append(RenderDirectTmpCard());
+
             return HtmlPageBuilder.RenderPage(manifest, DocSnapConstants.IndexFileName, manifest.projectName, header, sb.ToString());
+        }
+
+        // ==========================================
+        // RenderExploreCard
+        // Packages and Plan, in one card.
+        //
+        // Both used to be loose full-width <a class="ds-folder-row">
+        // elements sitting between cards, which is the control the
+        // Scenes and Assets lists use for the items INSIDE them. Two
+        // rows in that shape, outside any card, read as two more
+        // asset folders that had come untucked - and gave the
+        // dashboard two competing column rhythms on one screen.
+        //
+        // The Plan row is always here, even on Pro. The first
+        // question somebody asks of an export they did not make is
+        // "is this all of it?", and the answer is a property of the
+        // plan; the row states the edition without being clicked,
+        // because the reader who most needs it is the one who does
+        // not yet know there is a page to look for.
+        // ==========================================
+        private static string RenderExploreCard(ManifestState manifest)
+        {
+            var sb = new StringBuilder(768);
+            sb.Append("<div class=\"ds-card\">");
+            sb.Append(HtmlPageBuilder.I18n("h3", null, "More in this export", "このエクスポートの他のページ", "بقیه‌ی این خروجی"));
+            sb.Append("<ul class=\"ds-folder-list\">\n");
+
+            // No health row: the card directly above this one is the
+            // health summary and already carries its own link. A page
+            // that lists a destination twice on one screen is the
+            // habit this card was made to break.
+            if (manifest.packages != null && manifest.packages.Count > 0)
+            {
+                sb.Append(ExploreRow(DocSnapConstants.PackagesFileName, "📦",
+                    "Packages used in this project", "このプロジェクトで使用中のパッケージ", "پکیج‌های استفاده‌شده در این پروژه",
+                    manifest.packages.Count.ToString(CultureInfo.InvariantCulture)));
+            }
+
+            sb.Append(ExploreRow(DocSnapConstants.PlanFileName, "🎟️",
+                "Plan — what this export does and does not include",
+                "プラン — このエクスポートに含まれるもの・含まれないもの",
+                "پلن — چه چیزی توی این خروجی هست و چه چیزی نیست",
+                HtmlPageBuilder.Escape(Licensing.DocSnapEditionMatrix.DisplayName(Licensing.DocSnapLicense.Edition))));
+
+            sb.Append("</ul></div>\n");
+            return sb.ToString();
+        }
+
+        private static string ExploreRow(string href, string emoji, string en, string ja, string fa, string metaHtml)
+        {
+            return "<li><a class=\"ds-folder-row\" href=\"" + HtmlPageBuilder.Href(href) + "\">"
+                + "<span class=\"ds-folder-path\">" + emoji + " " + HtmlPageBuilder.I18n("span", null, en, ja, fa) + "</span>"
+                + "<span class=\"ds-folder-meta\">" + metaHtml + "</span></a></li>\n";
+        }
+
+        // ==========================================
+        // RenderDirectTmpCard
+        // Unity DirectTMP, at the bottom of the dashboard.
+        //
+        // It earns its place here rather than being an
+        // advertisement bolted on: an export of a Persian or Arabic
+        // project is read BY people who work on that project, in
+        // Unity, where TextMeshPro draws their language as a row of
+        // disconnected letters running backwards. The tool that
+        // fixes that is the one thing this page can usefully tell
+        // them that is not in their project.
+        //
+        // What it says depends on the language, deliberately. A
+        // Persian reader is being told about a problem they have -
+        // so the problem is named. An English or Japanese reader is
+        // being told a package exists - so it is one line and a
+        // link, and nothing about a bug they have never hit. Both
+        // texts ride the same data-<lang> attributes as every other
+        // string on the site, so switching language switches this
+        // too.
+        // ==========================================
+        private static string RenderDirectTmpCard()
+        {
+            var sb = new StringBuilder(768);
+            sb.Append("<div class=\"ds-card ds-directtmp\">");
+            sb.Append(HtmlPageBuilder.I18n("h3", null,
+                "✍️ Persian, Arabic and Japanese text in Unity",
+                "✍️ Unity での日本語・ペルシャ語・アラビア語テキスト",
+                "✍️ متن فارسی و عربی توی یونیتی"));
+
+            sb.Append("<p class=\"ds-empty-note\">").Append(HtmlPageBuilder.I18n("span", null,
+                "Unity DirectTMP hands TextMeshPro the font file itself, so every glyph a font contains is available with no atlas to rebuild — and it joins Arabic-script letters and puts right-to-left words in reading order, in your game and in the Unity Editor. Free and MIT licensed.",
+                "Unity DirectTMP は TextMeshPro にフォントファイルそのものを渡す仕組みです。アトラスを作り直さずにフォント内の全グリフが使え、アラビア文字の連結と右から左への語順もゲーム内と Unity エディタの両方で処理します。無料・MIT ライセンス。",
+                "‏Unity DirectTMP خودِ فایل فونت رو به TextMeshPro می‌ده، پس همه‌ی گلیف‌های فونت بدون ساختن اطلس در دسترسه — و حروف فارسی/عربی رو به هم می‌چسبونه و کلمه‌ها رو راست‌به‌چپ مرتب می‌کنه، هم توی بازی و هم توی خود ادیتور یونیتی. رایگان و با لایسنس MIT."))
+              .Append("</p>");
+
+            // Only the Persian copy names the problem, because only the
+            // Persian reader has it. It is its own element with an empty
+            // English and Japanese text rather than a longer fa string
+            // in the paragraph above, so those two versions read as a
+            // finished sentence instead of one with a hole in it. CSS
+            // drops the element entirely when its text is empty, so no
+            // blank gap is left behind.
+            sb.Append(HtmlPageBuilder.I18n("p", "ds-empty-note ds-lang-only", "", "",
+                "اگر متن‌های فارسیِ همین صفحه یا پنجره‌ی خروجی‌گیری Unity DocSnap توی ادیتور شکسته و جدا‌جدا دیده می‌شن، دلیلش همینه:"
+                + " نه یونیتی و نه TextMeshPro حروف عربی رو به هم وصل نمی‌کنن. با نصب Unity DirectTMP توی پروژه این مشکل حل می‌شه"
+                + " — پنجره‌های خود Unity DocSnap هم فارسی رو درست نشون می‌دن."));
+
+            sb.Append("<div class=\"ds-file-actions\"><a class=\"ds-file-link\" href=\"")
+              .Append(DocSnapConstants.DirectTmpUrl).Append("\" target=\"_blank\" rel=\"noopener\">⬇ ")
+              .Append(HtmlPageBuilder.I18n("span", null,
+                  "Get Unity DirectTMP", "Unity DirectTMP を入手", "دانلود Unity DirectTMP"))
+              .Append("</a></div>");
+
+            sb.Append("</div>\n");
+            return sb.ToString();
         }
 
         // ==========================================
@@ -170,9 +283,9 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                     "自分のファイルには問題ありません。",
                     "توی فایل‌های خودت هیچ ایرادی نیست. "));
                 sb.Append(HtmlPageBuilder.I18n("span", null,
-                    totals.VendorFindings + " finding(s) sit in folders Unity or a package installed into Assets/ (TextMesh Pro, template Settings, package Samples) — not editable, not deletable.",
-                    totals.VendorFindings + " 件は Unity / パッケージが Assets/ にインストールしたフォルダ内(TextMesh Pro、テンプレートの Settings、Samples など)にあり、編集も削除もできません。",
-                    "‏" + totals.VendorFindings + " مورد داخل پوشه‌هایی هستن که Unity یا پکیج‌ها توی Assets/ نصب کردن (TextMesh Pro، پوشه‌ی Settings تمپلیت، Samples) — نه ویرایش می‌شن نه حذف."));
+                    totals.VendorFindings + " finding(s) belong to Unity or an installed package — a folder one of them wrote into Assets/, or a file Unity generates and maintains itself.",
+                    totals.VendorFindings + " 件は Unity かインストール済みパッケージのもので、Assets/ 配下に書き込まれたフォルダか、Unity 自身が生成・管理するファイルにあります。",
+                    "‏" + totals.VendorFindings + " مورد مال Unity یا پکیج‌های نصب‌شده‌ست — یا داخل پوشه‌ای که خودشون توی Assets/ ساختن، یا فایلی که Unity خودش می‌سازه و نگه می‌داره."));
                 sb.Append("</p>");
                 sb.Append(RenderDuplicateNote(totals));
                 sb.Append("</div>\n");
@@ -295,8 +408,28 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
 
         private static string StatTile(int num, string labelEn, string labelJa, string labelFa, string variant = null)
         {
-            string cls = string.IsNullOrEmpty(variant) ? "ds-stat-tile" : "ds-stat-tile ds-tile-" + variant;
-            return "<div class=\"" + cls + "\"><div class=\"ds-stat-num\">" + num + "</div><div class=\"ds-stat-label\">" + HtmlPageBuilder.I18n("span", null, labelEn, labelJa, labelFa) + "</div></div>";
+            return "<div class=\"" + TileClass(variant) + "\">" + TileBody(num, labelEn, labelJa, labelFa) + "</div>";
+        }
+
+        // The same tile with somewhere to go. Same chrome on purpose:
+        // a reader should not have to learn which of two identical
+        // boxes is clickable, so the ones that are get a hover
+        // affordance from .ds-stat-link rather than a different shape.
+        private static string StatLink(string href, int num, string labelEn, string labelJa, string labelFa, string variant = null)
+        {
+            return "<a class=\"" + TileClass(variant) + " ds-stat-link\" href=\"" + HtmlPageBuilder.Escape(href) + "\">"
+                + TileBody(num, labelEn, labelJa, labelFa) + "</a>";
+        }
+
+        private static string TileClass(string variant)
+        {
+            return string.IsNullOrEmpty(variant) ? "ds-stat-tile" : "ds-stat-tile ds-tile-" + variant;
+        }
+
+        private static string TileBody(int num, string labelEn, string labelJa, string labelFa)
+        {
+            return "<div class=\"ds-stat-num\">" + num.ToString(CultureInfo.InvariantCulture) + "</div>"
+                + "<div class=\"ds-stat-label\">" + HtmlPageBuilder.I18n("span", null, labelEn, labelJa, labelFa) + "</div>";
         }
     }
 }

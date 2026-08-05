@@ -83,11 +83,10 @@ namespace AmirCollider.UnityDocSnap.Editor
 
         // ==========================================
         // AddPrefix
-        // Adds one folder-prefix rule after parsing. Used
-        // for rules the tool derives rather than the user
-        // types; it goes into Patterns like any other,
-        // because an export that quietly leaves something
-        // out is worse than one that says what it left out.
+        // Adds one folder-prefix rule after parsing, and
+        // reports it: an export that quietly leaves
+        // something out is worse than one that says what it
+        // left out.
         // ==========================================
         public DocSnapExcludeFilter AddPrefix(string prefix)
         {
@@ -96,6 +95,37 @@ namespace AmirCollider.UnityDocSnap.Editor
             if (Patterns.Contains(pattern)) { return this; }
 
             Patterns.Add(pattern);
+            _prefixes.Add(pattern);
+            return this;
+        }
+
+        // ==========================================
+        // AddInternalPrefix
+        // The same rule, applied but NOT reported.
+        //
+        // For rules that are part of how the tool works
+        // rather than choices a project made - today that is
+        // exactly one: DocSnap's own output folder, on the
+        // rare occasion it sits inside Assets/. Listing it
+        // under "Excluded from this export" was answering a
+        // question nobody asked with a fact about the tool,
+        // and it read as though the author had deliberately
+        // left something out. Worse, on a project with no
+        // exclude rules at all it was the ONLY entry, so a
+        // card headed "🚫 Excluded from this export"
+        // appeared on the dashboard of every export whose
+        // honest answer was "nothing".
+        //
+        // Skipping something the reader could have wanted is
+        // worth saying. Not documenting the documentation is
+        // not.
+        // ==========================================
+        public DocSnapExcludeFilter AddInternalPrefix(string prefix)
+        {
+            string pattern = Normalize(prefix);
+            if (pattern.Length == 0) { return this; }
+            if (_prefixes.Contains(pattern)) { return this; }
+
             _prefixes.Add(pattern);
             return this;
         }
@@ -125,7 +155,10 @@ namespace AmirCollider.UnityDocSnap.Editor
             string outputRelative = DocSnapOutputPath.ProjectRelativeOrNull(
                 DocSnapSettings.ResolveOutputRootAbsoluteWithoutCreating(),
                 DocSnapSettings.ProjectRootAbsolute());
-            if (!string.IsNullOrEmpty(outputRelative)) { filter.AddPrefix(outputRelative); }
+            // Applied, not advertised - see AddInternalPrefix. This rule
+            // is the tool keeping out of its own way, not a decision the
+            // project made about its own content.
+            if (!string.IsNullOrEmpty(outputRelative)) { filter.AddInternalPrefix(outputRelative); }
 
             return filter;
         }
