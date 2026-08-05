@@ -404,5 +404,151 @@ namespace AmirCollider.UnityDocSnap.Editor.Export
         {
             return Path.Combine(outputRoot, version);
         }
+
+        // ==========================================
+        // DeleteVersion
+        // Removes one snapshot: its folder from disk and its
+        // entry from the registry.
+        //
+        // Both halves, or neither. The registry in Library/ is
+        // what the shelf cap counts, so a folder deleted without
+        // its entry leaves a version the tool believes in and
+        // cannot open, and an entry deleted without its folder
+        // leaves a folder nothing will ever clean up. (Deleting
+        // the folder BY HAND is a third case and is deliberately
+        // left alone - the registry keeps counting, which is what
+        // stops hand-deletion being a way around the cap on the
+        // editions that have one.)
+        //
+        // Refuses to touch a folder that is not one of ours. The
+        // proof is the same one PruneDir uses - the version-pinned
+        // theme/style.css every export writes - because this is the
+        // only other place in the tool that deletes a directory
+        // tree, and a version name that somehow resolved to
+        // somewhere else must not be the thing that discovers it.
+        // A folder that is already gone is not an error: the entry
+        // still goes.
+        //
+        // The registry is CHANGED but not written; the caller saves.
+        // A method that both deletes and persists cannot be tested
+        // without a test writing over the developer's own shelf.
+        // ==========================================
+        public static bool DeleteVersion(string outputRoot, VersionsState state, string version, out string error)
+        {
+            error = "";
+            if (state == null || string.IsNullOrEmpty(version)) { error = "No version to delete."; return false; }
+
+            string folder = VersionFolderAbsolute(outputRoot, version);
+
+            try
+            {
+                if (Directory.Exists(folder))
+                {
+                    if (!IsDocSnapVersionFolder(folder))
+                    {
+                        error = """ + folder + "" does not look like a Unity DocSnap version folder, so it was left alone.";
+                        return false;
+                    }
+                    Directory.Delete(folder, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+
+            state.versions.RemoveAll(v => string.Equals(v.version, version, StringComparison.OrdinalIgnoreCase));
+
+            // The active version is what a single-Scene export writes
+            // into. Pointing it at a folder that no longer exists would
+            // have the next quick export silently create it again.
+            if (string.Equals(state.activeVersion, version, StringComparison.OrdinalIgnoreCase))
+            {
+                state.activeVersion = NewestVersion(state);
+            }
+
+            return true;
+        }
+
+        // ==========================================
+        // CanClearOutputRoot
+        // The output folder may only be cleared once the shelf is
+        // empty.
+        //
+        // One button that deletes everything is a different
+        // proposition from one that deletes a snapshot, and the
+        // difference is that nobody can undo it. Requiring the
+        // shelf to be empty first means the whole thing can only
+        // ever be reached by deleting each snapshot deliberately,
+        // one at a time, having read what each one was - which is
+        // the point at which somebody knows what they are throwing
+        // away.
+        // ==========================================
+        public static bool CanClearOutputRoot(VersionsState state)
+        {
+            return state != null && state.versions.Count == 0;
+        }
+
+        // ==========================================
+        // ClearOutputRoot
+        // Empties the output root of the things DocSnap put in it:
+        // the versions landing page, the redirect, and any
+        // remaining version folder.
+        //
+        // The ROOT ITSELF is never deleted, and neither is anything
+        // in it this tool did not write. The folder is chosen by the
+        // user and can be shared with other output - "Build/Docs" is
+        // the tool's own documented example - so removing the
+        // directory would be removing somebody else's work with it.
+        // ==========================================
+        public static bool ClearOutputRoot(string outputRoot, VersionsState state, out string error)
+        {
+            error = "";
+            if (!CanClearOutputRoot(state))
+            {
+                error = "Delete the remaining snapshots first.";
+                return false;
+            }
+
+            try
+            {
+                if (!Directory.Exists(outputRoot)) { return true; }
+
+                foreach (string file in Directory.GetFiles(outputRoot, "*", SearchOption.TopDirectoryOnly))
+                {
+                    string name = Path.GetFileName(file);
+                    if (string.Equals(name, DocSnapConstants.RootVersionsFileName, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(name, DocSnapConstants.RootRedirectFileName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        File.Delete(file);
+                    }
+                }
+
+                foreach (string folder in Directory.GetDirectories(outputRoot))
+                {
+                    if (IsDocSnapVersionFolder(folder)) { Directory.Delete(folder, true); }
+                }
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+
+            state.activeVersion = "";
+            return true;
+        }
+
+        // The ownership proof both deletions above rely on, and the
+        // same one PruneDir uses: the version-pinned theme/style.css
+        // that every export writes into every version folder before
+        // anything else happens.
+        private static bool IsDocSnapVersionFolder(string folder)
+        {
+            if (string.IsNullOrEmpty(folder)) { return false; }
+            return File.Exists(Path.Combine(Path.Combine(folder, DocSnapConstants.SiteAssetsSubFolder),
+                DocSnapConstants.StyleFileName));
+        }
     }
 }

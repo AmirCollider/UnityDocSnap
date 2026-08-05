@@ -117,7 +117,27 @@ namespace AmirCollider.UnityDocSnap.Editor.Licensing
         // because telling somebody who paid that they are
         // running the free edition is simply false - see
         // DocSnapEditionMatrix.ShowsFreeEditionBadge.
-        CustomLogo
+        CustomLogo,
+
+        // Deleting a snapshot from the versions shelf, and -
+        // once the shelf is empty - the output folder itself.
+        //
+        // Pro only, and the reason is the shelf cap rather than
+        // the deleting. Free keeps three snapshots and Plus five;
+        // if either could delete one, the cap would be a speed
+        // bump rather than a limit, and the tier would be worth
+        // what the effort of clicking twice is worth. Pro has no
+        // cap, so there is nothing there for the button to
+        // undermine - it is house-keeping for somebody with an
+        // unlimited shelf, which is precisely who accumulates
+        // enough snapshots to want one gone.
+        //
+        // Deleting the output folder BY HAND has always worked
+        // and still does. It leaves the registry in Library/
+        // untouched, so the shelf count does not move - which is
+        // deliberate, and is what stops the same manoeuvre being
+        // a way around the cap.
+        ManageVersions
     }
 
     // ==========================================
@@ -215,7 +235,8 @@ namespace AmirCollider.UnityDocSnap.Editor.Licensing
                 { DocSnapFeature.IncludeFiles,      DocSnapEdition.Pro },
                 { DocSnapFeature.ProjectBackup,     DocSnapEdition.Pro },
                 { DocSnapFeature.Automation,        DocSnapEdition.Pro },
-                { DocSnapFeature.CustomLogo,        DocSnapEdition.Pro }
+                { DocSnapFeature.CustomLogo,        DocSnapEdition.Pro },
+                { DocSnapFeature.ManageVersions,    DocSnapEdition.Pro }
             };
 
         // ==========================================

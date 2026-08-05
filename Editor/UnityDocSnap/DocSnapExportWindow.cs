@@ -52,6 +52,14 @@ namespace AmirCollider.UnityDocSnap.Editor
         // domain reload would fire an export nobody just asked for.
         [System.NonSerialized] private bool _exportRequested;
 
+        // Snapshot house-keeping. Like the export itself, a deletion
+        // is only RECORDED during OnGUI: it opens a confirmation
+        // dialog, and a dialog between BeginScrollView and
+        // EndScrollView leaves Unity's layout stack unbalanced.
+        private int _manageIndex;
+        [System.NonSerialized] private string _deleteRequested;
+        [System.NonSerialized] private bool _clearRequested;
+
         private Vector2 _scroll;
         private VersionsState _registry;
         private string[] _existingVersions = new string[0];
@@ -80,6 +88,13 @@ namespace AmirCollider.UnityDocSnap.Editor
             window.Show();
         }
 
+        private void OnDisable()
+        {
+            // A choice parked by a dropdown that outlived its window
+            // must not be handed to the next one that opens.
+            DocSnapEditorGui.Forget(PopupKey);
+        }
+
         private void OnEnable()
         {
             _uiLang = LangIndex(DocSnapSettings.WindowLanguage);
@@ -97,6 +112,13 @@ namespace AmirCollider.UnityDocSnap.Editor
         // null when it is fine. Both the live warning and the
         // pre-export check read this, so they can never
         // disagree about what is allowed.
+        //
+        // Returned RAW - unshaped, unreordered. One of its two
+        // readers is an IMGUI HelpBox and the other is an
+        // EditorUtility dialog, which the platform draws and
+        // prepares itself; raw is the form only one of them has to
+        // convert, and converting for the wrong one is what turns a
+        // Persian sentence into rubble.
         // ==========================================
         private string CustomVersionProblem()
         {
@@ -105,7 +127,7 @@ namespace AmirCollider.UnityDocSnap.Editor
 
             if (!DocSnapVersioning.IsValidCustomName(name))
             {
-                return L("That name can't be used as a folder name, so the export would be auto-numbered instead. Avoid / \\ : * ? \" < > |",
+                return N("That name can't be used as a folder name, so the export would be auto-numbered instead. Avoid / \\ : * ? \" < > |",
                          "その名前はフォルダ名に使えないため、自動採番になります。/ \\ : * ? \" < > | は使えません。",
                          "این اسم به‌عنوان نام پوشه قابل استفاده نیست و خروجی به‌جایش خودکار شماره‌گذاری می‌شود. از / \\ : * ? \" < > | استفاده نکن.");
             }
@@ -113,7 +135,7 @@ namespace AmirCollider.UnityDocSnap.Editor
             string baseRoot = DocSnapSettings.ResolveOutputRootAbsolute();
             if (DocSnapVersioning.ExistingVersionNames(baseRoot, _registry).Contains(name))
             {
-                return L("A version with that name already exists, so the export would be auto-numbered instead.",
+                return N("A version with that name already exists, so the export would be auto-numbered instead.",
                          "その名前のバージョンは既に存在するため、自動採番になります。",
                          "نسخه‌ای با این اسم از قبل وجود دارد و خروجی به‌جایش خودکار شماره‌گذاری می‌شود.");
             }
@@ -157,7 +179,7 @@ namespace AmirCollider.UnityDocSnap.Editor
 
             EditorGUILayout.BeginHorizontal();
             GUILayout.Label(L("Window language", "ウィンドウの言語", "زبان پنجره"), GUILayout.Width(160));
-            int newUiLang = EditorGUILayout.Popup(_uiLang, LangNames);
+            int newUiLang = DocSnapEditorGui.Popup(PopupKey + "uiLang", UiLangCode, _uiLang, LangNames);
             if (newUiLang != _uiLang) { _uiLang = newUiLang; DocSnapSettings.WindowLanguage = DocSnapLanguages.CodeAt(_uiLang); }
             EditorGUILayout.EndHorizontal();
 
@@ -169,11 +191,13 @@ namespace AmirCollider.UnityDocSnap.Editor
             Section(L("Generated site", "生成されるサイト", "سایت تولیدشده"));
 
             _siteLang = LabeledPopup(
+                "siteLang",
                 L("Default language", "デフォルト言語", "زبان پیش‌فرض"),
                 L("The language the site opens in the first time it's viewed.", "初回表示時にサイトが開く言語。", "زبانی که سایت بار اول با آن باز می‌شود."),
                 _siteLang, LangNames);
 
             _siteTheme = LabeledPopup(
+                "theme",
                 L("Theme", "テーマ", "تم"),
                 L("Light or dark colour theme the site opens in.", "サイトが開くときの明/暗テーマ。", "تم روشن یا تاریک سایت هنگام باز شدن."),
                 _siteTheme, new[] { L("Light", "ライト", "روشن"), L("Dark", "ダーク", "تاریک") });
@@ -185,6 +209,7 @@ namespace AmirCollider.UnityDocSnap.Editor
             // tight machine the site opens light instead. Readers can
             // switch inside the site either way - this is the start point.
             _siteSkin = LabeledPopup(
+                "skin",
                 L("Visual style", "見た目", "ظاهر سایت"),
                 L("Auto picks the cozy look when this machine and project have room for it, and the light one when they do not.",
                   "自動: このマシンとプロジェクトに余裕があればコージー、なければライトを選びます。",
@@ -235,7 +260,8 @@ namespace AmirCollider.UnityDocSnap.Editor
             EditorGUI.indentLevel++;
             if (_ontoExisting && _existingVersions.Length > 0)
             {
-                _existingIndex = EditorGUILayout.Popup(L("Target version", "対象バージョン", "نسخه‌ی هدف"), _existingIndex, _existingVersions);
+                _existingIndex = DocSnapEditorGui.LabeledPopup(PopupKey + "target", UiLangCode,
+                    L("Target version", "対象バージョン", "نسخه‌ی هدف"), null, _existingIndex, _existingVersions);
 
                 // Two different true sentences, because the two
                 // editions genuinely do different work here. Free
@@ -269,7 +295,10 @@ namespace AmirCollider.UnityDocSnap.Editor
                 // produced a folder called V1.0.3 and the user was
                 // left to work out why on their own.
                 string problem = CustomVersionProblem();
-                if (problem != null) { EditorGUILayout.HelpBox(problem, MessageType.Warning); }
+                if (problem != null)
+                {
+                    EditorGUILayout.HelpBox(DocSnapEditorText.Draw(UiLangCode, problem), MessageType.Warning);
+                }
 
                 // Said BEFORE the export rather than after it. The
                 // Free shelf limit changes where the output lands,
@@ -293,6 +322,8 @@ namespace AmirCollider.UnityDocSnap.Editor
                 }
             }
             EditorGUI.indentLevel--;
+
+            DrawManageVersions();
 
             DrawSeparator();
 
@@ -358,7 +389,8 @@ namespace AmirCollider.UnityDocSnap.Editor
             if (_recordChanges && _existingVersions.Length > 0)
             {
                 EditorGUI.indentLevel++;
-                _changesBaseIndex = EditorGUILayout.Popup(L("Compare against", "比較元", "مقایسه با"), _changesBaseIndex, _existingVersions);
+                _changesBaseIndex = DocSnapEditorGui.LabeledPopup(PopupKey + "changesBase", UiLangCode,
+                    L("Compare against", "比較元", "مقایسه با"), null, _changesBaseIndex, _existingVersions);
                 EditorGUI.indentLevel--;
             }
             else if (_existingVersions.Length == 0)
@@ -406,6 +438,19 @@ namespace AmirCollider.UnityDocSnap.Editor
             {
                 _exportRequested = false;
                 EditorApplication.delayCall += RunExportDeferred;
+            }
+
+            if (_deleteRequested != null)
+            {
+                string target = _deleteRequested;
+                _deleteRequested = null;
+                RunDeleteVersion(target);
+            }
+
+            if (_clearRequested)
+            {
+                _clearRequested = false;
+                RunClearOutput();
             }
         }
 
@@ -456,6 +501,179 @@ namespace AmirCollider.UnityDocSnap.Editor
         }
 
         // ==========================================
+        // DrawManageVersions
+        //
+        // Deleting a snapshot, and - only once none are left - the
+        // output folder's contents.
+        //
+        // ONE AT A TIME, on purpose. A "delete all" button is a
+        // different proposition from this one, and the difference
+        // is that nobody can undo it: the shelf is the only copy of
+        // every earlier export, and a single mis-click would take
+        // the lot. Emptying the shelf is still reachable - it is
+        // reachable by deleting each snapshot deliberately, having
+        // read which one it is - and the folder-clearing button
+        // only wakes up at the end of that road.
+        //
+        // Pro only, and the reason is the shelf cap rather than the
+        // deleting: on an edition that keeps three snapshots, a
+        // delete button turns the cap into a speed bump. Pro has no
+        // cap, so there is nothing here for it to undermine.
+        // ==========================================
+        private void DrawManageVersions()
+        {
+            bool licensed = DocSnapLicense.Has(DocSnapFeature.ManageVersions);
+            bool hasVersions = _existingVersions.Length > 0;
+
+            GUILayout.Space(6);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(
+                L("Manage snapshots", "スナップショットの管理", "مدیریت اسنپ‌شات‌ها"),
+                EditorStyles.miniBoldLabel);
+
+            if (!licensed)
+            {
+                DocSnapEdition tier = DocSnapEditionMatrix.Required(DocSnapFeature.ManageVersions);
+                string badge = DocSnapEditionMatrix.DisplayName(tier).ToUpperInvariant();
+                if (GUILayout.Button(new GUIContent(badge,
+                        L("In Unity DocSnap " + badge + " (" + DocSnapUpgradePitch.Price(tier) + ").",
+                          "Unity DocSnap " + badge + "(" + DocSnapUpgradePitch.Price(tier) + ")の機能です。",
+                          "این قابلیت توی Unity DocSnap " + badge + " (" + DocSnapUpgradePitch.Price(tier) + ") هست.")),
+                    EditorStyles.miniButton, GUILayout.Width(46)))
+                {
+                    Application.OpenURL(DocSnapConstants.ProductUrl);
+                }
+            }
+            EditorGUILayout.EndHorizontal();
+
+            using (new EditorGUI.DisabledScope(!licensed))
+            {
+                EditorGUI.indentLevel++;
+
+                using (new EditorGUI.DisabledScope(!hasVersions))
+                {
+                    EditorGUILayout.BeginHorizontal();
+                    _manageIndex = DocSnapEditorGui.LabeledPopup(PopupKey + "manage", UiLangCode,
+                        L("Snapshot", "スナップショット", "اسنپ‌شات"), null,
+                        Mathf.Clamp(_manageIndex, 0, Mathf.Max(0, _existingVersions.Length - 1)),
+                        hasVersions ? _existingVersions : EmptyShelf);
+
+                    if (GUILayout.Button("🗑  " + L("Delete", "削除", "حذف"), GUILayout.Width(90))
+                        && licensed && hasVersions)
+                    {
+                        _deleteRequested = _existingVersions[Mathf.Clamp(_manageIndex, 0, _existingVersions.Length - 1)];
+                    }
+                    EditorGUILayout.EndHorizontal();
+                }
+
+                // The whole folder, and only from an empty shelf.
+                using (new EditorGUI.DisabledScope(hasVersions))
+                {
+                    if (GUILayout.Button("🧹  " + L("Clear the output folder", "出力フォルダを空にする", "پاک کردن پوشه‌ی خروجی"))
+                        && licensed && !hasVersions)
+                    {
+                        _clearRequested = true;
+                    }
+                }
+
+                EditorGUILayout.LabelField(" ", hasVersions
+                    ? L("Deleting a snapshot removes its folder from disk for good. The output folder can be cleared once no snapshots are left.",
+                        "スナップショットを削除すると、そのフォルダはディスクから完全に消えます。出力フォルダはスナップショットが 1 つも残っていないときに空にできます。",
+                        "حذف یک اسنپ‌شات، پوشه‌اش را برای همیشه از دیسک پاک می‌کند. پوشه‌ی خروجی وقتی می‌شود پاک کرد که هیچ اسنپ‌شاتی باقی نمانده باشد.")
+                    : L("No snapshots on the shelf. Only the files Unity DocSnap wrote are removed; the folder itself and anything else in it are left alone.",
+                        "スナップショットはありません。Unity DocSnap が書き出したファイルのみを削除し、フォルダ自体や他のファイルはそのまま残します。",
+                        "هیچ اسنپ‌شاتی روی قفسه نیست. فقط فایل‌هایی که Unity DocSnap نوشته پاک می‌شوند؛ خودِ پوشه و بقیه‌ی محتوایش دست‌نخورده می‌مانند."),
+                    EditorStyles.miniLabel);
+
+                EditorGUI.indentLevel--;
+            }
+        }
+
+        // A popup needs something to show while the shelf is empty,
+        // and an empty array would draw nothing at all.
+        private static readonly string[] EmptyShelf = { "—" };
+
+        // ==========================================
+        // RunDeleteVersion / RunClearOutput
+        // Both run OUTSIDE OnGUI (see the deferred block at the end
+        // of OnGUI) because both open a confirmation dialog, and
+        // both are the only things in this window that destroy
+        // something a user cannot get back.
+        // ==========================================
+        private void RunDeleteVersion(string version)
+        {
+            if (!DocSnapLicense.Has(DocSnapFeature.ManageVersions) || string.IsNullOrEmpty(version)) { return; }
+
+            // N, not L: EditorUtility draws this and prepares its own
+            // text. See DocSnapEditorText.Native.
+            bool confirmed = EditorUtility.DisplayDialog(
+                DocSnapConstants.ToolName + "  ⚠",
+                N("Delete the snapshot \"" + version + "\" for good?\n\nIts folder and everything in it is removed from disk. This cannot be undone.",
+                  "スナップショット「" + version + "」を完全に削除しますか?\n\nそのフォルダと中身がディスクから削除されます。元に戻せません。",
+                  "اسنپ‌شات «" + version + "» برای همیشه حذف شود؟\n\nپوشه‌اش و هر چه داخلش هست از روی دیسک پاک می‌شود. این کار برگشت‌پذیر نیست."),
+                N("Delete", "削除する", "حذف کن"),
+                N("Cancel", "キャンセル", "انصراف"));
+            if (!confirmed) { return; }
+
+            string error;
+            string baseRoot = DocSnapSettings.ResolveOutputRootAbsolute();
+            bool ok = DocSnapVersioning.DeleteVersion(baseRoot, _registry, version, out error);
+
+            if (!ok)
+            {
+                EditorUtility.DisplayDialog(DocSnapConstants.ToolName,
+                    N("\"" + version + "\" was not deleted.\n\n" + error,
+                      "「" + version + "」は削除されませんでした。\n\n" + error,
+                      "«" + version + "» حذف نشد.\n\n" + error),
+                    N("OK", "OK", "باشه"));
+            }
+            else
+            {
+                DocSnapVersioning.SaveRegistry(_registry);
+                Debug.Log("[Unity DocSnap] Deleted snapshot \"" + version + "\".");
+            }
+
+            _manageIndex = 0;
+            Refresh();
+            Repaint();
+        }
+
+        private void RunClearOutput()
+        {
+            if (!DocSnapLicense.Has(DocSnapFeature.ManageVersions)) { return; }
+            if (!DocSnapVersioning.CanClearOutputRoot(_registry)) { return; }
+
+            string baseRoot = DocSnapSettings.ResolveOutputRootAbsolute();
+
+            bool confirmed = EditorUtility.DisplayDialog(
+                DocSnapConstants.ToolName + "  ⚠",
+                N("Clear the output folder?\n\n" + baseRoot + "\n\nEverything Unity DocSnap wrote there is removed. The folder itself, and anything else inside it, is left alone.",
+                  "出力フォルダを空にしますか?\n\n" + baseRoot + "\n\nUnity DocSnap が書き出したものはすべて削除されます。フォルダ自体と、それ以外の中身はそのまま残ります。",
+                  "پوشه‌ی خروجی پاک شود؟\n\n" + baseRoot + "\n\nهر چیزی که Unity DocSnap آنجا نوشته پاک می‌شود. خودِ پوشه و هر چیز دیگری که داخلش باشد دست‌نخورده می‌ماند."),
+                N("Clear", "空にする", "پاک کن"),
+                N("Cancel", "キャンセル", "انصراف"));
+            if (!confirmed) { return; }
+
+            string error;
+            if (!DocSnapVersioning.ClearOutputRoot(baseRoot, _registry, out error))
+            {
+                EditorUtility.DisplayDialog(DocSnapConstants.ToolName,
+                    N("The output folder was not cleared.\n\n" + error,
+                      "出力フォルダは空にできませんでした。\n\n" + error,
+                      "پوشه‌ی خروجی پاک نشد.\n\n" + error),
+                    N("OK", "OK", "باشه"));
+            }
+            else
+            {
+                DocSnapVersioning.SaveRegistry(_registry);
+                Debug.Log("[Unity DocSnap] Cleared the output folder at \"" + baseRoot + "\".");
+            }
+
+            Refresh();
+            Repaint();
+        }
+
+        // ==========================================
         // RunExport — collects the choices, persists the
         // defaults, closes the window, and runs the export.
         // ==========================================
@@ -467,13 +685,18 @@ namespace AmirCollider.UnityDocSnap.Editor
             // open with every choice intact.
             if (_makeBackup)
             {
+                // N, not L: this is an EditorUtility dialog. The platform
+                // draws it and does its own joining and reordering, so text
+                // this tool prepared first comes out prepared twice - which
+                // is a far more broken-looking line than the one shaping
+                // was added to fix.
                 bool proceed = EditorUtility.DisplayDialog(
                     DocSnapConstants.ToolName + "  ⚠",
-                    L("Exporting a whole-project .unitypackage backup is a very heavy operation.\n\nIt is recommended to save your project first (File > Save Project / Ctrl+S).\n\nThe documentation site is exported completely first, and the backup is built and added at the very end - so even if the backup step fails or crashes, the exported site stays intact.",
+                    N("Exporting a whole-project .unitypackage backup is a very heavy operation.\n\nIt is recommended to save your project first (File > Save Project / Ctrl+S).\n\nThe documentation site is exported completely first, and the backup is built and added at the very end - so even if the backup step fails or crashes, the exported site stays intact.",
                       "プロジェクト全体の .unitypackage バックアップの作成は非常に重い処理です。\n\n先にプロジェクトを保存することをおすすめします(File > Save Project / Ctrl+S)。\n\nサイトのエクスポートが先に完了し、バックアップは最後に追加されます。途中で失敗してもサイトは無事です。",
                       "خروجی گرفتن بک‌آپ ‎.unitypackage از کل پروژه کار به‌شدت سنگینی است.\n\nپیشنهاد می‌شود اول پروژه‌ی یونیتی را سیو کنید (File > Save Project / Ctrl+S).\n\nاول کل سایت خروجی گرفته می‌شود و بک‌آپ در انتها اضافه می‌شود؛ پس اگر باگ یا کرشی هم رخ بدهد، خروجی سایت سالم می‌ماند."),
-                    L("Continue", "続行", "ادامه"),
-                    L("Cancel", "キャンセル", "انصراف"));
+                    N("Continue", "続行", "ادامه"),
+                    N("Cancel", "キャンセル", "انصراف"));
                 if (!proceed) { return; }
             }
 
@@ -483,7 +706,7 @@ namespace AmirCollider.UnityDocSnap.Editor
             string problem = CustomVersionProblem();
             if (!_ontoExisting && problem != null)
             {
-                EditorUtility.DisplayDialog(DocSnapConstants.ToolName, problem, L("OK", "OK", "باشه"));
+                EditorUtility.DisplayDialog(DocSnapConstants.ToolName, problem, N("OK", "OK", "باشه"));
                 return;
             }
 
@@ -531,6 +754,13 @@ namespace AmirCollider.UnityDocSnap.Editor
         // ==========================================
         // Small localisation + layout helpers.
         // ==========================================
+        // For text the PLATFORM draws - an EditorUtility dialog, a
+        // GenericMenu item. See DocSnapEditorText.Native.
+        private string N(string en, string ja, string fa)
+        {
+            return DocSnapEditorText.Native(UiLangCode, en, ja, fa);
+        }
+
         private string L(string en, string ja, string fa)
         {
             // DocSnapEditorText, not DocSnapText: this string is about
@@ -545,14 +775,16 @@ namespace AmirCollider.UnityDocSnap.Editor
             return DocSnapLanguages.IndexOf(code);
         }
 
-        private int LabeledPopup(string label, string tooltip, int value, string[] options)
+        // `key` distinguishes one popup from another across frames -
+        // a GenericMenu answers after OnGUI has returned, so the choice
+        // has to find its way back to the control that opened it.
+        private int LabeledPopup(string key, string label, string tooltip, int value, string[] options)
         {
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Label(new GUIContent(label, tooltip), GUILayout.Width(160));
-            int result = EditorGUILayout.Popup(value, options);
-            EditorGUILayout.EndHorizontal();
-            return result;
+            return DocSnapEditorGui.LabeledPopup(PopupKey + key, UiLangCode, label, tooltip, value, options);
         }
+
+        // Namespaced so two windows cannot collide on "theme".
+        private const string PopupKey = "docsnap.export.";
 
         // ==========================================
         // ProToggle

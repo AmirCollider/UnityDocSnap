@@ -62,6 +62,13 @@ namespace AmirCollider.UnityDocSnap.Editor.Licensing
             return DocSnapEditorText.L(Lang, en, ja, fa);
         }
 
+        // For text the PLATFORM draws - an EditorUtility dialog, a
+        // GenericMenu item. See DocSnapEditorText.Native.
+        private static string N(string en, string ja, string fa)
+        {
+            return DocSnapEditorText.Native(Lang, en, ja, fa);
+        }
+
         // ==========================================
         // OnGUI
         // ==========================================
@@ -382,13 +389,16 @@ namespace AmirCollider.UnityDocSnap.Editor.Licensing
 
         private void RunDeactivate()
         {
+            // N, not L: an EditorUtility dialog is drawn by the platform,
+            // which joins and reorders on its own. See
+            // DocSnapEditorText.Native.
             bool confirmed = EditorUtility.DisplayDialog(
                 DocSnapConstants.ToolName,
-                L("Release this machine's seat?\n\nPro features stop here until you activate again. Your key is unaffected and can be used on another machine straight away.",
+                N("Release this machine's seat?\n\nPro features stop here until you activate again. Your key is unaffected and can be used on another machine straight away.",
                   "このマシンの席を解除しますか?\n\n再度有効化するまで Pro 機能は使えなくなります。キー自体は影響を受けず、すぐに別のマシンで使えます。",
                   "ظرفیت این سیستم آزاد شود؟\n\nتا وقتی دوباره فعال نکنی، قابلیت‌های Pro اینجا خاموش می‌شود. خودِ کد سالم می‌ماند و بلافاصله روی سیستم دیگری قابل استفاده است."),
-                L("Release", "解除する", "آزاد کن"),
-                L("Cancel", "キャンセル", "انصراف"));
+                N("Release", "解除する", "آزاد کن"),
+                N("Cancel", "キャンセル", "انصراف"));
             if (!confirmed) { return; }
 
             _busy = true;

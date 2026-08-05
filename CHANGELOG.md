@@ -2,6 +2,24 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [1.0.2] - 2026-08-05
+
+Shaping told half the truth. This is the other half, plus a way to throw a snapshot away.
+
+### Fixed
+
+- **Persian in dialogs came out worse than before it was shaped at all.** 1.0.1 prepared every localised string in the Editor, which is right for a label IMGUI draws and wrong for a surface the operating system draws. An `EditorUtility` dialog has a real text stack behind it and has always joined Arabic letters and reordered right-to-left runs on its own; handing it text this tool had already prepared did the work twice, undoing the reordering and leaving presentation forms behind. The backup confirmation and the licence-release confirmation now pass raw text, as they always should have. `DocSnapEditorText.Native` names the rule so the next dialog does not have to rediscover it.
+- **A popup was right in exactly one of its two halves.** The closed field of `EditorGUILayout.Popup` is drawn by IMGUI, which joins nothing; the open dropdown is drawn by the platform's menu, which joins correctly by itself. One string array feeds both, so whichever form it carries, one half is wrong — preparing it fixes the field and breaks the list, leaving it raw does the reverse. Every popup in the export window is now drawn as its two halves: a button wearing the popup style with prepared text, and a `GenericMenu` with raw text. Both read correctly, at the same time.
+- **A missing glyph for one letter changed the shape of the letter beside it.** Every joining decision reads its neighbours, so a letter the font cannot draw joined reported itself as joining nothing — and the letter *before* it dropped out of its initial or medial shape to match. ر has only two presentation forms, so it is the letter a gap most often lands on, and the damage always showed up on its neighbour: "ر will not attach to the letter before it". Fixed in Unity DirectTMP 1.2.1, which this release's Editor windows use when it is installed.
+
+### Added
+
+- **Delete a snapshot (Pro).** `Unity DocSnap ▸ Export…` grows a **Manage snapshots** section: pick a version, delete it, and its folder goes from disk along with its entry in the registry. One at a time and with a confirmation naming the version, because the shelf is the only copy of every earlier export and a single "delete all" mis-click would take the lot. Once no snapshots are left, a second button clears the output folder — only what DocSnap wrote there; the folder itself and anything else inside it are left alone, because that folder is chosen by the user and `Build/Docs` is the tool's own documented example of one that is shared. Deletion refuses any folder that does not carry the proof DocSnap built it, which is the same proof the output pruner has always required.
+
+  Pro only, and the reason is the shelf cap rather than the deleting: on an edition that keeps three snapshots, a delete button would turn the cap into a speed bump. Pro has no cap, so there is nothing there for it to undermine — it is house-keeping for the tier that accumulates enough snapshots to want some gone. Deleting the folder by hand still works and still leaves the registry counting, which is what stops that being a way around the cap.
+
+  Listed on the exported **Plan** page like every other edition feature, so an export says whether the edition that produced it could do this.
+
 ## [1.0.1] - 2026-08-05
 
 A maintenance release. Nine things that were wrong, and one that was missing.

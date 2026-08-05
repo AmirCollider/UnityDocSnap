@@ -20,7 +20,7 @@ namespace AmirCollider.UnityDocSnap.Editor
         // reported a version the package had not been on for two
         // releases). PackageVersionTests now fails the build if
         // the two ever disagree again.
-        public const string Version = "1.0.1";
+        public const string Version = "1.0.2";
         public const string GithubUrl = "https://github.com/AmirCollider/UnityDocSnap";
         public const string Author = "AmirCollider";
 

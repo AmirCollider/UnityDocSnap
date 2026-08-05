@@ -127,6 +127,12 @@ namespace AmirCollider.UnityDocSnap.Editor.Licensing
                 "ドキュメントの隣に project-backup.unitypackage を作成します。スナップショットが記録だけでなくプロジェクトそのものを復元します。",
                 "یک project-backup.unitypackage کنار مستندات، تا اسنپ‌شات خودِ پروژه را برگرداند نه فقط خاطره‌اش را."),
 
+            new DocSnapPitchLine(DocSnapFeature.ManageVersions, "🗑",
+                "Delete snapshots", "スナップショットの削除", "حذف اسنپ‌شات‌ها",
+                "Remove a snapshot from the versions shelf for good, one at a time and with the folder it owns — and, once the shelf is empty, the output folder's contents too. House-keeping for the tier whose shelf has no ceiling.",
+                "バージョン一覧からスナップショットを 1 件ずつ完全に削除できます(そのフォルダごと)。一覧が空になれば出力フォルダの中身もまとめて片付けられます。上限のない Pro のためのハウスキーピングです。",
+                "یک اسنپ‌شات را برای همیشه از قفسه‌ی نسخه‌ها پاک کن — دانه‌دانه، همراه با پوشه‌اش. و وقتی قفسه خالی شد، محتوای پوشه‌ی خروجی هم پاک می‌شود. خانه‌تکانی برای نسخه‌ای که قفسه‌اش سقف ندارد."),
+
             new DocSnapPitchLine(DocSnapFeature.CustomLogo, "✨",
                 "Your own logo", "自社ロゴ", "لوگوی خودت",
                 "Put your studio's logo in the exported site's sidebar — the export becomes something you can hand a client. (Any paid tier already removes the free-edition line from the footer.)",

@@ -54,6 +54,31 @@ namespace AmirCollider.UnityDocSnap.Editor
         }
 
         // ==========================================
+        // Native
+        // The localised string for a surface the PLATFORM draws,
+        // rather than IMGUI: an EditorUtility dialog, a
+        // GenericMenu item, a window title.
+        //
+        // Those go through the operating system's own text stack,
+        // which joins Arabic letters and reorders right-to-left
+        // runs by itself and always has. Handing them text this
+        // package already prepared does the work twice: the
+        // reordering is undone, and the presentation forms that
+        // replaced the letters stay behind. The result is the
+        // mangled line that looks far more broken than the problem
+        // being fixed - and it is the reason a dialog that read
+        // perfectly before shaping was introduced stopped reading
+        // at all afterwards.
+        //
+        // So it is not that these surfaces are skipped. They were
+        // never ours to prepare.
+        // ==========================================
+        public static string Native(string languageCode, string en, string ja, string fa)
+        {
+            return DocSnapText.Resolve(languageCode, en, ja, fa);
+        }
+
+        // ==========================================
         // NeedsDirectTmp
         // True when the window is showing a right-to-left
         // language and nothing in the project can draw it
