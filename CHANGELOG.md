@@ -2,6 +2,31 @@
 
 All notable changes to Unity DocSnap are documented in this file.
 
+## [1.0.3] - 2026-08-13
+
+The summaries named every label in the game and quoted none of them.
+
+### Fixed
+
+- **The words on the screen were missing from the summaries.** A UI object came out of `summary/` as
+
+  ```
+  - PauseButtonTextTMP — TextMeshProUGUI
+  ```
+
+  the name of the object, the name of the component, and not one character of what it says. Every string in a project's interface — every button label, every menu title, every line of dialogue — was absent from the one output written to be handed to an assistant.
+
+  The cause is a rule that is otherwise right. The summary expands the serialized fields of the project's **own** scripts only, because a summary that expanded Unity's components too would be the exhaustive export it exists as an alternative to — and every text component in Unity belongs to Unity or to TextMesh Pro. So the text went out with the boilerplate, and the reader was left with a name somebody typed once instead of the sentence the player reads.
+
+  Text now has its own way out, in both forms and in three places:
+  - **On the hierarchy line**, quoted beside the object that draws it: `- PauseButtonTextTMP — TextMeshProUGUI · text "ادامه بازی"`.
+  - **In a `## Text` section** of every Scene summary — the flat list, in hierarchy order, with the full path of each object and the string in full. This is what answers "which object says Resume?", which the indented hierarchy cannot: it is searched by the words, not by the structure. The `.json` form carries the same list as `texts`, plus `text` on the hierarchy node itself, and counts them in `totals`.
+  - **Under the file that holds it**, for Prefabs (the other place a game's UI lives — a Prefab used to be summarised as an object count and nothing else) and for any asset whose own fields carry text, which is what a dialogue line or a localisation row in a ScriptableObject looks like.
+
+  What counts as text is the **field**, not a list of component types: anything with a serialized string field named `text` — with or without Unity's `m_` prefix, in either casing — is read as text content, whoever wrote the component. A list of types (`Text`, `TextMeshProUGUI`, `TextMeshPro`, `TMP_InputField`, `TextMesh`, …) is wrong the moment a project uses a label widget this tool has not heard of; they all serialize the same field, so the field is the rule. A whitespace-only string is not text and is neither quoted nor counted. Each string is capped at 400 characters (80 inline) so one serialized credits screen cannot become the summary — and nothing else about the cap, because text is short and its content is the point of it being there.
+
+- **The site's Simple view had the same hole.** A built-in component's fields are advanced-only — 60 fields of a `TextMeshProUGUI` are not what a quick read is after — but hiding them hid the one field that is. Component cards now show the text they draw in both views, above the advanced field table, in the reading direction the string is written in.
+
 ## [1.0.2] - 2026-08-05
 
 Shaping told half the truth. This is the other half, plus a way to throw a snapshot away.

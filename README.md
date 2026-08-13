@@ -50,6 +50,7 @@ It's an Editor extension that walks every Scene in your project — every GameOb
 - 🚫 **Exclude what you did not write** — one line like `Assets/Plugins` in Project Settings keeps imported Asset Store content out of the walk, the tree, the search index and the counts. Wildcards (`*`, `?`) work too, and what was excluded is stated in the output rather than silently missing.
 - 🎬 **Build Settings scenes only** — optionally document just the Scenes your game actually ships, skipping the test beds and sample Scenes that arrived with a package.
 - 📦 **One file for an AI** *(Plus / Pro)* — `summary/ai-bundle.md` is every summary in the export concatenated into a single document, so a whole project is one paste instead of a folder.
+- 💬 **The words on the screen, not just the name of the label** — every string a `Text` / TextMeshPro component draws is quoted beside the object that draws it, listed with its full path in a `## Text` section of each Scene summary *(Plus / Pro)*, carried under the Prefab or asset that holds it, and shown on the component card in the site's Simple view *(every edition)*. A UI Scene used to come out as a list of object names — `PauseButtonTextTMP` — with none of what the player actually reads.
 - ⏹️ **Cancelable** — both passes show a progress bar you can stop.
 - ⚡ **Built for big projects** — the site skips layout for everything off-screen, so a Scene with tens of thousands of objects opens as fast as a small one. Minimal, modern UI in light and dark, keyboard-driven (`/` to search, `[` to collapse the sidebar), with copy-path buttons where you'd reach for them.
 
@@ -345,6 +346,7 @@ If Unity DocSnap saves you some digging around later, a ⭐ on the repo goes a l
 - 🚫 **自分が書いていないものを除外** — Project Settings に `Assets/Plugins` のような1行を書くだけで、インポートしたアセットストアの中身をファイル走査・ツリー・検索インデックス・集計のすべてから外せます(`*` `?` のワイルドカード対応)。除外した内容は出力側にも明記されます。
 - 🎬 **Build Settings のシーンだけ** — 実際に出荷するシーンだけを対象にし、テスト用やパッケージ付属のサンプルシーンを飛ばせます。
 - 📦 **AIに渡す1ファイル** — `summary/ai-bundle.md` はエクスポート内のすべての要約を1つにまとめたもので、フォルダごとではなく1回の貼り付けでプロジェクト全体を渡せます。
+- 💬 **画面に出ている文字そのものも** — `Text` / TextMeshPro が描画している文字列を、それを持つオブジェクトの行に引用し、各シーン要約の `## Text` セクションにフルパス付きで一覧にし、その文字を含む Prefab やアセットの下にも出力します。サイトのシンプル表示ではコンポーネントカードにも表示されます。以前は UI シーンの要約がオブジェクト名(`PauseButtonTextTMP`)の羅列で、プレイヤーが読む文字は1文字も入っていませんでした。
 - ⏹️ **キャンセル可能** — どちらの処理もプログレスバーから中断できます。
 - ⚡ **大規模プロジェクト向け** — 画面外の要素はレイアウトを省略するため、数万オブジェクトのシーンでも小さなシーンと同じ速さで開きます。ライト/ダーク対応のミニマルでモダンなUI、キーボード操作(`/` で検索、`[` でサイドバー折りたたみ)、必要な場所にパスのコピーボタン。
 
@@ -583,6 +585,7 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 - 🚫 **چیزی که خودت ننوشتی رو حذف کن** — یک خط مثل `Assets/Plugins` توی Project Settings کافیه تا محتوای ایمپورت‌شده‌ی Asset Store از پیمایش فایل‌ها، درخت پوشه‌ها، ایندکس جستجو و شمارش‌ها بیرون بمونه (وایلدکارت `*` و `?` هم کار می‌کنه). چیزی که حذف شده توی خروجی هم صریحاً نوشته می‌شه.
 - 🎬 **فقط سین‌های Build Settings** — می‌تونی فقط سین‌هایی رو مستند کنی که واقعاً توی بازی هستن و سین‌های تستی و نمونه‌ی پکیج‌ها رو رد کنی.
 - 📦 **یک فایل برای هوش مصنوعی** — `summary/ai-bundle.md` همه‌ی خلاصه‌های خروجی رو توی یک فایل جمع می‌کنه، پس کل پروژه با یک بار paste منتقل می‌شه نه یک پوشه.
+- 💬 **خودِ متن‌هایی که روی صفحه‌ست، نه فقط اسم آبجکت‌ها** — هر رشته‌ای که یه کامپوننت `Text` یا TextMeshPro می‌کشه، کنار همون آبجکتی که نشونش می‌ده نقل می‌شه، توی بخش `## Text` هر خلاصه‌ی سین با مسیر کاملش لیست می‌شه، زیر همون پریفب یا اَسِتی که نگهش داشته هم می‌آد، و توی نمای ساده‌ی سایت روی کارت کامپوننت نشون داده می‌شه. قبلاً خلاصه‌ی یه سین UI فقط لیستی از اسم آبجکت‌ها بود — `PauseButtonTextTMP` — و هیچ‌کدوم از چیزی که بازیکن می‌خونه توش نبود.
 - ⏹️ **قابل لغو** — هر دو مرحله نوار پیشرفت دارن و می‌تونی متوقفشون کنی.
 - ⚡ **ساخته‌شده برای پروژه‌های بزرگ** — سایت برای هر چیزی که بیرون صفحه‌ست layout انجام نمی‌ده، پس یه سین با ده‌ها هزار آبجکت هم به‌سرعت یه سین کوچیک باز می‌شه. ظاهر مینیمال و مدرن در حالت روشن و تاریک، کار با کیبورد (`/` برای جستجو، `[` برای بستن سایدبار)، و دکمه‌ی کپی مسیر همون‌جایی که لازمش داری.
 

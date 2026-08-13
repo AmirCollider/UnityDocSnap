@@ -14,6 +14,7 @@ using System.Text;
 using AmirCollider.UnityDocSnap.Editor.Export;
 using AmirCollider.UnityDocSnap.Editor.Json;
 using AmirCollider.UnityDocSnap.Editor.Manifest;
+using AmirCollider.UnityDocSnap.Editor.Summary;
 
 namespace AmirCollider.UnityDocSnap.Editor.Html
 {
@@ -366,6 +367,25 @@ namespace AmirCollider.UnityDocSnap.Editor.Html
                 sb.Append("<span class=\"ds-component-toggle ").Append(enabled ? "on" : "off").Append("\">").Append(enabled ? "ON" : "OFF").Append("</span>");
             }
             sb.Append("</div>");
+
+            // The one field of a built-in component that a quick read IS
+            // after: the text it draws. Everything else about a
+            // TextMeshProUGUI - its font asset, its margins, its 60-odd
+            // other serialized fields - is advanced-only and rightly so,
+            // but hiding those hid the words on the screen along with
+            // them, so the Simple view of a UI Scene named every label
+            // and quoted none of them. Shown outside the advanced body,
+            // in both views, and only when there is something to show.
+            string text = DocSnapTextContent.FromComponent(comp);
+            if (!isUserScript && !string.IsNullOrEmpty(text))
+            {
+                sb.Append("<div class=\"ds-component-text\">")
+                  .Append(HtmlPageBuilder.I18n("span", "lbl", "Text", "テキスト", "متن"))
+                  .Append("<span class=\"val\">")
+                  .Append(HtmlPageBuilder.Escape(DocSnapTextContent.Full(text)))
+                  .Append("</span></div>");
+            }
+
             // A built-in component's serialized fields are the bulk of the
             // page and rarely what a quick read is after, so they are the
             // advanced-only part; a custom script's fields stay visible in
