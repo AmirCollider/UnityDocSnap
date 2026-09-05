@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img alt="license" src="https://img.shields.io/badge/license-MIT-ffb6c1?style=flat-square">
+  <img alt="license" src="https://img.shields.io/badge/licence-proprietary-ffb6c1?style=flat-square">
   <img alt="unity version" src="https://img.shields.io/badge/Unity-2021.3%2B-b19cd9?style=flat-square&logo=unity&logoColor=white">
   <img alt="editor extension" src="https://img.shields.io/badge/type-Editor%20Extension-ffd6e8?style=flat-square">
   <img alt="prs welcome" src="https://img.shields.io/badge/PRs-welcome-c8f7c5?style=flat-square">
@@ -99,8 +99,10 @@ Unity DocSnap ships in three editions. **Free needs no key, no account and no ne
 
 **Option B — Manual**
 1. Download or clone this repository
-2. Copy the `Editor/UnityDocSnap` folder into your project's `Assets` folder — including the `Site~` sub-folder, which holds the generated site's stylesheet, script and fonts
-3. Unity compiles it automatically — no restart needed
+2. Copy the `Editor` folder into your project's `Assets` folder — the whole thing, including `Editor/UnityDocSnap/Site~`, which holds the generated site's stylesheet, script and fonts
+3. Unity picks the assembly up on the next import — no restart needed
+
+Either way the tool ships as one Editor-only assembly. It is never part of a player build, and it adds nothing to your build size.
 
 ### 🚀 Usage
 
@@ -279,37 +281,32 @@ Every exported page follows the same clean, predictable structure — proper hea
 - [x] Dark mode for the generated site 🌙
 - [x] Versioned exports + whole-project `.unitypackage` backup
 
-### 🤝 Contributing
+### 🤝 Feedback and bug reports
 
-Issues and pull requests are always welcome.
+Issues are always welcome: [github.com/AmirCollider/UnityDocSnap/issues](https://github.com/AmirCollider/UnityDocSnap/issues). A bug report with the Unity version and what you clicked is worth more than anything else.
 
-**Where things live**
+Security reports have their own process — see [SECURITY.md](SECURITY.md).
 
-- `Editor/UnityDocSnap/` — the tool itself. Everything is `internal`; it is a self-contained editor tool, not a public API.
-- `Editor/UnityDocSnap/Site~/` — the generated site's own `style.css`, `app.js`, `fonts.css` and `logo.svg`, as **real files**. Edit them directly; they are read at export time and written into each version folder. The trailing `~` keeps Unity from importing them, which is why they need no `.meta`.
-- `Tests/Editor/` — EditMode tests (NUnit), reaching the `internal` types via `InternalsVisibleTo`.
+**What is in this repository**
 
-**Before opening a PR**
+This is the distribution repository: what the Package Manager fetches from the git URL, in the exact layout Unity wants.
 
-```bash
-python3 .github/scripts/validate_package.py   # version sync, .meta coverage, site assets
+- `Editor/UnityDocSnap/AmirCollider.UnityDocSnap.Editor.dll` — the tool, as one Editor-only assembly.
+- `Editor/UnityDocSnap/Site~/` — the generated site's own `style.css`, `app.js`, `fonts.css` and `logo.svg`, as **real files**. They are read at export time and written into each version folder. The trailing `~` keeps Unity from importing them, which is why they need no `.meta`. Nothing stops you editing them in your own copy if you want the exported site to look different.
+
+**Pinning a version**
+
+Every release is tagged, so a project can pin one instead of tracking the default branch:
+
+```
+https://github.com/AmirCollider/UnityDocSnap.git#v1.0.3
 ```
 
-Then run the EditMode tests from **Window → General → Test Runner** in any project that has the package installed. CI runs both on every push, and the Unity tests against 2021.3 (the declared floor) and Unity 6.
+### 📜 Licence
 
-**Releases**
+Unity DocSnap is proprietary software. Free is free to use, in any project, commercial or not, for as long as you like; Plus and Pro are unlocked by a purchased key. Everything the tool generates is yours, with no strings attached. See [LICENSE](LICENSE) for the whole agreement.
 
-`package.json`, `DocSnapConstants.Version` and the `CHANGELOG.md` heading all carry the version and must agree — CI fails if they do not. To publish, tag the commit and push the tag; the release workflow does the rest:
-
-```bash
-git tag v0.10.1 && git push origin v0.10.1
-```
-
-Tagging is what lets a user pin a version in the Package Manager (`…UnityDocSnap.git#v0.10.1`) instead of always getting whatever the default branch happens to be.
-
-### 📜 License
-
-MIT — see [LICENSE](LICENSE).
+**On the source.** Unity DocSnap used to be published as source under the MIT licence — everything up to and including the `v1.0.3` tag — and that grant still stands for those copies. The released package now ships as a compiled Editor assembly, and the source lives in a private repository. The reason is plainly commercial: with the source published, the two paid editions were a three-line edit away from free, and there is no honest way to sell them on that footing. Nothing else changed — the tool is still Editor-only, still has no third-party dependencies, and the Free edition still never touches the network. If you want to satisfy yourself about that before running it, decompiling the assembly to check is explicitly allowed by the licence (§1.4), and so is reporting anything you find (§4).
 
 ### 💌 Credits
 
@@ -395,8 +392,10 @@ Unity DocSnap には 3 つのエディションがあります。**無料版は�
 
 **方法B — 手動インストール**
 1. このリポジトリをダウンロードまたはクローン
-2. `Editor/UnityDocSnap` フォルダをプロジェクトの `Assets` フォルダにコピー(生成サイトのCSS・JS・フォントが入っている `Site~` サブフォルダも忘れずに)
-3. Unityが自動的にコンパイルします。再起動は不要です
+2. `Editor` フォルダをまるごとプロジェクトの `Assets` フォルダにコピー(生成サイトのCSS・JS・フォントが入っている `Editor/UnityDocSnap/Site~` も忘れずに)
+3. 次のインポートでアセンブリが読み込まれます。再起動は不要です
+
+どちらの方法でも、ツールは Editor 専用アセンブリ 1 つとして動きます。プレイヤービルドには一切含まれず、ビルドサイズも増えません。
 
 ### 🚀 使い方
 
@@ -540,13 +539,17 @@ DocSnapはプロジェクトを「記録」するツールであって、そこ�
 - [x] 生成されたサイトのダークモード 🌙
 - [x] バージョン管理付きエクスポート + プロジェクト全体の `.unitypackage` バックアップ
 
-### 🤝 コントリビュート
+### 🤝 フィードバック・バグ報告
 
-IssueやPull Requestはいつでも歓迎です。
+Issue はいつでも歓迎です:[github.com/AmirCollider/UnityDocSnap/issues](https://github.com/AmirCollider/UnityDocSnap/issues)。Unity のバージョンと操作手順を添えていただけると、何よりの助けになります。
+
+セキュリティに関する報告は [SECURITY.md](SECURITY.md) の手順に従ってください。
 
 ### 📜 ライセンス
 
-MIT — 詳細は [LICENSE](LICENSE) をご覧ください。
+Unity DocSnap は商用ソフトウェアです。Free 版は商用・非商用を問わず、どのプロジェクトでも無期限に無料で使えます。Plus と Pro は購入したキーで解除します。ツールが生成したものはすべてあなたのもので、一切の制約はありません。全文は [LICENSE](LICENSE) をご覧ください。
+
+**ソースについて。** Unity DocSnap は以前、MIT ライセンスのソースとして公開されていました(公開リポジトリの `v1.0.3` タグまで)。その許諾は当該のコピーについて今も有効です。現在の配布パッケージはコンパイル済みの Editor アセンブリとして提供され、ソースは非公開リポジトリに移りました。理由は率直に言って商業的なものです — ソースが公開されている状態では、有料の 2 エディションは数行の書き換えで無料になってしまい、その前提で販売を続けることはできません。それ以外は何も変わっていません。Editor 専用であること、サードパーティ依存がないこと、Free 版がネットワークに一切触れないことも、これまでどおりです。実行前に自分で確かめたい場合、アセンブリを逆コンパイルして確認することはライセンス上明示的に許可されています(§1.4)。見つかったことの報告も同様です(§4)。
 
 ### 💌 クレジット
 
@@ -634,8 +637,10 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 
 **روش ب — نصب دستی**
 ۱. این ریپازیتوری رو دانلود یا کلون کن
-۲. پوشه‌ی `Editor/UnityDocSnap` رو بریز توی پوشه‌ی `Assets` پروژه‌ت — همراه با زیرپوشه‌ی `Site~` که استایل و اسکریپت و فونت‌های سایت خروجی توشه
-۳. یونیتی خودش کامپایلش می‌کنه؛ نیازی به ری‌استارت نیست
+۲. کل پوشه‌ی `Editor` رو بریز توی پوشه‌ی `Assets` پروژه‌ت — همراه با `Editor/UnityDocSnap/Site~` که استایل و اسکریپت و فونت‌های سایت خروجی توشه
+۳. یونیتی توی ایمپورت بعدی اسمبلی رو برمی‌داره؛ نیازی به ری‌استارت نیست
+
+هر دو روش، ابزار رو به‌صورت یک اسمبلیِ فقط-Editor نصب می‌کنن. هیچ‌وقت وارد بیلد بازی نمی‌شه و به حجم بیلد چیزی اضافه نمی‌کنه.
 
 ### 🚀 نحوه‌ی استفاده
 
@@ -784,13 +789,17 @@ DocSnap پروژه رو مستند می‌کنه؛ یه serializer نیست که
 - [x] حالت تاریک (Dark Mode) برای سایت تولیدشده 🌙
 - [x] خروجی نسخه‌بندی‌شده + بک‌آپ `.unitypackage` از کل پروژه
 
-### 🤝 مشارکت
+### 🤝 بازخورد و گزارش باگ
 
-Issue و Pull Request همیشه خوش‌اومدن.
+‏Issue همیشه خوش‌اومده: [github.com/AmirCollider/UnityDocSnap/issues](https://github.com/AmirCollider/UnityDocSnap/issues). یه گزارش باگ با نسخه‌ی یونیتی و کاری که کردی، از هر چیز دیگه‌ای بیشتر کمک می‌کنه.
+
+گزارش‌های امنیتی مسیر خودشون رو دارن — [SECURITY.md](SECURITY.md) رو ببین.
 
 ### 📜 لایسنس
 
-MIT — جزئیات توی فایل [LICENSE](LICENSE).
+‏Unity DocSnap نرم‌افزار تجاری است. نسخه‌ی رایگان، رایگان است — توی هر پروژه‌ای، تجاری یا غیرتجاری، بدون محدودیت زمانی. نسخه‌های Plus و Pro با کلیدی که می‌خری باز می‌شوند. هر چیزی که این ابزار می‌سازد مال خودت است، بدون هیچ قید و شرطی. متن کامل توی [LICENSE](LICENSE).
+
+**درباره‌ی سورس.** ‏Unity DocSnap قبلاً به‌صورت سورس و با لایسنس MIT منتشر می‌شد — تا تگ `v1.0.3` — و آن اجازه برای همان کپی‌ها همچنان برقرار است. پکیجِ منتشرشده حالا به‌صورت یک اسمبلی کامپایل‌شده‌ی Editor عرضه می‌شود و سورس توی یک ریپازیتوری خصوصی است. دلیلش صریحاً تجاری است: با سورسِ باز، دو نسخه‌ی پولی با سه خط تغییر رایگان می‌شدند و فروختنشان روی این پایه صادقانه نبود. غیر از این چیزی عوض نشده — ابزار همچنان فقط Editor است، همچنان هیچ وابستگی جانبی ندارد، و نسخه‌ی رایگان همچنان به شبکه دست نمی‌زند. اگر می‌خواهی قبل از اجرا خودت مطمئن شوی، دیکامپایل‌کردن اسمبلی برای همین بررسی توی لایسنس صراحتاً مجاز است (بند ۱.۴)، و گزارش‌کردن هر چیزی که پیدا کنی هم همین‌طور (بند ۴).
 
 ### 💌 با تشکر از
 
