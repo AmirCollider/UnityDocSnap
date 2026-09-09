@@ -1,0 +1,53 @@
+name: Bug report
+description: Something Unity DocSnap did wrong
+labels: [bug]
+body:
+  - type: input
+    id: unity
+    attributes:
+      label: Unity version
+      placeholder: "6000.0.30f1"
+    validations:
+      required: true
+
+  - type: input
+    id: docsnap
+    attributes:
+      label: DocSnap version
+      description: Package Manager shows it, and so does the Plan page of any export.
+      placeholder: "1.0.3"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: edition
+    attributes:
+      label: Edition
+      options: [Free, Plus, Pro]
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Editor platform
+      options: [Windows, macOS, Linux]
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: >
+        Anything DocSnap logged. Paste it as text rather than a screenshot so it
+        is searchable by the next person who hits the same thing.
+      render: text

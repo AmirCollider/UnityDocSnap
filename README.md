@@ -5,9 +5,11 @@
 
 <h1 align="center">🧋 Unity DocSnap ✨</h1>
 
-<p align="center"><em>Snap your whole Unity project into a cozy little website.</em></p>
-<p align="center"><em>あなたのUnityプロジェクトを、まるごと可愛いWebサイトに閉じ込めます。</em></p>
-<p align="center"><em>کل پروژه‌ی یونیتی‌ت رو تبدیل کن به یه وب‌سایت کوچولوی دنج.</em></p>
+<p align="center"><b>Your AI has never seen your Unity project. Fix that in one click.</b></p>
+
+<p align="center"><em>Snap your whole Unity project into a cozy little website — and one <code>ai-bundle.md</code> you can paste straight into Claude, Cursor or Copilot.</em></p>
+<p align="center"><em>あなたのUnityプロジェクトを、まるごと可愛いWebサイトに。そして AI にそのまま渡せる <code>ai-bundle.md</code> も。</em></p>
+<p align="center"><em>کل پروژه‌ی یونیتی‌ت رو تبدیل کن به یه وب‌سایت کوچولوی دنج — و یه فایل <code>ai-bundle.md</code> که مستقیم می‌دی به هوش مصنوعی.</em></p>
 
 <p align="center">
   <a href="#english">English</a> ・
@@ -24,6 +26,16 @@
 </p>
 
 <p align="center">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
+
+> **MCP servers need Unity open and running. DocSnap gives you a file.**
+> It works offline, in any tool, in any chat window, on a machine that has never
+> had Unity installed — and it still reads the same six months from now.
+
+**Install** — Unity ▸ Window ▸ Package Manager ▸ **+** ▸ *Add package from git URL*:
+
+```
+https://github.com/AmirCollider/UnityDocSnap.git
+```
 
 <a id="english"></a>
 ## 🧋 English

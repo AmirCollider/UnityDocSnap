@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Buy Plus or Pro
+    url: https://amircollider.com/en/unity-docsnap
+    about: Pricing, the full feature matrix, and the checkout.
+  - name: Licence key, order or refund
+    url: https://amircollider.com/en/contact
+    about: Anything with an order id in it. Faster here than in an issue, and not public.
+  - name: Unity DirectTMP
+    url: https://github.com/AmirCollider/UnityDirectTMP
+    about: The free, MIT sibling - point TextMeshPro at a .ttf, with correct Persian, Arabic and Urdu shaping.

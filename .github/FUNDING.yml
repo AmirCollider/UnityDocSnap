@@ -1,0 +1,5 @@
+# The Plus and Pro editions are what fund this tool. The checkout is on the
+# product page rather than a funding platform, because every payment platform
+# GitHub's `custom` field would otherwise point at needs a card processor this
+# project cannot reach - see Docs/Marketing/08-Money.md in the AmirCollider repo.
+custom: ["https://amircollider.com/en/unity-docsnap"]
