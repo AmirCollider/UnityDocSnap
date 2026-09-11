@@ -14,6 +14,94 @@ All notable changes to Unity DocSnap are documented in this file.
 > Nothing about installing or using the tool changes, and no feature moved
 > between editions.
 
+## [1.0.4] - 2026-09-11
+
+Renaming a folder is one decision, not eighteen. Locking a section is a
+promise this could not previously keep.
+
+### Added
+
+- **Management: your logo, your footer, and locking sections.**
+  `Unity DocSnap ▸ Management` is a new window. It carries the logo that was
+  buried in Project Settings (with a live preview, so you no longer find out
+  whether it worked by exporting), a footer line of your own in each language,
+  and — new — the ability to decide what a client gets to see.
+
+  Two lock modes, and they are different promises rather than two words for
+  one:
+
+  - **Leave out.** The chosen sections are not written into the export at all.
+    No page, no data file, no summary, nothing in the search index and nothing
+    in `ai-bundle.md`. There is nothing in the folder to find and no password
+    to lose. This is the default.
+  - **Encrypt.** The sections travel inside the export as ciphertext and a
+    password opens them in the reader's browser. PBKDF2-HMAC-SHA256 at 200,000
+    iterations, AES-256-CBC, HMAC-SHA256 checked before decryption. The
+    password is typed in the Editor, stored per-user outside version control,
+    and written into an export in no form whatsoever. Nobody can recover it —
+    including us, by construction. That is what makes the lock a lock rather
+    than a hidden element.
+
+  Both work with no network at all, like everything else here.
+
+- **A Management page in the export.** Written only when something is locked.
+  It says which sections are missing and why, and takes the password when the
+  lock is the encrypting kind. Somebody handed a folder with a section missing
+  should be able to tell "that was deliberate" from "this is broken", and
+  without this page those look identical.
+
+- **Brand files.** A studio's logo and footer belong to the studio, not to one
+  project. Set them up once in the panel at amircollider.com, download a small
+  file, and import it in each project: the same gesture as bringing in a
+  licence key. Unity still makes no network call — a person carries the file
+  across, which is why the offline promise survives the convenience.
+
+- **A way back out of an embedded export.** An export opened with
+  `?home=https://example.com` shows a "back" link at the top of its sidebar.
+  With no such parameter nothing changes, so an offline export is exactly what
+  it was.
+
+### Fixed
+
+- **Renaming a folder was reported as its entire contents deleted.** The
+  Changes page diffed two snapshots by path, which is the only key a file
+  inventory naturally has and is exactly wrong for the edit people make most
+  often: moving nine assets into a renamed folder produced nine deletions and
+  nine creations. Every row was true and the page was useless, and the reading
+  a reader is most likely to act on — "everything in that folder is gone" — was
+  the one that was wrong.
+
+  Files are now matched by Unity's asset GUID first and by their contents
+  second, and a move where every file under one folder is now under another,
+  under the same names, prints as one row. The content hash was already
+  recorded, so this works against snapshots taken by earlier versions: no
+  re-export needed to see your existing history correctly.
+
+- **The changes lists swallowed the mouse wheel.** Each list was a 440-pixel
+  box with `overscroll-behavior: contain`, which means exactly what it says:
+  the wheel stops there and never reaches the page. A list shorter than the
+  box — nine changed files, the common case — still captured the wheel and had
+  nowhere to go, so the page simply did not move. A longer one scrolled to its
+  own end and then froze. There is one scroll on the page now, which is what a
+  document is supposed to have; only a list long enough to bury everything
+  below it gets a cap, with a button to take it off.
+
+- **The health page contradicted itself.** The counts on the tiles were
+  whatever the exporter had rendered into them and were never recounted, while
+  the list below obeyed the filters. So switching to the Unity / packages tab
+  showed eight broken references under a tile reading "0 broken references",
+  and there was no reading of that page that was not a contradiction. Every
+  number is now recounted on every change and means one thing: how many rows
+  you would see if you clicked it.
+
+  Also: a tile that can only produce an empty list is no longer clickable; the
+  empty state names the filter that emptied it and offers to undo it — "no
+  broken references in your files, but 8 in Unity / packages" with a button to
+  go there; an unrecognised `?kind=` in a link is ignored rather than filtering
+  everything away; and the sidebar's health badge counts your own findings, so
+  it agrees with the tab the page opens on instead of quietly disagreeing by
+  eight.
+
 ## [1.0.3] - 2026-08-13
 
 The summaries named every label in the game and quoted none of them.
