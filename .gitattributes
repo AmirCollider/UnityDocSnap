@@ -1,0 +1,44 @@
+# Text files are normalised to LF in the repository and checked out
+# with the platform's own endings. Without this, a package edited on
+# Windows and on macOS produces diffs that are entirely line endings.
+* text=auto eol=lf
+
+# Unity's own text formats, named explicitly so a merge tool never
+# guesses "binary" at one of them.
+*.cs        text diff=csharp
+*.meta      text
+*.asmdef    text
+*.json      text
+*.md        text
+*.yml       text
+*.py        text diff=python
+*.sh        text eol=lf
+*.xml       text
+*.uss       text
+*.uxml      text
+
+# The generated site's own sources. They live in Site~/ and are read
+# from disk at export time rather than compiled in, so they are
+# ordinary text files that want ordinary text diffs.
+*.css       text
+*.js        text
+*.svg       text
+*.html      text
+
+# Fonts, images and anything Unity serializes as binary.
+*.ttf       binary
+*.otf       binary
+*.ttc       binary
+*.png       binary
+*.jpg       binary
+*.psd       binary
+*.dll       binary
+*.unitypackage binary
+
+# ==========================================
+# The shipped assembly.
+#
+# Marked binary above with the rest of the *.dll rule, and worth
+# saying out loud here: this is the one repository where a
+# committed DLL is the point rather than an accident.
+# ==========================================
