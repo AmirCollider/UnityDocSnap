@@ -14,6 +14,59 @@ All notable changes to Unity DocSnap are documented in this file.
 > Nothing about installing or using the tool changes, and no feature moved
 > between editions.
 
+## [1.0.5] - 2026-09-16
+
+An export was unreadable on a phone. It is not any more.
+
+### Fixed
+
+- **The generated site is usable on a phone.** Two rules in the exported
+  stylesheet combined into a page a phone reader could not get past, and on a
+  real project they were much worse than on a small demo:
+
+  - The navigation lists had their height cap lifted below 860px. Everywhere
+    else those lists are capped so the sidebar footer does not end up a screen
+    away; in the phone layout the sidebar sits *above* the content, so an
+    uncapped nav meant landing on several screens of file tree with the page
+    you wanted somewhere underneath it.
+  - Collapsing the sidebar was switched off at the same width. The collapse
+    button is in the sidebar's own brand row, so on a phone it is the first
+    thing on the page and perfectly reachable — it simply did nothing, because
+    the rule forced the sidebar visible even when the class said collapsed. A
+    control that is right there and silently does nothing is worse than one
+    that is missing. The line beside it disabled the floating reopen button
+    too, so there was no second way in.
+
+  The cap is back (the nav gets at most 42% of the viewport, and the content
+  starts within a swipe), collapsing means collapsing at every width, and the
+  reopen button is a 44px touch target on a phone instead of the desktop's
+  32px.
+
+- **A narrow viewport opens on the content, not on the file tree.** With no
+  stored preference, an export now starts with the sidebar collapsed below
+  860px — the same width the stylesheet switches to the column layout at — and
+  expanded above it. A preference you actually set still wins at every width,
+  and the viewport-derived default is deliberately *not* written to storage: a
+  desktop reader who drags a window narrow once should not find the navigation
+  closed forever afterwards.
+
+Both changes are in the exported site's own `style.css` and `app.js`. An export
+written by an earlier version keeps its old behaviour until it is exported
+again — there is nothing to migrate and no setting to change.
+
+### Housekeeping
+
+- `.gitignore` and `.gitattributes` were missing from the repository, which
+  `validate_package.py` has been failing on. Added, so CI is green on a clean
+  checkout again.
+- The recursive-delete allowlist in `validate_package.py` counted five call
+  sites; 1.0.4 added a sixth when a locked Changes section started taking
+  `changes-files/` with it. The check now expects six and names why, so it goes
+  back to catching a *new* one rather than failing on a known one.
+- `Build~/public-template/` was missing, which made `make_release_package.py`
+  fail before it assembled anything. Restored, so the public package can be
+  built from this repository again.
+
 ## [1.0.4] - 2026-09-11
 
 Renaming a folder is one decision, not eighteen. Locking a section is a
