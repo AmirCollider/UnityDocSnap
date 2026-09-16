@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================
+  # Release validation.
+  #
+  # This repository holds the RELEASED package: one compiled
+  # Editor assembly, the site assets it reads at export time,
+  # and the package metadata. There are no .cs files here by
+  # design, so the source repository's own validator has
+  # nothing to walk and is deliberately not used.
+  #
+  # Everything below is checkable from the shipped bytes with
+  # no Unity licence and no secrets, which means a fork and a
+  # pull request get the same answer the maintainer does.
+  # ==========================================
+  validate:
+    name: Validate released package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate
+        run: python3 .github/scripts/validate_release.py
