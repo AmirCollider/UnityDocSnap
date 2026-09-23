@@ -23,10 +23,21 @@
   <img alt="kawaii level" src="https://img.shields.io/badge/kawaii-100%25-ffb6c1?style=flat-square">
 </p>
 
+<p align="center">
+  <a href="https://amircollider.com/en/unity-docsnap"><b>🌐 Product page</b></a> ・
+  <a href="https://amircollider.com/unity-docsnap"><b>🌐 صفحه‌ی ابزار</b></a> ・
+  <a href="https://amircollider.com/ja/unity-docsnap"><b>🌐 製品ページ</b></a> ・
+  <a href="https://amircollider.com/en/videos"><b>🎬 Video tutorials · آموزش ویدیویی · 動画</b></a>
+</p>
+
+<p align="center"><em>Unity project documentation generator · AI export for ChatGPT / Claude · ابزار مستندسازی یونیتی و خروجی AI · Unity ドキュメント自動生成</em></p>
+
 <p align="center">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
 
 <a id="english"></a>
 ## 🧋 English
+
+**Unity DocSnap is a Unity project documentation generator** with an AI export (Plus edition) for ChatGPT, Claude and Gemini. [Product page and video tutorials](https://amircollider.com/en/unity-docsnap)
 
 Ever open a project after two weeks away and have absolutely no idea what's inside your own Hierarchy anymore? **Unity DocSnap** remembers so you don't have to.
 
@@ -321,6 +332,8 @@ If Unity DocSnap saves you some digging around later, a ⭐ on the repo goes a l
 <a id="japanese"></a>
 ## 🍰 日本語
 
+**Unity DocSnap は Unity プロジェクトのドキュメントを自動生成するエディタ拡張です。** Plus 版では ChatGPT・Claude に渡せる AI 向け出力にも対応しています。[製品ページと動画](https://amircollider.com/ja/unity-docsnap)
+
 2週間ぶりにプロジェクトを開いて、自分のHierarchyの中身を全部忘れてしまったこと、ありませんか?**Unity DocSnap** が代わりに覚えていてくれます。
 
 これはエディタ拡張機能で、プロジェクト内のすべてのSceneを歩き回り——すべてのGameObject、すべてのComponent、すべてのフィールド、すべての参照——そしてすべてのAssetのインポート設定までをまるごとスナップショットして、ブラウザでそのまま開けるきれいなオフラインHTMLサイトに焼き上げます。サーバーもビルドも不要、ダブルクリックで開くだけです。「自分が何を作ったか思い出せない人」のためにも、「40枚のスクリーンショットではなく1つの整理された情報が欲しいAIアシスタント」のためにも作られました。🍰
@@ -565,6 +578,9 @@ Unity DocSnapが後々の手間を減らしてくれたなら、リポジトリ�
 <div dir="rtl" align="right">
 
 ## ⭐ فارسی
+
+**Unity DocSnap ابزار مستندسازی خودکار پروژه‌ی یونیتی است** — و در نسخه‌ی Plus خروجی AI هم می‌دهد: کل پروژه را در یک
+فایل (`ai-bundle.md`) برای ChatGPT، Claude یا Gemini آماده می‌کند. [صفحه‌ی ابزار و ویدیوهای آموزشی فارسی](https://amircollider.com/unity-docsnap)
 
 تا حالا شده بعد از دو هفته پروژه رو باز کنی و اصلاً یادت نیاد توی Hierarchy خودت چی ریخته بودی؟ **Unity DocSnap** جاش یادش می‌مونه.
 
