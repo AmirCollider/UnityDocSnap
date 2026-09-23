@@ -27,10 +27,10 @@
   <a href="https://amircollider.com/en/unity-docsnap"><b>🌐 Product page</b></a> ・
   <a href="https://amircollider.com/unity-docsnap"><b>🌐 صفحه‌ی ابزار</b></a> ・
   <a href="https://amircollider.com/ja/unity-docsnap"><b>🌐 製品ページ</b></a> ・
-  <a href="https://amircollider.com/en/videos"><b>🎬 Video tutorials · آموزش ویدیویی · 動画</b></a>
+  <a href="https://amircollider.com/en/videos"><b>🎬 Video tutorials</b></a>
 </p>
 
-<p align="center"><em>Unity project documentation generator · AI export for ChatGPT / Claude · ابزار مستندسازی یونیتی و خروجی AI · Unity ドキュメント自動生成</em></p>
+<p align="center"><em>Unity project documentation generator · AI-ready project export for ChatGPT, Claude and Gemini</em></p>
 
 <p align="center">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</p>
 
